@@ -46,6 +46,16 @@ export const StudentRegistration = ({ schools, guardians, onBack, onSave, editin
     }
   }, [editingStudent]);
 
+  // Auto-update email when guardian is selected
+  useEffect(() => {
+    if (formData.guardianId) {
+      const selectedGuardian = guardians.find(guardian => guardian.id === formData.guardianId);
+      if (selectedGuardian) {
+        setFormData(prev => ({ ...prev, guardianEmail: selectedGuardian.email }));
+      }
+    }
+  }, [formData.guardianId, guardians]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.name && formData.address && formData.schoolId && formData.guardianId) {
