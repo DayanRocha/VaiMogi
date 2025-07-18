@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, UserCheck, Mail } from 'lucide-react';
+import { ArrowLeft, UserCheck, Mail, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,21 +8,23 @@ import { Guardian } from '@/types/driver';
 
 interface GuardianRegistrationProps {
   onBack: () => void;
-  onSave: (guardianData: { name: string; email: string }) => void;
+  onSave: (guardianData: { name: string; email: string; phone: string }) => void;
   editingGuardian?: Guardian;
 }
 
 export const GuardianRegistration = ({ onBack, onSave, editingGuardian }: GuardianRegistrationProps) => {
   const [formData, setFormData] = useState({
     name: '',
-    email: ''
+    email: '',
+    phone: ''
   });
 
   useEffect(() => {
     if (editingGuardian) {
       setFormData({
         name: editingGuardian.name,
-        email: editingGuardian.email
+        email: editingGuardian.email,
+        phone: editingGuardian.phone || ''
       });
     }
   }, [editingGuardian]);
@@ -33,7 +35,7 @@ export const GuardianRegistration = ({ onBack, onSave, editingGuardian }: Guardi
       onSave(formData);
       if (!editingGuardian) {
         // Reset form after save only for new guardians
-        setFormData({ name: '', email: '' });
+        setFormData({ name: '', email: '', phone: '' });
       }
     }
   };
@@ -89,6 +91,22 @@ export const GuardianRegistration = ({ onBack, onSave, editingGuardian }: Guardi
               onChange={(e) => handleChange('email', e.target.value)}
               placeholder="Digite o email do responsável"
               required
+              className="w-full"
+            />
+          </div>
+
+          {/* Telefone */}
+          <div className="space-y-2">
+            <Label htmlFor="phone" className="flex items-center gap-2 text-gray-700">
+              <Phone className="w-4 h-4" />
+              Telefone
+            </Label>
+            <Input
+              id="phone"
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => handleChange('phone', e.target.value)}
+              placeholder="(11) 99999-9999"
               className="w-full"
             />
           </div>

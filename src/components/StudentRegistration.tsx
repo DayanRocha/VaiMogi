@@ -46,12 +46,16 @@ export const StudentRegistration = ({ schools, guardians, onBack, onSave, editin
     }
   }, [editingStudent]);
 
-  // Auto-update email when guardian is selected
+  // Auto-update email and phone when guardian is selected
   useEffect(() => {
     if (formData.guardianId) {
       const selectedGuardian = guardians.find(guardian => guardian.id === formData.guardianId);
       if (selectedGuardian) {
-        setFormData(prev => ({ ...prev, guardianEmail: selectedGuardian.email }));
+        setFormData(prev => ({ 
+          ...prev, 
+          guardianEmail: selectedGuardian.email,
+          guardianPhone: selectedGuardian.phone || ''
+        }));
       }
     }
   }, [formData.guardianId, guardians]);
