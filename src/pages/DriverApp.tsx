@@ -251,7 +251,7 @@ export default function DriverApp() {
     addToNavigationStack('student-form');
   };
 
-  const handleSaveGuardian = (guardianData: { name: string; email: string }) => {
+  const handleSaveGuardian = (guardianData: { name: string; email: string; phone: string }) => {
     if (editingGuardian) {
       updateGuardian(editingGuardian.id, guardianData);
       setEditingGuardian(null);

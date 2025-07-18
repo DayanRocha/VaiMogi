@@ -24,17 +24,20 @@ const mockGuardians: Guardian[] = [
   {
     id: 'g1',
     name: 'Maria Silva',
-    email: 'maria.silva@email.com'
+    email: 'maria.silva@email.com',
+    phone: '(11) 98765-4321'
   },
   {
     id: 'g2',
     name: 'José Santos',
-    email: 'jose.santos@email.com'
+    email: 'jose.santos@email.com',
+    phone: '(11) 97654-3210'
   },
   {
     id: 'g3',
     name: 'Ana Oliveira',
-    email: 'ana.oliveira@email.com'
+    email: 'ana.oliveira@email.com',
+    phone: '(11) 96543-2109'
   }
 ];
 
@@ -163,20 +166,21 @@ export const useDriverData = () => {
     console.log(`📚 Aluno atualizado: ${studentData.name}`);
   };
 
-  const addGuardian = (guardianData: { name: string; email: string }) => {
+  const addGuardian = (guardianData: { name: string; email: string; phone: string }) => {
     const newGuardian: Guardian = {
       id: Date.now().toString(),
       name: guardianData.name,
-      email: guardianData.email
+      email: guardianData.email,
+      phone: guardianData.phone
     };
     setGuardians(prev => [...prev, newGuardian]);
     console.log(`👤 Novo responsável cadastrado: ${guardianData.name}`);
   };
 
-  const updateGuardian = (guardianId: string, guardianData: { name: string; email: string }) => {
+  const updateGuardian = (guardianId: string, guardianData: { name: string; email: string; phone: string }) => {
     setGuardians(prev => prev.map(guardian => 
       guardian.id === guardianId 
-        ? { ...guardian, name: guardianData.name, email: guardianData.email }
+        ? { ...guardian, name: guardianData.name, email: guardianData.email, phone: guardianData.phone }
         : guardian
     ));
     console.log(`👤 Responsável atualizado: ${guardianData.name}`);
