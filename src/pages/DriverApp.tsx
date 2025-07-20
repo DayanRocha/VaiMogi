@@ -11,6 +11,9 @@ import { RoutesListPage } from '@/components/RoutesListPage';
 import { RouteFormPage } from '@/components/RouteFormPage';
 import { RouteSetupPage } from '@/components/RouteSetupPage';
 import { RouteExecutionPage } from '@/components/RouteExecutionPage';
+import { RouteMountingPage } from '@/components/RouteMountingPage';
+import { SavedRoutesList } from '@/components/SavedRoutesList';
+import { RouteExecutionScreen } from '@/components/RouteExecutionScreen';
 import { StudentsList } from '@/components/StudentsList';
 import { StudentRegistration } from '@/components/StudentRegistration';
 import { GuardiansList } from '@/components/GuardiansList';
@@ -25,7 +28,7 @@ import { useDriverData } from '@/hooks/useDriverData';
 import { Route, Student, Guardian, School as SchoolType } from '@/types/driver';
 
 export default function DriverApp() {
-  const navigate = useNavigate();
+  // const navigate = useNavigate(); // Removido temporariamente pois não está sendo usado
   const [activeTab, setActiveTab] = useState('home');
   const [navigationStack, setNavigationStack] = useState<string[]>(['home']);
   const [showRouteForm, setShowRouteForm] = useState(false);
@@ -40,13 +43,17 @@ export default function DriverApp() {
   const [showClients, setShowClients] = useState(false);
   const [showDrivers, setShowDrivers] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [activeTopButton, setActiveTopButton] = useState<'clients' | 'drivers' | 'settings' | null>(null);
+  const [activeTopButton, setActiveTopButton] = useState<'clients' | 'drivers' | 'settings' | 'trip' | null>(null);
 
   const [showRoutesListPage, setShowRoutesListPage] = useState(false);
   const [showRouteFormPage, setShowRouteFormPage] = useState(false);
   const [showRouteSetupPage, setShowRouteSetupPage] = useState(false);
   const [showRouteExecutionPage, setShowRouteExecutionPage] = useState(false);
+  const [showRouteMountingPage, setShowRouteMountingPage] = useState(false);
+  const [showSavedRoutesList, setShowSavedRoutesList] = useState(false);
+  const [showRouteExecutionScreen, setShowRouteExecutionScreen] = useState(false);
   const [executingRoute, setExecutingRoute] = useState<Route | null>(null);
+  const [newRouteData, setNewRouteData] = useState<{ name: string; time: string; selectedDays: string[] } | null>(null);
 
   const addToNavigationStack = (screen: string) => {
     setNavigationStack(prev => [...prev, screen]);
@@ -58,9 +65,9 @@ export default function DriverApp() {
     if (navigationStack.length > 1) {
       const newStack = navigationStack.slice(0, -1);
       const previousScreen = newStack[newStack.length - 1];
-      
+
       setNavigationStack(newStack);
-      
+
       // Reset all states first
       setShowStudentForm(false);
       setShowGuardianForm(false);
@@ -71,11 +78,13 @@ export default function DriverApp() {
       setShowRouteFormPage(false);
       setShowRouteSetupPage(false);
       setShowRouteExecutionPage(false);
+      setShowRouteMountingPage(false);
       setEditingStudent(null);
       setEditingGuardian(null);
       setEditingSchool(null);
       setEditingRoute(null);
       setExecutingRoute(null);
+      setNewRouteData(null);
       setShowClients(false);
       setShowDrivers(false);
       setShowSettings(false);
@@ -107,9 +116,9 @@ export default function DriverApp() {
     const handlePopState = () => {
       handleBackNavigation();
     };
-    
+
     window.addEventListener('popstate', handlePopState);
-    
+
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
@@ -150,11 +159,15 @@ export default function DriverApp() {
     setShowRouteFormPage(false);
     setShowRouteSetupPage(false);
     setShowRouteExecutionPage(false);
+    setShowRouteMountingPage(false);
+    setShowSavedRoutesList(false);
+    setShowRouteExecutionScreen(false);
     setEditingStudent(null);
     setEditingGuardian(null);
     setEditingSchool(null);
     setEditingRoute(null);
     setExecutingRoute(null);
+    setNewRouteData(null);
     setShowClients(false);
     setShowDrivers(false);
     setShowSettings(false);
@@ -197,7 +210,10 @@ export default function DriverApp() {
 
   const handleDriversClick = () => {
     addToNavigationStack('drivers');
-    navigateToScreen('drivers');
+    setShowDrivers(true);
+    setActiveTopButton('drivers');
+    setShowClients(false);
+    setShowSettings(false);
   };
 
   const handleSettingsClick = () => {
@@ -320,6 +336,40 @@ export default function DriverApp() {
   };
 
   const renderContent = () => {
+    if (showRouteExecutionScreen && executingRoute) {
+      return (
+        <RouteExecutionScreen
+          route={executingRoute}
+          students={students}
+          schools={schools}
+          onBack={() => {
+            setShowRouteExecutionScreen(false);
+            setExecutingRoute(null);
+            handleBackNavigation();
+          }}
+          onSaveChanges={(routeItems) => {
+            // Atualizar a rota com os novos itens
+            const updatedRoute = {
+              ...executingRoute,
+              students: routeItems
+                .filter(item => item.type === 'student')
+                .map(item => item.studentData!)
+            };
+            updateRoute(executingRoute.id, updatedRoute);
+            console.log('Mudanças salvas na rota:', updatedRoute);
+          }}
+          onStartRoute={() => {
+            // Iniciar a execução da rota
+            startTrip(executingRoute.id);
+            setShowRouteExecutionScreen(false);
+            setExecutingRoute(null);
+            setActiveTab('trip');
+            console.log('Rota iniciada:', executingRoute.name);
+          }}
+        />
+      );
+    }
+
     if (showRouteExecutionPage) {
       return (
         <RouteExecutionPage
@@ -334,13 +384,62 @@ export default function DriverApp() {
       );
     }
 
+    if (showRouteMountingPage && newRouteData) {
+      return (
+        <RouteMountingPage
+          routeName={newRouteData.name}
+          students={students}
+          schools={schools}
+          onBack={() => {
+            setShowRouteMountingPage(false);
+            setShowRoutesListPage(true);
+            setNewRouteData(null);
+            handleBackNavigation();
+          }}
+          onSaveRoute={(routeItems) => {
+            // Criar a rota completa com os itens selecionados
+            const newRoute = {
+              name: newRouteData.name,
+              startTime: newRouteData.time,
+              weekDays: newRouteData.selectedDays,
+              students: routeItems
+                .filter(item => item.type === 'student')
+                .map(item => item.studentData!)
+            };
+
+            addRoute(newRoute);
+            setShowRouteMountingPage(false);
+            setNewRouteData(null);
+            // Voltar para a lista de rotas salvas
+            setActiveTab('routes');
+            console.log('Rota cadastrada com sucesso!', newRoute);
+          }}
+        />
+      );
+    }
+
     if (showRoutesListPage) {
       return (
         <RoutesListPage
           onBack={handleRoutesListBack}
           onCreateRoute={handleCreateRoute}
-          onActiveRoutes={() => {}}
-          onRouteHistory={() => {}}
+          onActiveRoutes={() => {
+            if (activeTrip) {
+              setShowRoutesListPage(false);
+              setActiveTab('trip');
+              addToNavigationStack('trip');
+            } else {
+              // Mostrar mensagem quando não há viagens ativas
+              alert('Nenhuma viagem ativa no momento. Inicie uma rota para começar.');
+            }
+          }}
+          onRouteHistory={() => { }}
+          onRouteCreated={(routeData) => {
+            setNewRouteData(routeData);
+            setShowRoutesListPage(false);
+            setShowRouteMountingPage(true);
+            addToNavigationStack('route-mounting');
+          }}
         />
       );
     }
@@ -359,8 +458,8 @@ export default function DriverApp() {
         <RouteSetupPage
           onBack={handleRouteSetupBack}
           onSave={handleRouteSetupSave}
-          onAddStudent={() => {}}
-          onAddSchool={() => {}}
+          onAddStudent={() => { }}
+          onAddSchool={() => { }}
           students={students}
           schools={schools}
         />
@@ -369,39 +468,74 @@ export default function DriverApp() {
 
     if (showClients) {
       return (
-        <ClientsPage 
-          onTabChange={handleTabChange} 
+        <ClientsPage
+          onTabChange={handleTabChange}
           onBack={handleBackToHome}
           onClientsClick={handleClientsClick}
           onDriversClick={handleDriversClick}
           onSettingsClick={handleSettingsClick}
+          onTripClick={() => {
+            if (activeTrip) {
+              setActiveTab('trip');
+              setShowClients(false);
+              addToNavigationStack('trip');
+            } else {
+              alert('Nenhuma viagem ativa no momento.');
+            }
+          }}
           activeTopButton={activeTopButton}
+          hasActiveTrip={!!activeTrip}
         />
       );
     }
 
     if (showDrivers) {
       return (
-        <DriversPage 
-          onTabChange={handleTabChange} 
+        <DriversPage
+          onTabChange={handleTabChange}
           onBack={handleBackToHome}
           onClientsClick={handleClientsClick}
           onDriversClick={handleDriversClick}
           onSettingsClick={handleSettingsClick}
+          onTripClick={() => {
+            if (activeTrip) {
+              setActiveTab('trip');
+              setShowDrivers(false);
+              addToNavigationStack('trip');
+            } else {
+              alert('Nenhuma viagem ativa no momento.');
+            }
+          }}
+          onRoutesClick={() => {
+            setActiveTab('routes');
+            setShowDrivers(false);
+            addToNavigationStack('routes');
+          }}
           activeTopButton={activeTopButton}
+          hasActiveTrip={!!activeTrip}
         />
       );
     }
 
     if (showSettings) {
       return (
-        <SettingsPage 
-          onTabChange={handleTabChange} 
+        <SettingsPage
+          onTabChange={handleTabChange}
           onBack={handleBackToHome}
           onClientsClick={handleClientsClick}
           onDriversClick={handleDriversClick}
           onSettingsClick={handleSettingsClick}
+          onTripClick={() => {
+            if (activeTrip) {
+              setActiveTab('trip');
+              setShowSettings(false);
+              addToNavigationStack('trip');
+            } else {
+              alert('Nenhuma viagem ativa no momento.');
+            }
+          }}
           activeTopButton={activeTopButton}
+          hasActiveTrip={!!activeTrip}
         />
       );
     }
@@ -409,23 +543,38 @@ export default function DriverApp() {
     switch (activeTab) {
       case 'home':
         return (
-          <ClientsPage 
-            onTabChange={handleTabChange} 
+          <ClientsPage
+            onTabChange={handleTabChange}
             onBack={handleBackToHome}
-            onClientsClick={handleClientsClick} 
+            onClientsClick={handleClientsClick}
             onDriversClick={handleDriversClick}
             onSettingsClick={handleSettingsClick}
+            onTripClick={() => {
+              if (activeTrip) {
+                setActiveTab('trip');
+                addToNavigationStack('trip');
+              } else {
+                alert('Nenhuma viagem ativa no momento.');
+              }
+            }}
             activeTopButton={activeTopButton}
+            hasActiveTrip={!!activeTrip}
           />
         );
-        
+
       case 'profile':
         return <DriverProfile driver={driver} onUpdate={updateDriver} onBack={handleBackNavigation} />;
-        
+
       case 'van':
         return <VanRegistration van={van} onUpdate={updateVan} onBack={handleBackNavigation} />;
-        
+
       case 'routes':
+        // Resetar estados quando navegar para a aba rotas
+        if (showRoutesListPage || showRouteFormPage || showRouteSetupPage || showRouteMountingPage || showRouteExecutionScreen) {
+          // Se algum sub-estado estiver ativo, renderizar a tela correspondente
+          // mas isso será tratado no renderContent() antes do switch
+        }
+
         if (showRouteForm || editingRoute) {
           return (
             <RouteRegistration
@@ -442,31 +591,29 @@ export default function DriverApp() {
             />
           );
         }
+
+        // Por padrão, sempre mostrar a lista de rotas salvas
         return (
-          <div>
-            <RoutesList
-              routes={routes}
-              onEdit={handleEditRoute}
-              onStart={startTrip}
-              onDelete={deleteRoute}
-              hasActiveTrip={!!activeTrip}
-              onBack={handleBackNavigation}
-              onExecuteRoute={handleExecuteRoute}
-            />
-            <div className="fixed bottom-4 right-4">
-              <button
-                onClick={() => {
-                  setShowRouteForm(true);
-                  addToNavigationStack('route-form');
-                }}
-                className="w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-colors"
-              >
-                <span className="text-2xl">+</span>
-              </button>
-            </div>
-          </div>
+          <SavedRoutesList
+            routes={routes}
+            onAddRoute={() => {
+              setShowRoutesListPage(true);
+              addToNavigationStack('routes-list');
+            }}
+            onExecuteRoute={(route) => {
+              setExecutingRoute(route);
+              setShowRouteExecutionScreen(true);
+              addToNavigationStack('route-execution-screen');
+            }}
+            onEditRoute={(route) => {
+              setEditingRoute(route);
+              setShowRouteForm(true);
+              addToNavigationStack('route-edit');
+            }}
+            onBack={handleBackNavigation}
+          />
         );
-        
+
       case 'students':
         if (showStudentForm) {
           return (
@@ -484,9 +631,9 @@ export default function DriverApp() {
           );
         }
         return (
-          <StudentsList 
-            students={students} 
-            schools={schools} 
+          <StudentsList
+            students={students}
+            schools={schools}
             onBack={handleBackNavigation}
             onAddStudent={() => {
               setShowStudentForm(true);
@@ -495,7 +642,7 @@ export default function DriverApp() {
             onEditStudent={handleEditStudent}
           />
         );
-        
+
       case 'guardians':
         if (showGuardianForm) {
           return (
@@ -511,8 +658,8 @@ export default function DriverApp() {
           );
         }
         return (
-          <GuardiansList 
-            guardians={guardians} 
+          <GuardiansList
+            guardians={guardians}
             onBack={handleBackNavigation}
             onAddGuardian={() => {
               setShowGuardianForm(true);
@@ -521,7 +668,7 @@ export default function DriverApp() {
             onEditGuardian={handleEditGuardian}
           />
         );
-        
+
       case 'guardian-codes':
         return (
           <GuardianCodesManager
@@ -530,7 +677,7 @@ export default function DriverApp() {
             onUpdateGuardian={updateGuardian}
           />
         );
-        
+
       case 'guardian-status':
         return (
           <GuardianStatusManager
@@ -539,7 +686,7 @@ export default function DriverApp() {
             onUpdateGuardian={updateGuardian}
           />
         );
-        
+
       case 'schools':
         if (showSchoolForm) {
           return (
@@ -555,8 +702,8 @@ export default function DriverApp() {
           );
         }
         return (
-          <SchoolsList 
-            schools={schools} 
+          <SchoolsList
+            schools={schools}
             onBack={handleBackNavigation}
             onAddSchool={() => {
               setShowSchoolForm(true);
@@ -565,7 +712,7 @@ export default function DriverApp() {
             onEditSchool={handleEditSchool}
           />
         );
-        
+
       case 'trip':
         return (
           <ActiveTrip
@@ -573,20 +720,33 @@ export default function DriverApp() {
             students={students}
             schools={schools}
             onUpdateStudentStatus={updateStudentStatus}
-            onFinishTrip={finishTrip}
+            onFinishTrip={() => {
+              finishTrip();
+              setActiveTab('routes');
+              console.log('Viagem encerrada, redirecionando para Suas Rotas');
+            }}
             onBack={handleBackNavigation}
           />
         );
-        
+
       default:
         return (
-          <ClientsPage 
-            onTabChange={handleTabChange} 
+          <ClientsPage
+            onTabChange={handleTabChange}
             onBack={handleBackToHome}
-            onClientsClick={handleClientsClick} 
+            onClientsClick={handleClientsClick}
             onDriversClick={handleDriversClick}
             onSettingsClick={handleSettingsClick}
+            onTripClick={() => {
+              if (activeTrip) {
+                setActiveTab('trip');
+                addToNavigationStack('trip');
+              } else {
+                alert('Nenhuma viagem ativa no momento.');
+              }
+            }}
             activeTopButton={activeTopButton}
+            hasActiveTrip={!!activeTrip}
           />
         );
     }
@@ -594,14 +754,7 @@ export default function DriverApp() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="pb-20">
-        {renderContent()}
-      </div>
-      <BottomNavigation 
-        activeTab={activeTab} 
-        onTabChange={handleTabChange} 
-        hasActiveTrip={!!activeTrip}
-      />
+      {renderContent()}
     </div>
   );
 }

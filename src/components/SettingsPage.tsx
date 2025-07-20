@@ -8,7 +8,9 @@ interface SettingsPageProps {
   onClientsClick?: () => void;
   onDriversClick?: () => void;
   onSettingsClick?: () => void;
-  activeTopButton?: 'clients' | 'drivers' | 'settings' | null;
+  onTripClick?: () => void;
+  activeTopButton?: 'clients' | 'drivers' | 'settings' | 'trip' | null;
+  hasActiveTrip?: boolean;
 }
 
 export const SettingsPage = ({ 
@@ -17,7 +19,9 @@ export const SettingsPage = ({
   onClientsClick, 
   onDriversClick, 
   onSettingsClick,
-  activeTopButton 
+  onTripClick,
+  activeTopButton,
+  hasActiveTrip 
 }: SettingsPageProps) => {
   const screens = [
     {
@@ -48,7 +52,7 @@ export const SettingsPage = ({
       </div>
 
       {/* Top Icons - Always visible */}
-      <div className="flex justify-center gap-8 px-4 mb-8">
+      <div className="flex justify-center gap-6 px-4 mb-8">
         <button 
           className={`w-16 h-16 rounded-xl flex items-center justify-center hover:bg-white/30 transition-colors ${
             activeTopButton === 'clients' ? 'bg-white/40 shadow-lg' : 'bg-white/20'
@@ -64,6 +68,19 @@ export const SettingsPage = ({
           onClick={onDriversClick}
         >
           <Truck className="w-8 h-8 text-white" />
+        </button>
+        <button 
+          className={`w-16 h-16 rounded-xl flex items-center justify-center hover:bg-white/30 transition-colors relative ${
+            activeTopButton === 'trip' ? 'bg-white/40 shadow-lg' : 'bg-white/20'
+          }`}
+          onClick={onTripClick}
+        >
+          <Navigation className="w-8 h-8 text-white" />
+          {hasActiveTrip && (
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+              <div className="w-2 h-2 bg-white rounded-full"></div>
+            </div>
+          )}
         </button>
         <button 
           className={`w-16 h-16 rounded-xl flex items-center justify-center hover:bg-white/30 transition-colors ${

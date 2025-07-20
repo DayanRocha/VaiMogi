@@ -1,40 +1,77 @@
 
 import { useState } from 'react';
-import { ArrowLeft, Plus, Play, Clock } from 'lucide-react';
+import { ArrowLeft, Plus, Play, Calendar, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface RoutesListPageProps {
   onBack: () => void;
   onCreateRoute: () => void;
   onActiveRoutes: () => void;
   onRouteHistory: () => void;
+  onRouteCreated: (routeData: { name: string; time: string; selectedDays: string[] }) => void;
 }
 
-export const RoutesListPage = ({ 
-  onBack, 
-  onCreateRoute, 
-  onActiveRoutes, 
-  onRouteHistory 
+export const RoutesListPage = ({
+  onBack,
+  onCreateRoute,
+  onActiveRoutes,
+  onRouteHistory,
+  onRouteCreated
 }: RoutesListPageProps) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    time: '',
+    selectedDays: [] as string[]
+  });
 
-  const mockRoutes = [
-    {
-      id: '4318',
-      name: 'Rota da Manhã',
-      van: 'Tia Be',
-      time: '06:00',
-      days: 'Seg, Ter, Qua, Qui, Sex'
-    },
-    {
-      id: '5078',
-      name: 'Rota da Manhã',
-      van: 'Tia Be',
-      time: '06:00',
-      days: 'Seg, Ter, Qua, Qui, Sex'
-    }
+  const weekDays = [
+    { id: 'monday', label: 'Segunda-feira' },
+    { id: 'tuesday', label: 'Terça-feira' },
+    { id: 'wednesday', label: 'Quarta-feira' },
+    { id: 'thursday', label: 'Quinta-feira' },
+    { id: 'friday', label: 'Sexta-feira' },
+    { id: 'saturday', label: 'Sábado' },
+    { id: 'sunday', label: 'Domingo' }
   ];
+
+  const handleDayToggle = (dayId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      selectedDays: prev.selectedDays.includes(dayId)
+        ? prev.selectedDays.filter(d => d !== dayId)
+        : [...prev.selectedDays, dayId]
+    }));
+  };
+
+  const handleSelectAllWeek = () => {
+    setFormData(prev => ({
+      ...prev,
+      selectedDays: weekDays.map(day => day.id)
+    }));
+  };
+
+  const handleSelectWeekdays = () => {
+    setFormData(prev => ({
+      ...prev,
+      selectedDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
+    }));
+  };
+
+  const handleSaveRoute = () => {
+    if (formData.name && formData.time && formData.selectedDays.length > 0) {
+      console.log('Salvando rota:', formData);
+      onRouteCreated(formData);
+      setIsDialogOpen(false);
+      setFormData({ name: '', time: '', selectedDays: [] });
+    }
+  };
+
+  const isFormValid = formData.name && formData.time && formData.selectedDays.length > 0;
 
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #FF8C00 0%, #FFA500 100%)' }}>
@@ -72,80 +109,129 @@ export const RoutesListPage = ({
         <h1 className="text-2xl font-bold text-gray-800 mb-6">Lista de Rotas</h1>
 
         {/* Action Buttons */}
-        <div className="flex gap-3 mb-6">
-          <Button 
-            onClick={onCreateRoute}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
-          >
-            Cadastrar rota
-          </Button>
-          <Button 
+        <div className="grid grid-cols-1 gap-4 mb-6">
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-lg flex items-center justify-center gap-2">
+                <Plus className="w-5 h-5" />
+                Cadastrar rota
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Cadastrar Nova Rota</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                {/* Nome da rota */}
+                <div className="space-y-2">
+                  <Label htmlFor="routeName">Nome da rota</Label>
+                  <Input
+                    id="routeName"
+                    placeholder="Digite o nome da rota"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  />
+                </div>
+
+                {/* Horário da rota */}
+                <div className="space-y-2">
+                  <Label htmlFor="routeTime">Horário da rota</Label>
+                  <Input
+                    id="routeTime"
+                    type="time"
+                    value={formData.time}
+                    onChange={(e) => setFormData(prev => ({ ...prev, time: e.target.value }))}
+                  />
+                </div>
+
+                {/* Dias da semana */}
+                <div className="space-y-3">
+                  <Label>Dias da semana</Label>
+
+                  {/* Botões de seleção rápida */}
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSelectAllWeek}
+                      className="text-xs"
+                    >
+                      Semana toda
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSelectWeekdays}
+                      className="text-xs"
+                    >
+                      Dias úteis
+                    </Button>
+                  </div>
+
+                  {/* Lista de dias */}
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {weekDays.map((day) => (
+                      <div key={day.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={day.id}
+                          checked={formData.selectedDays.includes(day.id)}
+                          onCheckedChange={() => handleDayToggle(day.id)}
+                        />
+                        <Label htmlFor={day.id} className="text-sm font-normal">
+                          {day.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Botões de ação */}
+                <div className="flex gap-2 pt-4">
+                  <Button
+                    onClick={handleSaveRoute}
+                    disabled={!isFormValid}
+                    className="flex-1 bg-green-500 hover:bg-green-600 text-white"
+                  >
+                    Salvar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsDialogOpen(false)}
+                    className="flex-1"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Button
             onClick={onActiveRoutes}
             variant="outline"
-            className="border-gray-300 text-gray-700 px-4 py-2 rounded-lg"
+            className="border-green-500 text-green-600 hover:bg-green-50 py-4 rounded-lg flex items-center justify-center gap-2"
           >
+            <Play className="w-5 h-5" />
             Rotas em execução
           </Button>
-          <Button 
+
+          <Button
             onClick={onRouteHistory}
             variant="outline"
-            className="border-gray-300 text-gray-700 px-4 py-2 rounded-lg"
+            className="border-gray-400 text-gray-600 hover:bg-gray-50 py-4 rounded-lg flex items-center justify-center gap-2"
           >
+            <History className="w-5 h-5" />
             Histórico de rotas
           </Button>
         </div>
 
-        {/* Search */}
-        <div className="relative mb-6">
-          <Input
-            placeholder="Pesquisar"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pr-10"
-          />
-          <button className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-gray-400 text-white p-1 rounded">
-            <span className="text-xs">×</span>
-          </button>
-        </div>
-
-        {/* Filters */}
-        <div className="flex gap-3 mb-6">
-          <select className="px-3 py-2 border border-gray-300 rounded-lg bg-white">
-            <option>Turno</option>
-          </select>
-          <select className="px-3 py-2 border border-gray-300 rounded-lg bg-white">
-            <option>Van</option>
-          </select>
-          <select className="px-3 py-2 border border-gray-300 rounded-lg bg-white">
-            <option>Ordenar</option>
-          </select>
-        </div>
-
-        {/* Routes List */}
-        <div className="space-y-4">
-          {mockRoutes.map((route) => (
-            <div key={route.id} className="bg-white rounded-lg p-4 shadow-sm">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm text-gray-500">Id: {route.id}</span>
-                    <span className="text-sm text-gray-500">Van: {route.van}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Clock className="w-4 h-4" />
-                    <span>Horário: {route.time}</span>
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    Dias: {route.days}
-                  </div>
-                </div>
-                <button className="text-gray-400">
-                  <span className="text-xl">›</span>
-                </button>
-              </div>
-              <h3 className="font-semibold text-gray-800 mb-2">{route.name}</h3>
-            </div>
-          ))}
+        {/* Mensagem quando não há rotas */}
+        <div className="text-center py-12 text-gray-500">
+          <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+          <h3 className="text-lg font-medium text-gray-600 mb-2">Nenhuma rota cadastrada</h3>
+          <p className="text-sm">Clique em "Cadastrar rota" para criar sua primeira rota</p>
         </div>
       </div>
     </div>

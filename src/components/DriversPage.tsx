@@ -1,5 +1,5 @@
 
-import { Users, Truck, Route, Settings } from 'lucide-react';
+import { Users, Truck, Route, Settings, Navigation, ArrowLeft } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 
 interface DriversPageProps {
@@ -8,7 +8,10 @@ interface DriversPageProps {
   onClientsClick?: () => void;
   onDriversClick?: () => void;
   onSettingsClick?: () => void;
-  activeTopButton?: 'clients' | 'drivers' | 'settings' | null;
+  onTripClick?: () => void;
+  onRoutesClick?: () => void;
+  activeTopButton?: 'clients' | 'drivers' | 'settings' | 'trip' | null;
+  hasActiveTrip?: boolean;
 }
 
 export const DriversPage = ({ 
@@ -17,7 +20,10 @@ export const DriversPage = ({
   onClientsClick, 
   onDriversClick, 
   onSettingsClick,
-  activeTopButton 
+  onTripClick,
+  onRoutesClick,
+  activeTopButton,
+  hasActiveTrip 
 }: DriversPageProps) => {
   const menuItems = [
     {
@@ -54,7 +60,7 @@ export const DriversPage = ({
       </div>
 
       {/* Top Icons - Always visible */}
-      <div className="flex justify-center gap-8 px-4 mb-8">
+      <div className="flex justify-center gap-6 px-4 mb-8">
         <button 
           className={`w-16 h-16 rounded-xl flex items-center justify-center hover:bg-white/30 transition-colors ${
             activeTopButton === 'clients' ? 'bg-white/40 shadow-lg' : 'bg-white/20'
@@ -70,6 +76,19 @@ export const DriversPage = ({
           onClick={onDriversClick}
         >
           <Truck className="w-8 h-8 text-white" />
+        </button>
+        <button 
+          className={`w-16 h-16 rounded-xl flex items-center justify-center hover:bg-white/30 transition-colors relative ${
+            activeTopButton === 'trip' ? 'bg-white/40 shadow-lg' : 'bg-white/20'
+          }`}
+          onClick={onTripClick}
+        >
+          <Navigation className="w-8 h-8 text-white" />
+          {hasActiveTrip && (
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+              <div className="w-2 h-2 bg-white rounded-full"></div>
+            </div>
+          )}
         </button>
         <button 
           className={`w-16 h-16 rounded-xl flex items-center justify-center hover:bg-white/30 transition-colors ${
@@ -90,7 +109,13 @@ export const DriversPage = ({
             <Card 
               key={item.id}
               className="bg-white p-4 rounded-xl shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => onTabChange(item.id)}
+              onClick={() => {
+                if (item.id === 'routes-list' && onRoutesClick) {
+                  onRoutesClick();
+                } else {
+                  onTabChange(item.id);
+                }
+              }}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
