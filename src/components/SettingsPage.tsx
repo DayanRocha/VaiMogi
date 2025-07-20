@@ -1,5 +1,5 @@
 
-import { Users, Truck, Route, School, UserCheck, Navigation, User, Home, Settings } from 'lucide-react';
+import { Users, Truck, Route, School, UserCheck, Navigation, User, Home, Settings, Key } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 
 interface SettingsPageProps {
@@ -21,52 +21,16 @@ export const SettingsPage = ({
 }: SettingsPageProps) => {
   const screens = [
     {
-      id: 'home',
-      title: 'Início',
-      icon: Home,
-      description: 'Página inicial do aplicativo'
+      id: 'guardian-codes',
+      title: 'Códigos Únicos',
+      icon: Key,
+      description: 'Gerar códigos para responsáveis'
     },
     {
-      id: 'students',
-      title: 'Estudantes',
+      id: 'guardian-status',
+      title: 'Status dos Responsáveis',
       icon: Users,
-      description: 'Gerenciar estudantes cadastrados'
-    },
-    {
-      id: 'guardians',
-      title: 'Responsáveis',
-      icon: UserCheck,
-      description: 'Contatos dos responsáveis'
-    },
-    {
-      id: 'schools',
-      title: 'Escolas',
-      icon: School,
-      description: 'Escolas cadastradas no sistema'
-    },
-    {
-      id: 'profile',
-      title: 'Perfil do Motorista',
-      icon: User,
-      description: 'Informações do motorista'
-    },
-    {
-      id: 'van',
-      title: 'Van',
-      icon: Truck,
-      description: 'Informações da van'
-    },
-    {
-      id: 'routes',
-      title: 'Rotas',
-      icon: Route,
-      description: 'Gerenciar rotas de transporte'
-    },
-    {
-      id: 'trip',
-      title: 'Viagem Ativa',
-      icon: Navigation,
-      description: 'Controle de viagem em andamento'
+      description: 'Ativar e desativar responsáveis'
     }
   ];
 

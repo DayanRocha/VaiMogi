@@ -15,6 +15,8 @@ import { StudentsList } from '@/components/StudentsList';
 import { StudentRegistration } from '@/components/StudentRegistration';
 import { GuardiansList } from '@/components/GuardiansList';
 import { GuardianRegistration } from '@/components/GuardianRegistration';
+import { GuardianCodesManager } from '@/components/GuardianCodesManager';
+import { GuardianStatusManager } from '@/components/GuardianStatusManager';
 import { SchoolsList } from '@/components/SchoolsList';
 import { SchoolRegistration } from '@/components/SchoolRegistration';
 import { ActiveTrip } from '@/components/ActiveTrip';
@@ -29,6 +31,7 @@ export default function DriverApp() {
   const [showRouteForm, setShowRouteForm] = useState(false);
   const [showStudentForm, setShowStudentForm] = useState(false);
   const [showGuardianForm, setShowGuardianForm] = useState(false);
+  const [showGuardianCodes, setShowGuardianCodes] = useState(false);
   const [showSchoolForm, setShowSchoolForm] = useState(false);
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
@@ -61,6 +64,7 @@ export default function DriverApp() {
       // Reset all states first
       setShowStudentForm(false);
       setShowGuardianForm(false);
+      setShowGuardianCodes(false);
       setShowSchoolForm(false);
       setShowRouteForm(false);
       setShowRoutesListPage(false);
@@ -139,6 +143,7 @@ export default function DriverApp() {
     // Reset all states first
     setShowStudentForm(false);
     setShowGuardianForm(false);
+    setShowGuardianCodes(false);
     setShowSchoolForm(false);
     setShowRouteForm(false);
     setShowRoutesListPage(false);
@@ -514,6 +519,24 @@ export default function DriverApp() {
               addToNavigationStack('guardian-form');
             }}
             onEditGuardian={handleEditGuardian}
+          />
+        );
+        
+      case 'guardian-codes':
+        return (
+          <GuardianCodesManager
+            guardians={guardians}
+            onBack={handleBackNavigation}
+            onUpdateGuardian={updateGuardian}
+          />
+        );
+        
+      case 'guardian-status':
+        return (
+          <GuardianStatusManager
+            guardians={guardians}
+            onBack={handleBackNavigation}
+            onUpdateGuardian={updateGuardian}
           />
         );
         

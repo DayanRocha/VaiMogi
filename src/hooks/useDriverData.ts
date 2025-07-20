@@ -25,19 +25,36 @@ const mockGuardians: Guardian[] = [
     id: 'g1',
     name: 'Maria Silva',
     email: 'maria.silva@email.com',
-    phone: '(11) 98765-4321'
+    phone: '(11) 98765-4321',
+    isActive: true
   },
   {
     id: 'g2',
     name: 'José Santos',
     email: 'jose.santos@email.com',
-    phone: '(11) 97654-3210'
+    phone: '(11) 97654-3210',
+    isActive: true
   },
   {
     id: 'g3',
     name: 'Ana Oliveira',
     email: 'ana.oliveira@email.com',
-    phone: '(11) 96543-2109'
+    phone: '(11) 96543-2109',
+    isActive: false
+  },
+  {
+    id: 'g4',
+    name: 'Carlos Pereira',
+    email: 'carlos.pereira@email.com',
+    phone: '(11) 95432-1098',
+    isActive: true
+  },
+  {
+    id: 'g5',
+    name: 'Fernanda Costa',
+    email: 'fernanda.costa@email.com',
+    phone: '(11) 94321-0987',
+    isActive: false
   }
 ];
 
@@ -171,19 +188,20 @@ export const useDriverData = () => {
       id: Date.now().toString(),
       name: guardianData.name,
       email: guardianData.email,
-      phone: guardianData.phone
+      phone: guardianData.phone,
+      isActive: true // Novos responsáveis são ativos por padrão
     };
     setGuardians(prev => [...prev, newGuardian]);
     console.log(`👤 Novo responsável cadastrado: ${guardianData.name}`);
   };
 
-  const updateGuardian = (guardianId: string, guardianData: { name: string; email: string; phone: string }) => {
+  const updateGuardian = (guardianId: string, guardianData: Partial<Guardian>) => {
     setGuardians(prev => prev.map(guardian => 
       guardian.id === guardianId 
-        ? { ...guardian, name: guardianData.name, email: guardianData.email, phone: guardianData.phone }
+        ? { ...guardian, ...guardianData }
         : guardian
     ));
-    console.log(`👤 Responsável atualizado: ${guardianData.name}`);
+    console.log(`👤 Responsável atualizado: ${guardianData.name || 'Código gerado'}`);
   };
 
   const addSchool = (schoolData: { name: string; address: string }) => {

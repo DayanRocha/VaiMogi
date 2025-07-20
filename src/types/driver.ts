@@ -40,6 +40,9 @@ export interface Guardian {
   name: string;
   email: string;
   phone?: string;
+  uniqueCode?: string;
+  codeGeneratedAt?: string;
+  isActive?: boolean;
 }
 
 export interface School {
