@@ -11,6 +11,7 @@ interface ActiveTripProps {
   students: Student[];
   schools: SchoolType[];
   onUpdateStudentStatus: (studentId: string, status: TripStudent['status']) => void;
+  onUpdateMultipleStudentsStatus: (studentIds: string[], status: TripStudent['status']) => void;
   onFinishTrip: () => void;
   onBack: () => void;
 }
@@ -337,13 +338,12 @@ const SwipeableStudentItem = ({ student, tripData, school, onSwipeLeft, onSwipeR
   );
 };
 
-export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onFinishTrip, onBack }: ActiveTripProps) => {
+export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onUpdateMultipleStudentsStatus, onFinishTrip, onBack }: ActiveTripProps) => {
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [showGroupDisembarkDialog, setShowGroupDisembarkDialog] = useState(false);
-  const [showEmbarkDialog, setShowEmbarkDialog] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState<SchoolType | null>(null);
   const [selectedStudentsForDisembark, setSelectedStudentsForDisembark] = useState<string[]>([]);
-  const [selectedStudentsForEmbark, setSelectedStudentsForEmbark] = useState<string[]>([]);
+  const [isDisembarking, setIsDisembarking] = useState(false);
 
   if (!trip) {
     return (
@@ -419,7 +419,16 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
       return student && student.schoolId === school.id && tripStudent.status === 'at_school';
     });
 
-    if (schoolStudents.length === 0) return;
+    console.log(`🏫 Abrindo diálogo de desembarque para ${school.name}`);
+    console.log(`📋 Alunos na escola:`, schoolStudents.map(ts => {
+      const student = getStudent(ts.studentId);
+      return `${student?.name} (${ts.status})`;
+    }));
+
+    if (schoolStudents.length === 0) {
+      console.log('⚠️ Nenhum aluno na escola para desembarcar');
+      return;
+    }
 
     setSelectedSchool(school);
     // Ao abrir o diálogo, todos os alunos da escola são pré-selecionados
@@ -433,34 +442,49 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
       return student && student.schoolId === school.id && tripStudent.status === 'embarked';
     });
 
-    if (schoolStudents.length === 0) return;
+    console.log(`🏫 Abrindo diálogo de desembarque para ${school.name}`);
+    console.log(`📋 Alunos embarcados para desembarcar:`, schoolStudents.map(ts => {
+      const student = getStudent(ts.studentId);
+      return `${student?.name} (${ts.status})`;
+    }));
+
+    if (schoolStudents.length === 0) {
+      console.log('⚠️ Nenhum aluno embarcado para desembarcar nesta escola');
+      return;
+    }
 
     setSelectedSchool(school);
-    // Ao abrir o diálogo, todos os alunos da escola são pré-selecionados
-    setSelectedStudentsForEmbark(schoolStudents.map(ts => ts.studentId));
-    setShowEmbarkDialog(true);
+    // Ao abrir o diálogo, todos os alunos embarcados são pré-selecionados para desembarque
+    setSelectedStudentsForDisembark(schoolStudents.map(ts => ts.studentId));
+    setShowGroupDisembarkDialog(true);
   };
 
   const handleConfirmGroupDisembark = async () => {
-    // Processar um aluno por vez com pequeno delay para evitar conflitos
-    for (const studentId of selectedStudentsForDisembark) {
-      onUpdateStudentStatus(studentId, 'disembarked');
-      // Pequeno delay para garantir que cada atualização seja processada
-      await new Promise(resolve => setTimeout(resolve, 50));
+    const studentsToDisembark = selectedStudentsForDisembark.map(id => getStudent(id)).filter(Boolean);
+    
+    setIsDisembarking(true);
+    console.log(`🚌 DESEMBARQUE EM GRUPO: ${studentsToDisembark.length} alunos na ${selectedSchool?.name}:`);
+    studentsToDisembark.forEach(student => console.log(`  - ${student?.name}`));
+    
+    try {
+      // Usar a função de atualização em grupo para processar todos de uma vez
+      console.log('🏫 Processando desembarque EM GRUPO usando updateMultipleStudentsStatus...');
+      onUpdateMultipleStudentsStatus(selectedStudentsForDisembark, 'disembarked');
+      
+      console.log(`✅ DESEMBARQUE EM GRUPO CONCLUÍDO! ${studentsToDisembark.length} alunos desembarcados JUNTOS na ${selectedSchool?.name}`);
+      console.log('📱 Todos os responsáveis sendo notificados simultaneamente...');
+      
+      // Pequeno delay apenas para mostrar o feedback visual
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+    } finally {
+      setIsDisembarking(false);
+      setShowGroupDisembarkDialog(false);
+      setSelectedSchool(null);
+      setSelectedStudentsForDisembark([]);
     }
-    setShowGroupDisembarkDialog(false);
-    setSelectedSchool(null);
-    setSelectedStudentsForDisembark([]);
   };
 
-  const handleConfirmEmbarkToSchool = () => {
-    selectedStudentsForEmbark.forEach(studentId => {
-      onUpdateStudentStatus(studentId, 'at_school');
-    });
-    setShowEmbarkDialog(false);
-    setSelectedSchool(null);
-    setSelectedStudentsForEmbark([]);
-  };
 
   const handleStudentToggle = (studentId: string) => {
     setSelectedStudentsForDisembark(prev => {
@@ -473,18 +497,11 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
     });
   };
 
-  const handleEmbarkStudentToggle = (studentId: string) => {
-    setSelectedStudentsForEmbark(prev => {
-      const isSelected = prev.includes(studentId);
-      if (isSelected) {
-        return prev.filter(id => id !== studentId);
-      } else {
-        return [...prev, studentId];
-      }
-    });
-  };
+
 
   const allStudentsCompleted = trip.students.every(s => s.status === 'disembarked');
+  
+  // Recalcular grupos sempre que o estado da viagem mudar
   const schoolGroups = groupStudentsBySchool();
 
 
@@ -508,6 +525,13 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
         {schoolGroups.map((group) => {
           const studentsAtSchool = group.students.filter(s => s.tripData.status === 'at_school');
           const studentsDisembarked = group.students.filter(s => s.tripData.status === 'disembarked');
+          
+          console.log(`🏫 Escola ${group.school.name}:`, {
+            total: group.students.length,
+            atSchool: studentsAtSchool.length,
+            disembarked: studentsDisembarked.length,
+            students: group.students.map(s => `${s.student.name}: ${s.tripData.status}`)
+          });
           
           if (studentsAtSchool.length === 0 && studentsDisembarked.length === 0) return null;
 
@@ -594,11 +618,7 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
                   }}
                   onSwipeRight={() => {
                     onUpdateStudentStatus(student.id, 'embarked');
-                    console.log(`🚌 Notificação enviada: ${student.name} embarcou na van`);
-                    // Automaticamente mover para "at_school" após embarcar
-                    setTimeout(() => {
-                      onUpdateStudentStatus(student.id, 'at_school');
-                    }, 500);
+                    console.log(`🚌 ${student.name} embarcou na van`);
                   }}
                 />
               );
@@ -630,14 +650,14 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
           <div className="space-y-4 py-4">
             {/* Botão para selecionar/desselecionar todos */}
             <div className="flex items-center justify-between border-b pb-2">
-              <span className="text-sm font-medium text-gray-700">Alunos na escola:</span>
+              <span className="text-sm font-medium text-gray-700">Alunos para desembarcar:</span>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
                   const schoolStudents = trip.students.filter(tripStudent => {
                     const student = getStudent(tripStudent.studentId);
-                    return student && student.schoolId === selectedSchool?.id && tripStudent.status === 'at_school';
+                    return student && student.schoolId === selectedSchool?.id && (tripStudent.status === 'at_school' || tripStudent.status === 'embarked');
                   });
                   const allSelected = schoolStudents.every(ts => selectedStudentsForDisembark.includes(ts.studentId));
                   if (allSelected) {
@@ -650,7 +670,7 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
                 {(() => {
                   const schoolStudents = trip.students.filter(tripStudent => {
                     const student = getStudent(tripStudent.studentId);
-                    return student && student.schoolId === selectedSchool?.id && tripStudent.status === 'at_school';
+                    return student && student.schoolId === selectedSchool?.id && (tripStudent.status === 'at_school' || tripStudent.status === 'embarked');
                   });
                   const allSelected = schoolStudents.every(ts => selectedStudentsForDisembark.includes(ts.studentId));
                   return allSelected ? 'Desmarcar Todos' : 'Selecionar Todos';
@@ -662,7 +682,7 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
             {trip.students
               .filter(tripStudent => {
                 const student = getStudent(tripStudent.studentId);
-                return student && student.schoolId === selectedSchool?.id && tripStudent.status === 'at_school';
+                return student && student.schoolId === selectedSchool?.id && (tripStudent.status === 'at_school' || tripStudent.status === 'embarked');
               })
               .map((tripStudent) => {
                 const student = getStudent(tripStudent.studentId);
@@ -685,15 +705,22 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
             <div className="flex gap-2 pt-4">
               <Button
                 onClick={handleConfirmGroupDisembark}
-                disabled={selectedStudentsForDisembark.length === 0}
-                className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
+                disabled={selectedStudentsForDisembark.length === 0 || isDisembarking}
+                className="flex-1 bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50"
               >
-                Desembarcar ({selectedStudentsForDisembark.length})
+                {isDisembarking ? (
+                  'Desembarcando...'
+                ) : selectedStudentsForDisembark.length === 1 ? (
+                  'Desembarcar Aluno' 
+                ) : (
+                  `Desembarcar ${selectedStudentsForDisembark.length} Alunos`
+                )}
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setShowGroupDisembarkDialog(false)}
-                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white"
+                disabled={isDisembarking}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50"
               >
                 Cancelar
               </Button>
@@ -702,51 +729,7 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
         </DialogContent>
       </Dialog>
 
-      {/* Group Embark to School Dialog */}
-      <Dialog open={showEmbarkDialog} onOpenChange={setShowEmbarkDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Chegada na Escola: {selectedSchool?.name}</DialogTitle>
-            <DialogDescription>Selecione os alunos que chegaram na escola.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            {selectedStudentsForEmbark.map((studentId) => {
-              const student = getStudent(studentId);
-              if (!student) return null;
 
-              return (
-                <div key={studentId} className="flex items-center space-x-3">
-                  <Checkbox
-                    id={`embark-${studentId}`}
-                    checked={selectedStudentsForEmbark.includes(studentId)}
-                    onCheckedChange={() => handleEmbarkStudentToggle(studentId)}
-                  />
-                  <label htmlFor={`embark-${studentId}`} className="text-sm font-medium">
-                    {student.name}
-                  </label>
-                </div>
-              );
-            })}
-
-            <div className="flex gap-2 pt-4">
-              <Button
-                onClick={handleConfirmEmbarkToSchool}
-                disabled={selectedStudentsForEmbark.length === 0}
-                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white"
-              >
-                Confirmar
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setShowEmbarkDialog(false)}
-                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white"
-              >
-                Cancelar
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Finish Trip Confirmation Dialog */}
       <Dialog open={confirmFinish} onOpenChange={setConfirmFinish}>

@@ -273,6 +273,8 @@ export const useDriverData = () => {
 
   const updateStudentStatus = (studentId: string, status: TripStudent['status']) => {
     if (activeTrip) {
+      console.log(`🔄 Atualizando status do aluno ${studentId} para: ${status}`);
+      
       const updatedTrip = {
         ...activeTrip,
         students: activeTrip.students.map(student =>
@@ -281,29 +283,74 @@ export const useDriverData = () => {
       };
       setActiveTrip(updatedTrip);
       
+      console.log(`✅ Status atualizado. Estado atual da viagem:`, updatedTrip.students);
+      
       // Send notifications based on status
       const student = students.find(s => s.id === studentId);
       if (student) {
+        const guardian = guardians.find(g => g.id === student.guardianId);
+        
         switch (status) {
           case 'van_arrived':
             console.log(`🚐 Notificação: A van chegou no ponto de ${student.name}`);
+            if (guardian) {
+              console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): A van chegou para buscar ${student.name}`);
+            }
             break;
           case 'embarked':
-            console.log(`🚐 Notificação: ${student.name} embarcou na van`);
+            console.log(`🚌 Notificação: ${student.name} embarcou na van`);
+            if (guardian) {
+              console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${student.name} embarcou na van e está a caminho da escola`);
+            }
             break;
           case 'at_school':
-            // Não envia notificação quando chega na escola
+            console.log(`🏫 ${student.name} chegou na escola`);
+            // Não notifica quando chega na escola, apenas quando desembarca
             break;
           case 'disembarked':
-            console.log(`🏫 Notificação: ${student.name} chegou na escola e foi desembarcado`);
-            // Notificar responsável
-            const guardian = guardians.find(g => g.id === student.guardianId);
+            const school = schools.find(s => s.id === student.schoolId);
+            console.log(`🏫 Notificação: ${student.name} foi desembarcado na ${school?.name || 'escola'}`);
             if (guardian) {
-              console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${student.name} foi desembarcado na escola`);
+              console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${student.name} chegou na ${school?.name || 'escola'} e foi desembarcado com segurança`);
             }
             break;
         }
       }
+    }
+  };
+
+  const updateMultipleStudentsStatus = (studentIds: string[], status: TripStudent['status']) => {
+    if (activeTrip) {
+      console.log(`🔄 ATUALIZAÇÃO EM GRUPO: ${studentIds.length} alunos para status: ${status}`);
+      
+      const updatedTrip = {
+        ...activeTrip,
+        students: activeTrip.students.map(student =>
+          studentIds.includes(student.studentId) ? { ...student, status } : student
+        )
+      };
+      setActiveTrip(updatedTrip);
+      
+      console.log(`✅ Status atualizado EM GRUPO. Estado atual da viagem:`, updatedTrip.students);
+      
+      // Send notifications for all students at once
+      studentIds.forEach(studentId => {
+        const student = students.find(s => s.id === studentId);
+        if (student) {
+          const guardian = guardians.find(g => g.id === student.guardianId);
+          
+          switch (status) {
+            case 'disembarked':
+              const school = schools.find(s => s.id === student.schoolId);
+              console.log(`🏫 Notificação: ${student.name} foi desembarcado na ${school?.name || 'escola'}`);
+              if (guardian) {
+                console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${student.name} chegou na ${school?.name || 'escola'} e foi desembarcado com segurança`);
+              }
+              break;
+            // Adicionar outros casos conforme necessário
+          }
+        }
+      });
     }
   };
 
@@ -338,6 +385,7 @@ export const useDriverData = () => {
     deleteSchool,
     startTrip,
     updateStudentStatus,
+    updateMultipleStudentsStatus,
     finishTrip
   };
 };

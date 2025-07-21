@@ -139,6 +139,7 @@ export default function DriverApp() {
     deleteRoute,
     startTrip,
     updateStudentStatus,
+    updateMultipleStudentsStatus,
     finishTrip,
     addStudent,
     updateStudent,
@@ -727,6 +728,7 @@ export default function DriverApp() {
             students={students}
             schools={schools}
             onUpdateStudentStatus={updateStudentStatus}
+            onUpdateMultipleStudentsStatus={updateMultipleStudentsStatus}
             onFinishTrip={() => {
               finishTrip();
               setActiveTab('routes');
