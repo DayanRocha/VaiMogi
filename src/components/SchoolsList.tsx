@@ -1,5 +1,5 @@
 
-import { School, MapPin, ArrowLeft, Plus, Edit } from 'lucide-react';
+import { School, MapPin, ArrowLeft, Plus, Edit, Trash2 } from 'lucide-react';
 import { School as SchoolType } from '@/types/driver';
 
 interface SchoolsListProps {
@@ -7,9 +7,15 @@ interface SchoolsListProps {
   onBack: () => void;
   onAddSchool: () => void;
   onEditSchool: (school: SchoolType) => void;
+  onDeleteSchool: (schoolId: string) => void;
 }
 
-export const SchoolsList = ({ schools, onBack, onAddSchool, onEditSchool }: SchoolsListProps) => {
+export const SchoolsList = ({ schools, onBack, onAddSchool, onEditSchool, onDeleteSchool }: SchoolsListProps) => {
+  const handleDelete = (school: SchoolType) => {
+    if (window.confirm(`Tem certeza que deseja excluir a escola "${school.name}"?`)) {
+      onDeleteSchool(school.id);
+    }
+  };
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -60,12 +66,20 @@ export const SchoolsList = ({ schools, onBack, onAddSchool, onEditSchool }: Scho
                     </div>
                   </div>
                   
-                  <button
-                    onClick={() => onEditSchool(school)}
-                    className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => onEditSchool(school)}
+                      className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(school)}
+                      className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

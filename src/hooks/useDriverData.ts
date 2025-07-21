@@ -183,6 +183,12 @@ export const useDriverData = () => {
     console.log(`📚 Aluno atualizado: ${studentData.name}`);
   };
 
+  const deleteStudent = (studentId: string) => {
+    const student = students.find(s => s.id === studentId);
+    setStudents(prev => prev.filter(student => student.id !== studentId));
+    console.log(`📚 Aluno excluído: ${student?.name}`);
+  };
+
   const addGuardian = (guardianData: { name: string; email: string; phone: string }) => {
     const newGuardian: Guardian = {
       id: Date.now().toString(),
@@ -204,6 +210,12 @@ export const useDriverData = () => {
     console.log(`👤 Responsável atualizado: ${guardianData.name || 'Código gerado'}`);
   };
 
+  const deleteGuardian = (guardianId: string) => {
+    const guardian = guardians.find(g => g.id === guardianId);
+    setGuardians(prev => prev.filter(guardian => guardian.id !== guardianId));
+    console.log(`👤 Responsável excluído: ${guardian?.name}`);
+  };
+
   const addSchool = (schoolData: { name: string; address: string }) => {
     const newSchool: School = {
       id: Date.now().toString(),
@@ -221,6 +233,12 @@ export const useDriverData = () => {
         : school
     ));
     console.log(`🏫 Escola atualizada: ${schoolData.name}`);
+  };
+
+  const deleteSchool = (schoolId: string) => {
+    const school = schools.find(s => s.id === schoolId);
+    setSchools(prev => prev.filter(school => school.id !== schoolId));
+    console.log(`🏫 Escola excluída: ${school?.name}`);
   };
 
   const startTrip = (routeId: string) => {
@@ -295,10 +313,13 @@ export const useDriverData = () => {
     deleteRoute,
     addStudent,
     updateStudent,
+    deleteStudent,
     addGuardian,
     updateGuardian,
+    deleteGuardian,
     addSchool,
     updateSchool,
+    deleteSchool,
     startTrip,
     updateStudentStatus,
     finishTrip

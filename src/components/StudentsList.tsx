@@ -1,5 +1,5 @@
 
-import { User, MapPin, School, ArrowLeft, Plus, Edit } from 'lucide-react';
+import { User, MapPin, School, ArrowLeft, Plus, Edit, Trash2 } from 'lucide-react';
 import { Student, School as SchoolType } from '@/types/driver';
 
 interface StudentsListProps {
@@ -8,12 +8,19 @@ interface StudentsListProps {
   onBack: () => void;
   onAddStudent: () => void;
   onEditStudent: (student: Student) => void;
+  onDeleteStudent: (studentId: string) => void;
 }
 
-export const StudentsList = ({ students, schools, onBack, onAddStudent, onEditStudent }: StudentsListProps) => {
+export const StudentsList = ({ students, schools, onBack, onAddStudent, onEditStudent, onDeleteStudent }: StudentsListProps) => {
   const getSchoolName = (schoolId: string) => {
     const school = schools.find(s => s.id === schoolId);
     return school?.name || 'Escola não encontrada';
+  };
+
+  const handleDelete = (student: Student) => {
+    if (window.confirm(`Tem certeza que deseja excluir o estudante "${student.name}"?`)) {
+      onDeleteStudent(student.id);
+    }
   };
 
   return (
@@ -76,12 +83,20 @@ export const StudentsList = ({ students, schools, onBack, onAddStudent, onEditSt
                     </div>
                   </div>
                   
-                  <button
-                    onClick={() => onEditStudent(student)}
-                    className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => onEditStudent(student)}
+                      className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(student)}
+                      className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

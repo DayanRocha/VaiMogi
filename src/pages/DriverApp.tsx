@@ -142,10 +142,13 @@ export default function DriverApp() {
     finishTrip,
     addStudent,
     updateStudent,
+    deleteStudent,
     addGuardian,
     updateGuardian,
+    deleteGuardian,
     addSchool,
-    updateSchool
+    updateSchool,
+    deleteSchool
   } = useDriverData();
 
   const navigateToScreen = (screen: string) => {
@@ -640,6 +643,7 @@ export default function DriverApp() {
               addToNavigationStack('student-form');
             }}
             onEditStudent={handleEditStudent}
+            onDeleteStudent={deleteStudent}
           />
         );
 
@@ -666,6 +670,7 @@ export default function DriverApp() {
               addToNavigationStack('guardian-form');
             }}
             onEditGuardian={handleEditGuardian}
+            onDeleteGuardian={deleteGuardian}
           />
         );
 
@@ -710,6 +715,7 @@ export default function DriverApp() {
               addToNavigationStack('school-form');
             }}
             onEditSchool={handleEditSchool}
+            onDeleteSchool={deleteSchool}
           />
         );
 

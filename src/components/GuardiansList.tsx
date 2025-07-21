@@ -1,5 +1,5 @@
 
-import { UserCheck, ArrowLeft, Plus, Edit } from 'lucide-react';
+import { UserCheck, ArrowLeft, Plus, Edit, Trash2 } from 'lucide-react';
 import { Guardian } from '@/types/driver';
 
 interface GuardiansListProps {
@@ -7,9 +7,15 @@ interface GuardiansListProps {
   onBack: () => void;
   onAddGuardian: () => void;
   onEditGuardian: (guardian: Guardian) => void;
+  onDeleteGuardian: (guardianId: string) => void;
 }
 
-export const GuardiansList = ({ guardians, onBack, onAddGuardian, onEditGuardian }: GuardiansListProps) => {
+export const GuardiansList = ({ guardians, onBack, onAddGuardian, onEditGuardian, onDeleteGuardian }: GuardiansListProps) => {
+  const handleDelete = (guardian: Guardian) => {
+    if (window.confirm(`Tem certeza que deseja excluir o responsável "${guardian.name}"?`)) {
+      onDeleteGuardian(guardian.id);
+    }
+  };
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -55,12 +61,20 @@ export const GuardiansList = ({ guardians, onBack, onAddGuardian, onEditGuardian
                     <h3 className="font-semibold text-gray-800">{guardian.name}</h3>
                   </div>
                   
-                  <button
-                    onClick={() => onEditGuardian(guardian)}
-                    className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => onEditGuardian(guardian)}
+                      className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(guardian)}
+                      className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
