@@ -52,10 +52,12 @@ export const ClientsPage = ({
       {/* Header */}
       <div className="flex items-center justify-between p-4 pt-12">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-            <span className="text-orange-500 font-bold text-sm">V</span>
-          </div>
-          <span className="text-white font-semibold text-lg">VANESCOLA</span>
+          <img 
+            src="/lovable-uploads/13ad1463-722e-40c8-b16d-03c288d5ef24.png" 
+            alt="VaiMogi Logo" 
+            className="w-8 h-8 object-contain"
+          />
+          <span className="text-white font-semibold text-lg">VaiMogi</span>
         </div>
         <div className="w-6 h-6"></div>
       </div>
