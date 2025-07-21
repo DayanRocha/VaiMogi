@@ -112,20 +112,12 @@ export const RouteMountingPage = ({
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #FF8C00 0%, #FFA500 100%)' }}>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 pt-12">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-            <span className="text-orange-500 font-bold text-sm">V</span>
-          </div>
-          <span className="text-white font-semibold text-lg">VANESCOLA</span>
-        </div>
-        <button className="w-6 h-6 flex items-center justify-center">
-          <div className="w-5 h-4 flex flex-col gap-1">
-            <div className="w-full h-0.5 bg-white"></div>
-            <div className="w-full h-0.5 bg-white"></div>
-            <div className="w-full h-0.5 bg-white"></div>
-          </div>
-        </button>
+      <div className="flex items-center justify-center p-4 pt-12">
+        <img 
+          src="/lovable-uploads/13ad1463-722e-40c8-b16d-03c288d5ef24.png" 
+          alt="Logo" 
+          className="w-32 h-32 object-contain"
+        />
       </div>
 
       {/* Content */}
