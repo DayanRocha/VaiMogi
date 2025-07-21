@@ -403,6 +403,7 @@ export default function DriverApp() {
           onSaveRoute={(routeItems) => {
             // Criar a rota completa com os itens selecionados
             const newRoute = {
+              driverId: driver?.id || 'temp-driver-id',
               name: newRouteData.name,
               startTime: newRouteData.time,
               weekDays: newRouteData.selectedDays,

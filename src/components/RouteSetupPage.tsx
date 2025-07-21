@@ -95,9 +95,11 @@ export const RouteSetupPage = ({
   if (showRouteMounting) {
     return (
       <RouteMountingPage
+        routeName="Rota da Manhã"
+        students={students}
+        schools={schools}
         onBack={handleBackFromRouteMounting}
-        onSave={onSave}
-        routeItems={routeItems}
+        onSaveRoute={onSave}
       />
     );
   }
