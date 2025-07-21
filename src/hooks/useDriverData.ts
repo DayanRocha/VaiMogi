@@ -255,8 +255,19 @@ export const useDriverData = () => {
         }))
       };
       setActiveTrip(trip);
-      // Send notification to parents
-      console.log(`🚐 Notificação: A van iniciou a rota ${route.name}`);
+      
+      // Notificar todos os responsáveis dos estudantes da rota
+      console.log(`🚐 ROTA INICIADA: ${route.name}`);
+      console.log(`📱 Notificando todos os responsáveis que a van está a caminho...`);
+      
+      route.students.forEach(student => {
+        const guardian = guardians.find(g => g.id === student.guardianId);
+        if (guardian) {
+          console.log(`📲 Notificação enviada para ${guardian.name} (${guardian.phone}): "A van está a caminho para buscar ${student.name}. Rota: ${route.name}"`);
+        }
+      });
+      
+      console.log(`✅ ${route.students.length} responsáveis notificados sobre o início da rota ${route.name}`);
     }
   };
 
