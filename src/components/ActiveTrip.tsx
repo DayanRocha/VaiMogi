@@ -1,6 +1,6 @@
 
 import { useState, useRef } from 'react';
-import { ArrowRight, ArrowLeft, MapPin, School, CheckCircle, Navigation, User, Bell, Home } from 'lucide-react';
+import { ArrowRight, ArrowLeft, MapPin, School, CheckCircle, Navigation, User, Bell, Home, Map } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -103,6 +103,13 @@ const SwipeableStudentItem = ({ student, tripData, school, onSwipeLeft, onSwipeR
     currentX.current = e.clientX;
     const deltaX = currentX.current - startX.current;
     setDragX(deltaX);
+  };
+
+  const handleMapClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const studentAddress = encodeURIComponent(student.address);
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${studentAddress}`;
+    window.open(url, '_blank');
   };
 
   const handleMouseUp = () => {
@@ -242,6 +249,9 @@ const SwipeableStudentItem = ({ student, tripData, school, onSwipeLeft, onSwipeR
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <button onClick={handleMapClick} className="p-2 rounded-full hover:bg-gray-100">
+              <Map className="w-6 h-6 text-orange-500" />
+            </button>
             <div className={`w-12 h-12 ${getStatusColor(tripData.status)} rounded-full flex items-center justify-center relative transition-all duration-200 ${
               isDragging ? 'scale-110' : 'scale-100'
             }`}>
@@ -275,9 +285,7 @@ const SwipeableStudentItem = ({ student, tripData, school, onSwipeLeft, onSwipeR
             </div>
           </div>
 
-          <div className={`flex items-center gap-2 transition-all duration-200 ${
-            isDragging ? 'opacity-50 scale-95' : 'opacity-100 scale-100'
-          }`}>
+          <div className={`flex items-center gap-2 transition-all duration-200 ${isDragging ? 'opacity-50 scale-95' : 'opacity-100 scale-100'}`}>
             <Home className="w-5 h-5 text-gray-400" />
             <ArrowRight className="w-4 h-4 text-gray-400" />
             <School className="w-5 h-5 text-gray-400" />
@@ -488,6 +496,44 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
           );
         })}
 
+        {/* Lista de estudantes embarcados - podem ser movidos para escola */}
+        <div className="space-y-3 mb-6">
+          {trip.students
+            .filter(tripStudent => tripStudent.status === 'embarked')
+            .map((tripStudent) => {
+              const student = getStudent(tripStudent.studentId);
+              const school = student ? getSchool(student.schoolId) : null;
+              
+              if (!student || !school) return null;
+
+              return (
+                <div key={student.id} className="bg-white rounded-lg p-4 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+                        <span className="text-white font-semibold text-sm">
+                          {student.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-800">{student.name}</h3>
+                        <p className="text-sm text-gray-500">Embarcado - {school.name}</p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => {
+                        onUpdateStudentStatus(student.id, 'at_school');
+                        console.log(`🏫 ${student.name} chegou na escola`);
+                      }}
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 text-sm"
+                    >
+                      Chegou na Escola
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+        </div>
         {/* Lista de estudantes para embarque */}
         <div className="space-y-3 mb-6">
           {trip.students
