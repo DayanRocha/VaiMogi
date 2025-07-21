@@ -27,6 +27,8 @@ interface SwipeableStudentItemProps {
 const SwipeableStudentItem = ({ student, tripData, school, onSwipeLeft, onSwipeRight }: SwipeableStudentItemProps) => {
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
   const startX = useRef(0);
   const currentX = useRef(0);
 
@@ -50,20 +52,41 @@ const SwipeableStudentItem = ({ student, tripData, school, onSwipeLeft, onSwipeR
     if (!isDragging) return;
     
     const deltaX = currentX.current - startX.current;
-    const threshold = 100; // Distância mínima para ativar o swipe
+    const threshold = 80; // Distância mínima para ativar o swipe
     
     if (Math.abs(deltaX) > threshold) {
+      setIsAnimating(true);
+      
       if (deltaX < 0 && tripData.status === 'waiting') {
         // Swipe para esquerda - Van chegou
-        onSwipeLeft();
+        setSwipeDirection('left');
+        setDragX(-300); // Animação para fora da tela
+        setTimeout(() => {
+          onSwipeLeft();
+          setIsAnimating(false);
+          setDragX(0);
+          setSwipeDirection(null);
+        }, 300);
       } else if (deltaX > 0 && tripData.status === 'van_arrived') {
         // Swipe para direita - Embarcar
-        onSwipeRight();
+        setSwipeDirection('right');
+        setDragX(300); // Animação para fora da tela
+        setTimeout(() => {
+          onSwipeRight();
+          setIsAnimating(false);
+          setDragX(0);
+          setSwipeDirection(null);
+        }, 300);
+      } else {
+        // Volta para posição original com animação
+        setDragX(0);
       }
+    } else {
+      // Volta para posição original com animação
+      setDragX(0);
     }
     
     setIsDragging(false);
-    setDragX(0);
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -86,18 +109,37 @@ const SwipeableStudentItem = ({ student, tripData, school, onSwipeLeft, onSwipeR
     if (!isDragging) return;
     
     const deltaX = currentX.current - startX.current;
-    const threshold = 100;
+    const threshold = 80;
     
     if (Math.abs(deltaX) > threshold) {
+      setIsAnimating(true);
+      
       if (deltaX < 0 && tripData.status === 'waiting') {
-        onSwipeLeft();
+        setSwipeDirection('left');
+        setDragX(-300);
+        setTimeout(() => {
+          onSwipeLeft();
+          setIsAnimating(false);
+          setDragX(0);
+          setSwipeDirection(null);
+        }, 300);
       } else if (deltaX > 0 && tripData.status === 'van_arrived') {
-        onSwipeRight();
+        setSwipeDirection('right');
+        setDragX(300);
+        setTimeout(() => {
+          onSwipeRight();
+          setIsAnimating(false);
+          setDragX(0);
+          setSwipeDirection(null);
+        }, 300);
+      } else {
+        setDragX(0);
       }
+    } else {
+      setDragX(0);
     }
     
     setIsDragging(false);
-    setDragX(0);
   };
 
   const getStudentInitials = (name: string) => {
@@ -130,57 +172,159 @@ const SwipeableStudentItem = ({ student, tripData, school, onSwipeLeft, onSwipeR
 
   const showNotificationIcon = tripData.status === 'van_arrived';
 
+  const getSwipeProgress = () => {
+    const maxDrag = 120;
+    return Math.min(Math.abs(dragX) / maxDrag, 1);
+  };
+
+  const getBackgroundGradient = () => {
+    const progress = getSwipeProgress();
+    
+    if (dragX < -30 && tripData.status === 'waiting') {
+      return `linear-gradient(90deg, rgba(249, 115, 22, ${progress * 0.2}) 0%, rgba(255, 255, 255, 1) 50%)`;
+    } else if (dragX > 30 && tripData.status === 'van_arrived') {
+      return `linear-gradient(270deg, rgba(34, 197, 94, ${progress * 0.2}) 0%, rgba(255, 255, 255, 1) 50%)`;
+    }
+    return 'white';
+  };
+
   return (
-    <div 
-      className={`bg-white rounded-lg p-4 shadow-sm transition-transform ${
-        isDragging ? 'cursor-grabbing' : 'cursor-grab'
-      }`}
-      style={{ transform: `translateX(${dragX}px)` }}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className={`w-12 h-12 ${getStatusColor(tripData.status)} rounded-full flex items-center justify-center relative`}>
-            <span className="text-white font-bold text-sm">
-              {getStudentInitials(student.name)}
-            </span>
-            {showNotificationIcon && (
-              <div className="absolute -top-1 -right-1 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
-                <Bell className="w-3 h-3 text-white" />
+    <div className="relative overflow-hidden rounded-lg">
+      {/* Background indicators */}
+      {dragX < -30 && tripData.status === 'waiting' && (
+        <div 
+          className="absolute left-0 top-0 h-full flex items-center justify-start pl-4 z-0"
+          style={{ 
+            width: `${Math.min(Math.abs(dragX) + 60, 200)}px`,
+            background: 'linear-gradient(90deg, #f97316, #fb923c)',
+            opacity: getSwipeProgress() * 0.9
+          }}
+        >
+          <div className="flex items-center gap-2 text-white">
+            <Bell className="w-5 h-5" />
+            <span className="font-medium">Van chegou!</span>
+          </div>
+        </div>
+      )}
+      
+      {dragX > 30 && tripData.status === 'van_arrived' && (
+        <div 
+          className="absolute right-0 top-0 h-full flex items-center justify-end pr-4 z-0"
+          style={{ 
+            width: `${Math.min(dragX + 60, 200)}px`,
+            background: 'linear-gradient(270deg, #22c55e, #4ade80)',
+            opacity: getSwipeProgress() * 0.9
+          }}
+        >
+          <div className="flex items-center gap-2 text-white">
+            <span className="font-medium">Embarcar!</span>
+            <User className="w-5 h-5" />
+          </div>
+        </div>
+      )}
+
+      <div 
+        className={`bg-white rounded-lg p-4 shadow-lg relative z-10 ${
+          isDragging ? 'cursor-grabbing shadow-xl' : 'cursor-grab'
+        } ${isAnimating ? 'transition-all duration-300 ease-out' : ''}`}
+        style={{ 
+          transform: `translateX(${dragX}px) ${isDragging ? 'scale(1.02)' : 'scale(1)'}`,
+          background: getBackgroundGradient(),
+          boxShadow: isDragging ? '0 10px 25px rgba(0,0,0,0.15)' : '0 2px 8px rgba(0,0,0,0.1)'
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-12 h-12 ${getStatusColor(tripData.status)} rounded-full flex items-center justify-center relative transition-all duration-200 ${
+              isDragging ? 'scale-110' : 'scale-100'
+            }`}>
+              <span className="text-white font-bold text-sm">
+                {getStudentInitials(student.name)}
+              </span>
+              {showNotificationIcon && (
+                <div className="absolute -top-1 -right-1 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center animate-pulse">
+                  <Bell className="w-3 h-3 text-white animate-bounce" />
+                </div>
+              )}
+              
+              {/* Efeito de swipe no círculo */}
+              {isDragging && dragX < -30 && tripData.status === 'waiting' && (
+                <div className="absolute inset-0 bg-orange-500 rounded-full flex items-center justify-center opacity-80">
+                  <Bell className="w-4 h-4 text-white animate-pulse" />
+                </div>
+              )}
+              
+              {isDragging && dragX > 30 && tripData.status === 'van_arrived' && (
+                <div className="absolute inset-0 bg-green-500 rounded-full flex items-center justify-center opacity-80">
+                  <User className="w-4 h-4 text-white animate-pulse" />
+                </div>
+              )}
+            </div>
+            
+            <div className={`transition-all duration-200 ${isDragging ? 'scale-105' : 'scale-100'}`}>
+              <h4 className="font-medium text-gray-800">{student.name}</h4>
+              <p className="text-sm text-gray-500">{getStatusText(tripData.status)}</p>
+              <p className="text-xs text-gray-400">{school.name}</p>
+            </div>
+          </div>
+
+          <div className={`flex items-center gap-2 transition-all duration-200 ${
+            isDragging ? 'opacity-50 scale-95' : 'opacity-100 scale-100'
+          }`}>
+            <Home className="w-5 h-5 text-gray-400" />
+            <ArrowRight className="w-4 h-4 text-gray-400" />
+            <School className="w-5 h-5 text-gray-400" />
+          </div>
+        </div>
+
+        {/* Indicadores de swipe animados */}
+        {isDragging && (
+          <div className="mt-3 text-center">
+            {dragX < -40 && tripData.status === 'waiting' && (
+              <div className="flex items-center justify-center gap-2 text-orange-600 animate-pulse">
+                <ArrowLeft className="w-4 h-4 animate-bounce" />
+                <span className="text-sm font-medium">Deslize para notificar chegada</span>
+                <Bell className="w-4 h-4 animate-bounce" />
+              </div>
+            )}
+            {dragX > 40 && tripData.status === 'van_arrived' && (
+              <div className="flex items-center justify-center gap-2 text-green-600 animate-pulse">
+                <User className="w-4 h-4 animate-bounce" />
+                <span className="text-sm font-medium">Deslize para embarcar</span>
+                <ArrowRight className="w-4 h-4 animate-bounce" />
               </div>
             )}
           </div>
-          <div>
-            <h4 className="font-medium text-gray-800">{student.name}</h4>
-            <p className="text-sm text-gray-500">{getStatusText(tripData.status)}</p>
-            <p className="text-xs text-gray-400">{school.name}</p>
+        )}
+
+        {/* Efeito de sucesso */}
+        {swipeDirection && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90 rounded-lg">
+            <div className={`flex items-center gap-2 ${
+              swipeDirection === 'left' ? 'text-orange-600' : 'text-green-600'
+            } animate-pulse`}>
+              {swipeDirection === 'left' ? (
+                <>
+                  <Bell className="w-6 h-6 animate-bounce" />
+                  <span className="font-semibold">Responsáveis notificados!</span>
+                </>
+              ) : (
+                <>
+                  <User className="w-6 h-6 animate-bounce" />
+                  <span className="font-semibold">Aluno embarcado!</span>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Home className="w-5 h-5 text-gray-400" />
-          <ArrowRight className="w-4 h-4 text-gray-400" />
-          <School className="w-5 h-5 text-gray-400" />
-        </div>
+        )}
       </div>
-
-      {/* Indicadores de swipe */}
-      {isDragging && (
-        <div className="mt-2 text-center">
-          {dragX < -50 && tripData.status === 'waiting' && (
-            <span className="text-orange-500 text-sm">← Deslize para notificar chegada</span>
-          )}
-          {dragX > 50 && tripData.status === 'van_arrived' && (
-            <span className="text-green-500 text-sm">Deslize para embarcar →</span>
-          )}
-        </div>
-      )}
     </div>
   );
 };
