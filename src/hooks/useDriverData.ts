@@ -292,10 +292,15 @@ export const useDriverData = () => {
             console.log(`🚐 Notificação: ${student.name} embarcou na van`);
             break;
           case 'at_school':
-            console.log(`🚐 Notificação: ${student.name} chegou na escola`);
+            // Não envia notificação quando chega na escola
             break;
           case 'disembarked':
-            console.log(`🚐 Notificação: ${student.name} foi desembarcado na escola`);
+            console.log(`🏫 Notificação: ${student.name} chegou na escola e foi desembarcado`);
+            // Notificar responsável
+            const guardian = guardians.find(g => g.id === student.guardianId);
+            if (guardian) {
+              console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${student.name} foi desembarcado na escola`);
+            }
             break;
         }
       }

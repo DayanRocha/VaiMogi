@@ -2,7 +2,7 @@
 import { useState, useRef } from 'react';
 import { ArrowRight, ArrowLeft, MapPin, School, CheckCircle, Navigation, User, Bell, Home, Map } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Trip, Student, School as SchoolType, TripStudent } from '@/types/driver';
 
@@ -340,8 +340,10 @@ const SwipeableStudentItem = ({ student, tripData, school, onSwipeLeft, onSwipeR
 export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onFinishTrip, onBack }: ActiveTripProps) => {
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [showGroupDisembarkDialog, setShowGroupDisembarkDialog] = useState(false);
+  const [showEmbarkDialog, setShowEmbarkDialog] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState<SchoolType | null>(null);
   const [selectedStudentsForDisembark, setSelectedStudentsForDisembark] = useState<string[]>([]);
+  const [selectedStudentsForEmbark, setSelectedStudentsForEmbark] = useState<string[]>([]);
 
   if (!trip) {
     return (
@@ -420,25 +422,66 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
     if (schoolStudents.length === 0) return;
 
     setSelectedSchool(school);
+    // Ao abrir o diálogo, todos os alunos da escola são pré-selecionados
     setSelectedStudentsForDisembark(schoolStudents.map(ts => ts.studentId));
     setShowGroupDisembarkDialog(true);
   };
 
-  const handleConfirmGroupDisembark = () => {
-    selectedStudentsForDisembark.forEach(studentId => {
-      onUpdateStudentStatus(studentId, 'disembarked');
+  const handleSchoolEmbark = (school: SchoolType) => {
+    const schoolStudents = trip.students.filter(tripStudent => {
+      const student = getStudent(tripStudent.studentId);
+      return student && student.schoolId === school.id && tripStudent.status === 'embarked';
     });
+
+    if (schoolStudents.length === 0) return;
+
+    setSelectedSchool(school);
+    // Ao abrir o diálogo, todos os alunos da escola são pré-selecionados
+    setSelectedStudentsForEmbark(schoolStudents.map(ts => ts.studentId));
+    setShowEmbarkDialog(true);
+  };
+
+  const handleConfirmGroupDisembark = async () => {
+    // Processar um aluno por vez com pequeno delay para evitar conflitos
+    for (const studentId of selectedStudentsForDisembark) {
+      onUpdateStudentStatus(studentId, 'disembarked');
+      // Pequeno delay para garantir que cada atualização seja processada
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
     setShowGroupDisembarkDialog(false);
     setSelectedSchool(null);
     setSelectedStudentsForDisembark([]);
   };
 
+  const handleConfirmEmbarkToSchool = () => {
+    selectedStudentsForEmbark.forEach(studentId => {
+      onUpdateStudentStatus(studentId, 'at_school');
+    });
+    setShowEmbarkDialog(false);
+    setSelectedSchool(null);
+    setSelectedStudentsForEmbark([]);
+  };
+
   const handleStudentToggle = (studentId: string) => {
-    setSelectedStudentsForDisembark(prev => 
-      prev.includes(studentId) 
-        ? prev.filter(id => id !== studentId)
-        : [...prev, studentId]
-    );
+    setSelectedStudentsForDisembark(prev => {
+      const isSelected = prev.includes(studentId);
+      if (isSelected) {
+        return prev.filter(id => id !== studentId);
+      } else {
+        return [...prev, studentId];
+      }
+    });
+  };
+
+  const handleEmbarkStudentToggle = (studentId: string) => {
+    setSelectedStudentsForEmbark(prev => {
+      const isSelected = prev.includes(studentId);
+      if (isSelected) {
+        return prev.filter(id => id !== studentId);
+      } else {
+        return [...prev, studentId];
+      }
+    });
   };
 
   const allStudentsCompleted = trip.students.every(s => s.status === 'disembarked');
@@ -464,24 +507,25 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
         {/* Escolas para desembarque */}
         {schoolGroups.map((group) => {
           const studentsAtSchool = group.students.filter(s => s.tripData.status === 'at_school');
+          const studentsDisembarked = group.students.filter(s => s.tripData.status === 'disembarked');
           
-          if (studentsAtSchool.length === 0) return null;
+          if (studentsAtSchool.length === 0 && studentsDisembarked.length === 0) return null;
 
           return (
             <div key={`school-${group.school.id}`} className="mb-4">
               <div 
-                className="bg-white rounded-lg p-4 shadow-sm cursor-pointer"
-                onClick={() => handleSchoolDisembark(group.school)}
+                className={`bg-white rounded-lg p-4 shadow-sm ${studentsAtSchool.length > 0 ? 'cursor-pointer' : ''}`}
+                onClick={() => studentsAtSchool.length > 0 && handleSchoolDisembark(group.school)}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
+                    <div className={`w-12 h-12 ${studentsAtSchool.length > 0 ? 'bg-blue-500' : 'bg-gray-400'} rounded-full flex items-center justify-center`}>
                       <School className="w-6 h-6 text-white" />
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-800">{group.school.name}</h3>
                       <p className="text-sm text-gray-500">
-                        Desembarque ({studentsAtSchool.length})
+                        {studentsAtSchool.length > 0 ? `Desembarque (${studentsAtSchool.length})` : `Todos desembarcaram (${studentsDisembarked.length})`}
                       </p>
                     </div>
                   </div>
@@ -496,39 +540,30 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
           );
         })}
 
-        {/* Lista de estudantes embarcados - podem ser movidos para escola */}
+        {/* Lista de estudantes embarcados agrupados por escola */}
         <div className="space-y-3 mb-6">
-          {trip.students
-            .filter(tripStudent => tripStudent.status === 'embarked')
-            .map((tripStudent) => {
-              const student = getStudent(tripStudent.studentId);
-              const school = student ? getSchool(student.schoolId) : null;
+          {groupStudentsBySchool()
+            .filter(group => group.students.some(s => s.tripData.status === 'embarked'))
+            .map((group) => {
+              const embarkedStudents = group.students.filter(s => s.tripData.status === 'embarked');
               
-              if (!student || !school) return null;
-
               return (
-                <div key={student.id} className="bg-white rounded-lg p-4 shadow-sm">
+                <div key={`embarked-${group.school.id}`} className="bg-white rounded-lg p-4 shadow-sm cursor-pointer hover:bg-gray-50"
+                     onClick={() => handleSchoolEmbark(group.school)}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
-                        <span className="text-white font-semibold text-sm">
-                          {student.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
-                        </span>
+                        <School className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-800">{student.name}</h3>
-                        <p className="text-sm text-gray-500">Embarcado - {school.name}</p>
+                        <h3 className="font-semibold text-gray-800">{group.school.name}</h3>
+                        <p className="text-sm text-gray-500">Embarcados ({embarkedStudents.length})</p>
                       </div>
                     </div>
-                    <Button
-                      onClick={() => {
-                        onUpdateStudentStatus(student.id, 'at_school');
-                        console.log(`🏫 ${student.name} chegou na escola`);
-                      }}
-                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 text-sm"
-                    >
-                      Chegou na Escola
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <User className="w-5 h-5 text-gray-400" />
+                      <ArrowRight className="w-4 h-4 text-gray-400" />
+                    </div>
                   </div>
                 </div>
               );
@@ -563,7 +598,7 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
                     // Automaticamente mover para "at_school" após embarcar
                     setTimeout(() => {
                       onUpdateStudentStatus(student.id, 'at_school');
-                    }, 1000);
+                    }, 500);
                   }}
                 />
               );
@@ -590,25 +625,62 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Desembarque: {selectedSchool?.name}</DialogTitle>
+            <DialogDescription>Selecione os alunos para desembarcar.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {selectedStudentsForDisembark.map((studentId) => {
-              const student = getStudent(studentId);
-              if (!student) return null;
+            {/* Botão para selecionar/desselecionar todos */}
+            <div className="flex items-center justify-between border-b pb-2">
+              <span className="text-sm font-medium text-gray-700">Alunos na escola:</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const schoolStudents = trip.students.filter(tripStudent => {
+                    const student = getStudent(tripStudent.studentId);
+                    return student && student.schoolId === selectedSchool?.id && tripStudent.status === 'at_school';
+                  });
+                  const allSelected = schoolStudents.every(ts => selectedStudentsForDisembark.includes(ts.studentId));
+                  if (allSelected) {
+                    setSelectedStudentsForDisembark([]);
+                  } else {
+                    setSelectedStudentsForDisembark(schoolStudents.map(ts => ts.studentId));
+                  }
+                }}
+              >
+                {(() => {
+                  const schoolStudents = trip.students.filter(tripStudent => {
+                    const student = getStudent(tripStudent.studentId);
+                    return student && student.schoolId === selectedSchool?.id && tripStudent.status === 'at_school';
+                  });
+                  const allSelected = schoolStudents.every(ts => selectedStudentsForDisembark.includes(ts.studentId));
+                  return allSelected ? 'Desmarcar Todos' : 'Selecionar Todos';
+                })()}
+              </Button>
+            </div>
+            
+            {/* Lista de todos os alunos da escola */}
+            {trip.students
+              .filter(tripStudent => {
+                const student = getStudent(tripStudent.studentId);
+                return student && student.schoolId === selectedSchool?.id && tripStudent.status === 'at_school';
+              })
+              .map((tripStudent) => {
+                const student = getStudent(tripStudent.studentId);
+                if (!student) return null;
 
-              return (
-                <div key={studentId} className="flex items-center space-x-3">
-                  <Checkbox
-                    id={studentId}
-                    checked={selectedStudentsForDisembark.includes(studentId)}
-                    onCheckedChange={() => handleStudentToggle(studentId)}
-                  />
-                  <label htmlFor={studentId} className="text-sm font-medium">
-                    {student.name}
-                  </label>
-                </div>
-              );
-            })}
+                return (
+                  <div key={student.id} className="flex items-center space-x-3">
+                    <Checkbox
+                      id={student.id}
+                      checked={selectedStudentsForDisembark.includes(student.id)}
+                      onCheckedChange={() => handleStudentToggle(student.id)}
+                    />
+                    <label htmlFor={student.id} className="text-sm font-medium">
+                      {student.name}
+                    </label>
+                  </div>
+                );
+              })}
 
             <div className="flex gap-2 pt-4">
               <Button
@@ -616,7 +688,7 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
                 disabled={selectedStudentsForDisembark.length === 0}
                 className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
               >
-                OK
+                Desembarcar ({selectedStudentsForDisembark.length})
               </Button>
               <Button
                 variant="outline"
@@ -630,14 +702,64 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
         </DialogContent>
       </Dialog>
 
+      {/* Group Embark to School Dialog */}
+      <Dialog open={showEmbarkDialog} onOpenChange={setShowEmbarkDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Chegada na Escola: {selectedSchool?.name}</DialogTitle>
+            <DialogDescription>Selecione os alunos que chegaram na escola.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {selectedStudentsForEmbark.map((studentId) => {
+              const student = getStudent(studentId);
+              if (!student) return null;
+
+              return (
+                <div key={studentId} className="flex items-center space-x-3">
+                  <Checkbox
+                    id={`embark-${studentId}`}
+                    checked={selectedStudentsForEmbark.includes(studentId)}
+                    onCheckedChange={() => handleEmbarkStudentToggle(studentId)}
+                  />
+                  <label htmlFor={`embark-${studentId}`} className="text-sm font-medium">
+                    {student.name}
+                  </label>
+                </div>
+              );
+            })}
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                onClick={handleConfirmEmbarkToSchool}
+                disabled={selectedStudentsForEmbark.length === 0}
+                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white"
+              >
+                Confirmar
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowEmbarkDialog(false)}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Finish Trip Confirmation Dialog */}
       <Dialog open={confirmFinish} onOpenChange={setConfirmFinish}>
         <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Encerrar rota?</DialogTitle>
+            <DialogDescription>A rota será encerrada e não será possível desfazer essa ação.</DialogDescription>
+          </DialogHeader>
           <div className="space-y-4 py-6">
             <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Encerrar rota?</h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">Confirmar Encerramento</h3>
               <p className="text-sm text-gray-600">
-                A rota será encerrada e não será possível desfazer essa ação.
+                Todos os alunos foram entregues. Deseja finalizar a rota?
               </p>
             </div>
 
