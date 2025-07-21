@@ -411,15 +411,22 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
 
     if (schoolStudents.length === 0) return;
 
+    const selectedIds = schoolStudents.map(ts => ts.studentId);
+    
     setSelectedSchool(school);
-    setSelectedStudentsForDisembark(schoolStudents.map(ts => ts.studentId));
+    setSelectedStudentsForDisembark(selectedIds);
     setShowGroupDisembarkDialog(true);
   };
 
   const handleConfirmGroupDisembark = () => {
+    if (selectedStudentsForDisembark.length === 0) return;
+
+
+    
     selectedStudentsForDisembark.forEach(studentId => {
       onUpdateStudentStatus(studentId, 'disembarked');
     });
+    
     setShowGroupDisembarkDialog(false);
     setSelectedSchool(null);
     setSelectedStudentsForDisembark([]);
@@ -488,6 +495,45 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
           );
         })}
 
+        {/* Lista de estudantes embarcados - podem ser movidos para escola */}
+        <div className="space-y-3 mb-6">
+          {trip.students
+            .filter(tripStudent => tripStudent.status === 'embarked')
+            .map((tripStudent) => {
+              const student = getStudent(tripStudent.studentId);
+              const school = student ? getSchool(student.schoolId) : null;
+              
+              if (!student || !school) return null;
+
+              return (
+                <div key={student.id} className="bg-white rounded-lg p-4 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+                        <span className="text-white font-semibold text-sm">
+                          {student.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-800">{student.name}</h3>
+                        <p className="text-sm text-gray-500">Embarcado - {school.name}</p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => {
+                        onUpdateStudentStatus(student.id, 'at_school');
+                        console.log(`🏫 ${student.name} chegou na escola`);
+                      }}
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 text-sm"
+                    >
+                      Chegou na Escola
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+        </div>
+
         {/* Lista de estudantes para embarque */}
         <div className="space-y-3 mb-6">
           {trip.students
@@ -514,15 +560,13 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
                   onSwipeRight={() => {
                     onUpdateStudentStatus(student.id, 'embarked');
                     console.log(`🚌 Notificação enviada: ${student.name} embarcou na van`);
-                    // Automaticamente mover para "at_school" após embarcar
-                    setTimeout(() => {
-                      onUpdateStudentStatus(student.id, 'at_school');
-                    }, 1000);
                   }}
                 />
               );
             })}
         </div>
+
+
 
 
 
@@ -541,28 +585,36 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
 
       {/* Group Disembark Dialog */}
       <Dialog open={showGroupDisembarkDialog} onOpenChange={setShowGroupDisembarkDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" aria-describedby="disembark-description">
           <DialogHeader>
             <DialogTitle>Desembarque: {selectedSchool?.name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {selectedStudentsForDisembark.map((studentId) => {
-              const student = getStudent(studentId);
-              if (!student) return null;
+            <p id="disembark-description" className="text-sm text-gray-600 mb-4">
+              Os estudantes selecionados serão desembarcados de uma vez:
+            </p>
+            {selectedSchool && trip.students
+              .filter(tripStudent => {
+                const student = getStudent(tripStudent.studentId);
+                return student && student.schoolId === selectedSchool.id && tripStudent.status === 'at_school';
+              })
+              .map((tripStudent) => {
+                const student = getStudent(tripStudent.studentId);
+                if (!student) return null;
 
-              return (
-                <div key={studentId} className="flex items-center space-x-3">
-                  <Checkbox
-                    id={studentId}
-                    checked={selectedStudentsForDisembark.includes(studentId)}
-                    onCheckedChange={() => handleStudentToggle(studentId)}
-                  />
-                  <label htmlFor={studentId} className="text-sm font-medium">
-                    {student.name}
-                  </label>
-                </div>
-              );
-            })}
+                return (
+                  <div key={tripStudent.studentId} className="flex items-center space-x-3">
+                    <Checkbox
+                      id={tripStudent.studentId}
+                      checked={selectedStudentsForDisembark.includes(tripStudent.studentId)}
+                      onCheckedChange={() => handleStudentToggle(tripStudent.studentId)}
+                    />
+                    <label htmlFor={tripStudent.studentId} className="text-sm font-medium">
+                      {student.name}
+                    </label>
+                  </div>
+                );
+              })}
 
             <div className="flex gap-2 pt-4">
               <Button
@@ -570,7 +622,7 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
                 disabled={selectedStudentsForDisembark.length === 0}
                 className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
               >
-                OK
+                Confirmar Desembarque ({selectedStudentsForDisembark.length})
               </Button>
               <Button
                 variant="outline"
@@ -586,11 +638,11 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
 
       {/* Finish Trip Confirmation Dialog */}
       <Dialog open={confirmFinish} onOpenChange={setConfirmFinish}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" aria-describedby="finish-trip-description">
           <div className="space-y-4 py-6">
             <div className="text-center">
               <h3 className="text-lg font-semibold text-gray-800 mb-2">Encerrar rota?</h3>
-              <p className="text-sm text-gray-600">
+              <p id="finish-trip-description" className="text-sm text-gray-600">
                 A rota será encerrada e não será possível desfazer essa ação.
               </p>
             </div>

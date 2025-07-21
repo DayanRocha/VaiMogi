@@ -272,34 +272,37 @@ export const useDriverData = () => {
   };
 
   const updateStudentStatus = (studentId: string, status: TripStudent['status']) => {
-    if (activeTrip) {
+    setActiveTrip(currentTrip => {
+      if (!currentTrip) return null;
+
       const updatedTrip = {
-        ...activeTrip,
-        students: activeTrip.students.map(student =>
+        ...currentTrip,
+        students: currentTrip.students.map(student =>
           student.studentId === studentId ? { ...student, status } : student
-        )
+        ),
       };
-      setActiveTrip(updatedTrip);
-      
+
       // Send notifications based on status
-      const student = students.find(s => s.id === studentId);
-      if (student) {
+      const studentInfo = students.find(s => s.id === studentId);
+      if (studentInfo) {
         switch (status) {
           case 'van_arrived':
-            console.log(`🚐 Notificação: A van chegou no ponto de ${student.name}`);
+            console.log(`🔔 Notificação: A van chegou no ponto de ${studentInfo.name}`);
             break;
           case 'embarked':
-            console.log(`🚐 Notificação: ${student.name} embarcou na van`);
+            console.log(`🚌 Notificação: ${studentInfo.name} embarcou na van`);
             break;
           case 'at_school':
-            console.log(`🚐 Notificação: ${student.name} chegou na escola`);
+            console.log(`🏫 Notificação: ${studentInfo.name} chegou na escola`);
             break;
           case 'disembarked':
-            console.log(`🚐 Notificação: ${student.name} foi desembarcado na escola`);
+            console.log(`✅ Notificação: ${studentInfo.name} foi desembarcado na escola`);
             break;
         }
       }
-    }
+
+      return updatedTrip;
+    });
   };
 
   const finishTrip = () => {
