@@ -727,6 +727,7 @@ export default function DriverApp() {
             trip={activeTrip}
             students={students}
             schools={schools}
+            driver={driver}
             onUpdateStudentStatus={updateStudentStatus}
             onUpdateMultipleStudentsStatus={updateMultipleStudentsStatus}
             onFinishTrip={() => {

@@ -4,12 +4,13 @@ import { ArrowRight, ArrowLeft, MapPin, School, CheckCircle, Navigation, User, B
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Trip, Student, School as SchoolType, TripStudent } from '@/types/driver';
+import { Trip, Student, School as SchoolType, TripStudent, Driver } from '@/types/driver';
 
 interface ActiveTripProps {
   trip: Trip | null;
   students: Student[];
   schools: SchoolType[];
+  driver: Driver;
   onUpdateStudentStatus: (studentId: string, status: TripStudent['status']) => void;
   onUpdateMultipleStudentsStatus: (studentIds: string[], status: TripStudent['status']) => void;
   onFinishTrip: () => void;
@@ -21,11 +22,15 @@ interface SwipeableStudentItemProps {
   student: Student;
   tripData: TripStudent;
   school: SchoolType;
+  driver: Driver;
+  isGettingLocation: boolean;
   onSwipeLeft: () => void;
   onSwipeRight: () => void;
+  onShowLocationMessage: (message: string, duration?: number) => void;
+  onSetIsGettingLocation: (value: boolean) => void;
 }
 
-const SwipeableStudentItem = ({ student, tripData, school, onSwipeLeft, onSwipeRight }: SwipeableStudentItemProps) => {
+const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLocation, onSwipeLeft, onSwipeRight, onShowLocationMessage, onSetIsGettingLocation }: SwipeableStudentItemProps) => {
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -108,10 +113,81 @@ const SwipeableStudentItem = ({ student, tripData, school, onSwipeLeft, onSwipeR
 
   const handleMapClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const studentAddress = encodeURIComponent(student.address);
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${studentAddress}`;
-    window.open(url, '_blank');
+    
+    onSetIsGettingLocation(true);
+    console.log(`🗺️ Solicitando localização atual do motorista...`);
+    
+    // Verificar se geolocalização está disponível
+    if (!navigator.geolocation) {
+      console.error('❌ Geolocalização não suportada neste navegador');
+      onShowLocationMessage('Geolocalização não suportada. Usando endereço cadastrado.');
+      
+      // Fallback para endereço cadastrado
+      const driverAddress = encodeURIComponent(driver.address);
+      const studentAddress = encodeURIComponent(student.pickupPoint);
+      const url = `https://www.google.com/maps/dir/?api=1&origin=${driverAddress}&destination=${studentAddress}&travelmode=driving`;
+      window.open(url, '_blank');
+      onSetIsGettingLocation(false);
+      return;
+    }
+    
+    // Solicitar localização atual
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const studentAddress = encodeURIComponent(student.pickupPoint);
+        
+        // Usar coordenadas atuais como origem
+        const url = `https://www.google.com/maps/dir/?api=1&origin=${latitude},${longitude}&destination=${studentAddress}&travelmode=driving`;
+        
+        console.log(`🗺️ Abrindo rota no Google Maps:`);
+        console.log(`  📍 Origem (Localização Atual): ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+        console.log(`  🎯 Destino (${student.name}): ${student.pickupPoint}`);
+        console.log(`  📊 Precisão: ${position.coords.accuracy}m`);
+        
+        onShowLocationMessage(`Localização obtida! Precisão: ${Math.round(position.coords.accuracy)}m`, 2000);
+        window.open(url, '_blank');
+        onSetIsGettingLocation(false);
+      },
+      (error) => {
+        console.error('❌ Erro ao obter localização:', error);
+        
+        let errorMessage = '';
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = 'Permissão de localização negada. Usando endereço cadastrado.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = 'Localização indisponível. Usando endereço cadastrado.';
+            break;
+          case error.TIMEOUT:
+            errorMessage = 'Tempo limite excedido. Usando endereço cadastrado.';
+            break;
+          default:
+            errorMessage = 'Erro ao obter localização. Usando endereço cadastrado.';
+            break;
+        }
+        
+        onShowLocationMessage(errorMessage, 4000);
+        
+        // Fallback para endereço cadastrado
+        const driverAddress = encodeURIComponent(driver.address);
+        const studentAddress = encodeURIComponent(student.pickupPoint);
+        const url = `https://www.google.com/maps/dir/?api=1&origin=${driverAddress}&destination=${studentAddress}&travelmode=driving`;
+        window.open(url, '_blank');
+        onSetIsGettingLocation(false);
+      },
+      {
+        enableHighAccuracy: true, // Usar GPS se disponível para maior precisão
+        timeout: 10000, // 10 segundos de timeout
+        maximumAge: 60000 // Cache de 1 minuto (localização pode mudar rapidamente)
+      }
+    );
   };
+
+
+
+
 
   const handleMouseUp = () => {
     if (!isDragging) return;
@@ -250,8 +326,19 @@ const SwipeableStudentItem = ({ student, tripData, school, onSwipeLeft, onSwipeR
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={handleMapClick} className="p-2 rounded-full hover:bg-gray-100">
-              <Map className="w-6 h-6 text-orange-500" />
+            <button 
+              onClick={handleMapClick} 
+              disabled={isGettingLocation}
+              className={`p-2 rounded-full transition-colors ${
+                isGettingLocation 
+                  ? 'bg-gray-200 cursor-not-allowed' 
+                  : 'hover:bg-gray-100'
+              }`}
+              title={isGettingLocation ? 'Obtendo localização...' : `Ver rota até ${student.name}`}
+            >
+              <Map className={`w-6 h-6 ${
+                isGettingLocation ? 'text-gray-400 animate-pulse' : 'text-orange-500'
+              }`} />
             </button>
             <div className={`w-12 h-12 ${getStatusColor(tripData.status)} rounded-full flex items-center justify-center relative transition-all duration-200 ${
               isDragging ? 'scale-110' : 'scale-100'
@@ -338,12 +425,20 @@ const SwipeableStudentItem = ({ student, tripData, school, onSwipeLeft, onSwipeR
   );
 };
 
-export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onUpdateMultipleStudentsStatus, onFinishTrip, onBack }: ActiveTripProps) => {
+export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentStatus, onUpdateMultipleStudentsStatus, onFinishTrip, onBack }: ActiveTripProps) => {
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [showGroupDisembarkDialog, setShowGroupDisembarkDialog] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState<SchoolType | null>(null);
   const [selectedStudentsForDisembark, setSelectedStudentsForDisembark] = useState<string[]>([]);
   const [isDisembarking, setIsDisembarking] = useState(false);
+
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [locationMessage, setLocationMessage] = useState<string | null>(null);
+
+  const showLocationMessage = (message: string, duration: number = 3000) => {
+    setLocationMessage(message);
+    setTimeout(() => setLocationMessage(null), duration);
+  };
 
   if (!trip) {
     return (
@@ -612,6 +707,8 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onU
                   student={student}
                   tripData={tripStudent}
                   school={school}
+                  driver={driver}
+                  isGettingLocation={isGettingLocation}
                   onSwipeLeft={() => {
                     onUpdateStudentStatus(student.id, 'van_arrived');
                     console.log(`🔔 Notificação enviada: A van chegou no ponto de ${student.name}`);
@@ -620,6 +717,8 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onU
                     onUpdateStudentStatus(student.id, 'embarked');
                     console.log(`🚌 ${student.name} embarcou na van`);
                   }}
+                  onShowLocationMessage={showLocationMessage}
+                  onSetIsGettingLocation={setIsGettingLocation}
                 />
               );
             })}
@@ -639,6 +738,16 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onU
           </div>
         )}
       </div>
+
+      {/* Location Message */}
+      {locationMessage && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg animate-pulse">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4" />
+            <span className="text-sm font-medium">{locationMessage}</span>
+          </div>
+        </div>
+      )}
 
       {/* Group Disembark Dialog */}
       <Dialog open={showGroupDisembarkDialog} onOpenChange={setShowGroupDisembarkDialog}>
@@ -730,6 +839,51 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onU
       </Dialog>
 
 
+
+      {/* Map Options Dialog - Comentado pois estamos usando versão simples
+      <Dialog open={showMapOptions} onOpenChange={setShowMapOptions}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Escolher aplicativo de mapa</DialogTitle>
+            <DialogDescription>
+              Rota: {driver.address} → {selectedStudentForMap?.name} ({selectedStudentForMap?.pickupPoint})
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            <Button
+              onClick={() => openMap('google')}
+              className="w-full flex items-center gap-3 bg-blue-500 hover:bg-blue-600 text-white"
+            >
+              <Map className="w-5 h-5" />
+              Google Maps
+            </Button>
+            
+            <Button
+              onClick={() => openMap('waze')}
+              className="w-full flex items-center gap-3 bg-cyan-500 hover:bg-cyan-600 text-white"
+            >
+              <Navigation className="w-5 h-5" />
+              Waze
+            </Button>
+            
+            <Button
+              onClick={() => openMap('apple')}
+              className="w-full flex items-center gap-3 bg-gray-800 hover:bg-gray-900 text-white"
+            >
+              <MapPin className="w-5 h-5" />
+              Apple Maps
+            </Button>
+            
+            <Button
+              variant="outline"
+              onClick={() => setShowMapOptions(false)}
+              className="w-full"
+            >
+              Cancelar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Finish Trip Confirmation Dialog */}
       <Dialog open={confirmFinish} onOpenChange={setConfirmFinish}>
