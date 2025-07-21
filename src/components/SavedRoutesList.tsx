@@ -9,6 +9,7 @@ interface SavedRoutesListProps {
   onAddRoute: () => void;
   onExecuteRoute: (route: Route) => void;
   onEditRoute: (route: Route) => void;
+  onDeleteRoute: (routeId: string) => void;
   onBack: () => void;
 }
 
@@ -17,6 +18,7 @@ export const SavedRoutesList = ({
   onAddRoute,
   onExecuteRoute,
   onEditRoute,
+  onDeleteRoute,
   onBack
 }: SavedRoutesListProps) => {
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
@@ -46,6 +48,16 @@ export const SavedRoutesList = ({
   const handleCancel = () => {
     setDrawerOpen(false);
     setSelectedRoute(null);
+  };
+
+  const handleDeleteRoute = () => {
+    if (selectedRoute) {
+      if (window.confirm(`Tem certeza que deseja excluir a rota "${selectedRoute.name}"?`)) {
+        onDeleteRoute(selectedRoute.id);
+        setDrawerOpen(false);
+        setSelectedRoute(null);
+      }
+    }
   };
 
   const getRouteInitials = (routeName: string) => {
@@ -158,15 +170,13 @@ export const SavedRoutesList = ({
               Editar informações
             </Button>
 
+
+
             <Button
-              onClick={() => {
-                console.log('Salvar uma cópia da rota:', selectedRoute?.name);
-                setDrawerOpen(false);
-                setSelectedRoute(null);
-              }}
-              className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 text-lg font-semibold"
+              onClick={handleDeleteRoute}
+              className="w-full bg-red-500 hover:bg-red-600 text-white py-4 text-lg font-semibold"
             >
-              Salvar uma cópia
+              Excluir rota
             </Button>
 
             <Button

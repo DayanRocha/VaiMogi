@@ -1,6 +1,6 @@
 
-import { useState } from 'react';
-import { ArrowRight, ArrowLeft, MapPin, School, CheckCircle, Navigation, User } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { ArrowRight, ArrowLeft, MapPin, School, CheckCircle, Navigation, User, Bell, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -14,6 +14,176 @@ interface ActiveTripProps {
   onFinishTrip: () => void;
   onBack: () => void;
 }
+
+// Componente de item de estudante com swipe
+interface SwipeableStudentItemProps {
+  student: Student;
+  tripData: TripStudent;
+  school: SchoolType;
+  onSwipeLeft: () => void;
+  onSwipeRight: () => void;
+}
+
+const SwipeableStudentItem = ({ student, tripData, school, onSwipeLeft, onSwipeRight }: SwipeableStudentItemProps) => {
+  const [dragX, setDragX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const startX = useRef(0);
+  const currentX = useRef(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (tripData.status !== 'waiting' && tripData.status !== 'van_arrived') return;
+    
+    setIsDragging(true);
+    startX.current = e.touches[0].clientX;
+    currentX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+    
+    currentX.current = e.touches[0].clientX;
+    const deltaX = currentX.current - startX.current;
+    setDragX(deltaX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!isDragging) return;
+    
+    const deltaX = currentX.current - startX.current;
+    const threshold = 100; // Distância mínima para ativar o swipe
+    
+    if (Math.abs(deltaX) > threshold) {
+      if (deltaX < 0 && tripData.status === 'waiting') {
+        // Swipe para esquerda - Van chegou
+        onSwipeLeft();
+      } else if (deltaX > 0 && tripData.status === 'van_arrived') {
+        // Swipe para direita - Embarcar
+        onSwipeRight();
+      }
+    }
+    
+    setIsDragging(false);
+    setDragX(0);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (tripData.status !== 'waiting' && tripData.status !== 'van_arrived') return;
+    
+    setIsDragging(true);
+    startX.current = e.clientX;
+    currentX.current = e.clientX;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    
+    currentX.current = e.clientX;
+    const deltaX = currentX.current - startX.current;
+    setDragX(deltaX);
+  };
+
+  const handleMouseUp = () => {
+    if (!isDragging) return;
+    
+    const deltaX = currentX.current - startX.current;
+    const threshold = 100;
+    
+    if (Math.abs(deltaX) > threshold) {
+      if (deltaX < 0 && tripData.status === 'waiting') {
+        onSwipeLeft();
+      } else if (deltaX > 0 && tripData.status === 'van_arrived') {
+        onSwipeRight();
+      }
+    }
+    
+    setIsDragging(false);
+    setDragX(0);
+  };
+
+  const getStudentInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase())
+      .join('')
+      .substring(0, 2);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'waiting': return 'bg-gray-500';
+      case 'van_arrived': return 'bg-orange-500';
+      case 'embarked': return 'bg-green-500';
+      case 'at_school': return 'bg-blue-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'waiting': return 'Embarque em casa';
+      case 'van_arrived': return 'Van chegou';
+      case 'embarked': return 'Embarcado';
+      case 'at_school': return 'Na escola';
+      default: return 'Embarque em casa';
+    }
+  };
+
+  const showNotificationIcon = tripData.status === 'van_arrived';
+
+  return (
+    <div 
+      className={`bg-white rounded-lg p-4 shadow-sm transition-transform ${
+        isDragging ? 'cursor-grabbing' : 'cursor-grab'
+      }`}
+      style={{ transform: `translateX(${dragX}px)` }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className={`w-12 h-12 ${getStatusColor(tripData.status)} rounded-full flex items-center justify-center relative`}>
+            <span className="text-white font-bold text-sm">
+              {getStudentInitials(student.name)}
+            </span>
+            {showNotificationIcon && (
+              <div className="absolute -top-1 -right-1 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                <Bell className="w-3 h-3 text-white" />
+              </div>
+            )}
+          </div>
+          <div>
+            <h4 className="font-medium text-gray-800">{student.name}</h4>
+            <p className="text-sm text-gray-500">{getStatusText(tripData.status)}</p>
+            <p className="text-xs text-gray-400">{school.name}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Home className="w-5 h-5 text-gray-400" />
+          <ArrowRight className="w-4 h-4 text-gray-400" />
+          <School className="w-5 h-5 text-gray-400" />
+        </div>
+      </div>
+
+      {/* Indicadores de swipe */}
+      {isDragging && (
+        <div className="mt-2 text-center">
+          {dragX < -50 && tripData.status === 'waiting' && (
+            <span className="text-orange-500 text-sm">← Deslize para notificar chegada</span>
+          )}
+          {dragX > 50 && tripData.status === 'van_arrived' && (
+            <span className="text-green-500 text-sm">Deslize para embarcar →</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onFinishTrip, onBack }: ActiveTripProps) => {
   const [confirmFinish, setConfirmFinish] = useState(false);
@@ -139,18 +309,19 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
 
       {/* Content */}
       <div className="bg-gray-100 min-h-screen rounded-t-3xl p-4">
-        <div className="space-y-4 mb-6">
-          {schoolGroups.map((group) => {
-            const studentsAtSchool = group.students.filter(s => s.tripData.status === 'at_school');
-            const canDisembarkGroup = studentsAtSchool.length > 0;
+        {/* Escolas para desembarque */}
+        {schoolGroups.map((group) => {
+          const studentsAtSchool = group.students.filter(s => s.tripData.status === 'at_school');
+          
+          if (studentsAtSchool.length === 0) return null;
 
-            return (
-              <div key={group.school.id} className="bg-white rounded-lg border border-gray-200 shadow-sm">
-                {/* School Header */}
-                <div 
-                  className="p-4 border-b border-gray-200 flex items-center justify-between cursor-pointer"
-                  onClick={() => canDisembarkGroup && handleSchoolDisembark(group.school)}
-                >
+          return (
+            <div key={`school-${group.school.id}`} className="mb-4">
+              <div 
+                className="bg-white rounded-lg p-4 shadow-sm cursor-pointer"
+                onClick={() => handleSchoolDisembark(group.school)}
+              >
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
                       <School className="w-6 h-6 text-white" />
@@ -168,83 +339,45 @@ export const ActiveTrip = ({ trip, students, schools, onUpdateStudentStatus, onF
                     <School className="w-5 h-5 text-gray-400" />
                   </div>
                 </div>
-
-                {/* Students List */}
-                <div className="p-4 space-y-3">
-                  {group.students.map(({ student, tripData }) => (
-                    <div key={student.id} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                          <User className="w-4 h-4 text-gray-600" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-gray-800">{student.name}</h4>
-                          <p className="text-xs text-gray-500">{student.pickupPoint}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <div className={`px-2 py-1 rounded text-xs font-medium ${
-                          tripData.status === 'waiting' ? 'bg-yellow-100 text-yellow-700' :
-                          tripData.status === 'van_arrived' ? 'bg-blue-100 text-blue-700' :
-                          tripData.status === 'embarked' ? 'bg-green-100 text-green-700' :
-                          tripData.status === 'at_school' ? 'bg-purple-100 text-purple-700' :
-                          'bg-green-100 text-green-700'
-                        }`}>
-                          {tripData.status === 'waiting' ? 'Aguardando' :
-                           tripData.status === 'van_arrived' ? 'Van chegou' :
-                           tripData.status === 'embarked' ? 'Embarcado' :
-                           tripData.status === 'at_school' ? 'Na escola' :
-                           'Desembarcado'}
-                        </div>
-
-                        {/* Individual Actions */}
-                        {tripData.status === 'waiting' && (
-                          <Button
-                            onClick={() => handleSwipe(student.id, 'left')}
-                            variant="outline"
-                            size="sm"
-                          >
-                            Van Chegou
-                          </Button>
-                        )}
-                        
-                        {tripData.status === 'van_arrived' && (
-                          <Button
-                            onClick={() => handleSwipe(student.id, 'right')}
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            Embarcar
-                          </Button>
-                        )}
-                        
-                        {tripData.status === 'embarked' && (
-                          <Button
-                            onClick={() => onUpdateStudentStatus(student.id, 'at_school')}
-                            size="sm"
-                            className="bg-purple-600 hover:bg-purple-700"
-                          >
-                            Na Escola
-                          </Button>
-                        )}
-                        
-                        {tripData.status === 'at_school' && (
-                          <Button
-                            onClick={() => handleSwipe(student.id, 'right')}
-                            size="sm"
-                            className="bg-orange-600 hover:bg-orange-700"
-                          >
-                            Desembarcar
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
-            );
-          })}
+            </div>
+          );
+        })}
+
+        {/* Lista de estudantes para embarque */}
+        <div className="space-y-3 mb-6">
+          {trip.students
+            .filter(tripStudent => {
+              const status = tripStudent.status;
+              return status === 'waiting' || status === 'van_arrived';
+            })
+            .map((tripStudent) => {
+              const student = getStudent(tripStudent.studentId);
+              const school = student ? getSchool(student.schoolId) : null;
+              
+              if (!student || !school) return null;
+
+              return (
+                <SwipeableStudentItem
+                  key={student.id}
+                  student={student}
+                  tripData={tripStudent}
+                  school={school}
+                  onSwipeLeft={() => {
+                    onUpdateStudentStatus(student.id, 'van_arrived');
+                    console.log(`🔔 Notificação enviada: A van chegou no ponto de ${student.name}`);
+                  }}
+                  onSwipeRight={() => {
+                    onUpdateStudentStatus(student.id, 'embarked');
+                    console.log(`🚌 Notificação enviada: ${student.name} embarcou na van`);
+                    // Automaticamente mover para "at_school" após embarcar
+                    setTimeout(() => {
+                      onUpdateStudentStatus(student.id, 'at_school');
+                    }, 1000);
+                  }}
+                />
+              );
+            })}
         </div>
 
 

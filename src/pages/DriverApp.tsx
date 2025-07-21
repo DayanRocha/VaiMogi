@@ -613,6 +613,7 @@ export default function DriverApp() {
               setShowRouteForm(true);
               addToNavigationStack('route-edit');
             }}
+            onDeleteRoute={deleteRoute}
             onBack={handleBackNavigation}
           />
         );
