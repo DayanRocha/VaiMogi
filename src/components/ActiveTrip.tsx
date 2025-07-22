@@ -28,9 +28,10 @@ interface SwipeableStudentItemProps {
   onSwipeRight: () => void;
   onShowLocationMessage: (message: string, duration?: number) => void;
   onSetIsGettingLocation: (value: boolean) => void;
+  onStudentClick?: () => void;
 }
 
-const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLocation, onSwipeLeft, onSwipeRight, onShowLocationMessage, onSetIsGettingLocation }: SwipeableStudentItemProps) => {
+const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLocation, onSwipeLeft, onSwipeRight, onShowLocationMessage, onSetIsGettingLocation, onStudentClick }: SwipeableStudentItemProps) => {
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -373,8 +374,11 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
               )}
             </div>
             
-            <div className={`transition-all duration-200 ${isDragging ? 'scale-105' : 'scale-100'}`}>
-              <h4 className="font-medium text-gray-800">{student.name}</h4>
+            <div className={`transition-all duration-200 ${isDragging ? 'scale-105' : 'scale-100'}`} 
+                 onClick={onStudentClick}>
+              <h4 className={`font-medium text-gray-800 ${onStudentClick ? 'cursor-pointer hover:text-blue-600' : ''}`}>
+                {student.name}
+              </h4>
               <p className="text-sm text-gray-500">{getStatusText(tripData.status, tripData.direction === 'to_home')}</p>
               <p className="text-xs text-gray-400">{school.name}</p>
             </div>
@@ -448,6 +452,8 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
   const [selectedSchool, setSelectedSchool] = useState<SchoolType | null>(null);
   const [selectedStudentsForDisembark, setSelectedStudentsForDisembark] = useState<string[]>([]);
   const [isDisembarking, setIsDisembarking] = useState(false);
+  const [showHomeDropoffDialog, setShowHomeDropoffDialog] = useState(false);
+  const [selectedStudentForHome, setSelectedStudentForHome] = useState<Student | null>(null);
 
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
@@ -609,6 +615,20 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
     });
   };
 
+  const handleStudentHomeDropoff = (student: Student) => {
+    setSelectedStudentForHome(student);
+    setShowHomeDropoffDialog(true);
+  };
+
+  const handleConfirmHomeDropoff = () => {
+    if (selectedStudentForHome) {
+      console.log(`🏠 Desembarque em casa confirmado para ${selectedStudentForHome.name}`);
+      onUpdateStudentStatus(selectedStudentForHome.id, 'disembarked');
+      setShowHomeDropoffDialog(false);
+      setSelectedStudentForHome(null);
+    }
+  };
+
 
 
   const allStudentsCompleted = trip.students.every(s => s.status === 'disembarked');
@@ -736,6 +756,42 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
                   }}
                   onShowLocationMessage={showLocationMessage}
                   onSetIsGettingLocation={setIsGettingLocation}
+                />
+              );
+            })}
+        </div>
+
+        {/* Lista de estudantes embarcados indo para casa */}
+        <div className="space-y-3 mb-6">
+          {trip.students
+            .filter(tripStudent => {
+              return tripStudent.status === 'embarked' && tripStudent.direction === 'to_home';
+            })
+            .map((tripStudent) => {
+              const student = getStudent(tripStudent.studentId);
+              const school = student ? getSchool(student.schoolId) : null;
+              
+              if (!student || !school) return null;
+
+              return (
+                <SwipeableStudentItem
+                  key={`home-${student.id}`}
+                  student={student}
+                  tripData={tripStudent}
+                  school={school}
+                  driver={driver}
+                  isGettingLocation={isGettingLocation}
+                  onSwipeLeft={() => {
+                    onUpdateStudentStatus(student.id, 'van_arrived');
+                    console.log(`🔔 Notificação enviada: A van chegou no ponto de ${student.name}`);
+                  }}
+                  onSwipeRight={() => {
+                    onUpdateStudentStatus(student.id, 'embarked');
+                    console.log(`🚌 ${student.name} embarcou na van`);
+                  }}
+                  onShowLocationMessage={showLocationMessage}
+                  onSetIsGettingLocation={setIsGettingLocation}
+                  onStudentClick={() => handleStudentHomeDropoff(student)}
                 />
               );
             })}
@@ -933,6 +989,55 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
                 className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
               >
                 ENCERRAR
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Home Dropoff Dialog */}
+      <Dialog open={showHomeDropoffDialog} onOpenChange={setShowHomeDropoffDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Desembarque na Casa do Aluno</DialogTitle>
+            <DialogDescription>Selecione os alunos para desembarcar.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex items-center justify-between border-b pb-2">
+              <span className="text-sm font-medium text-gray-700">Alunos para desembarcar:</span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-orange-500 hover:bg-orange-600 text-white"
+              >
+                Desembarcar Todos
+              </Button>
+            </div>
+            
+            {selectedStudentForHome && (
+              <div className="flex items-center space-x-3">
+                <div className="w-4 h-4 bg-orange-500 rounded-sm flex items-center justify-center">
+                  <CheckCircle className="w-3 h-3 text-white" />
+                </div>
+                <label className="text-sm font-medium">
+                  {selectedStudentForHome.name}
+                </label>
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                onClick={handleConfirmHomeDropoff}
+                className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
+              >
+                Desembarcar Aluno
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowHomeDropoffDialog(false)}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white"
+              >
+                Cancelar
               </Button>
             </div>
           </div>
