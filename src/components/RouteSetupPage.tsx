@@ -16,7 +16,7 @@ interface RouteItem {
 
 interface RouteSetupPageProps {
   onBack: () => void;
-  onSave: () => void;
+  onSave: (routeItems?: RouteItem[]) => void;
   onAddStudent: () => void;
   onAddSchool: () => void;
   students: Student[];
@@ -71,36 +71,9 @@ export const RouteSetupPage = ({
   };
 
   const handleConfirmDirection = (direction: 'embarque' | 'desembarque') => {
-    console.log(`🔄 handleConfirmDirection: ${direction} para ${selectedItem?.name}`);
-    
-    if (selectedItem && selectionType === 'student') {
-      const student = selectedItem as Student;
-      const newDropoffLocation = direction === 'embarque' ? 'school' : 'home';
+    if (selectedItem) {
+      console.log(`✅ ${selectedItem.name} configurado na rota como: ${direction}`);
       
-      console.log(`📝 Atualizando ${student.name} para ${direction} (dropoffLocation: ${newDropoffLocation})`);
-      
-      // Atualizar o estudante diretamente
-      if (onUpdateStudent) {
-        onUpdateStudent(student.id, {
-          name: student.name,
-          address: student.pickupPoint,
-          schoolId: student.schoolId,
-          guardianId: student.guardianId,
-          guardianPhone: '',
-          guardianEmail: '',
-          dropoffLocation: newDropoffLocation
-        });
-      }
-      
-      // Atualizar o estado local imediatamente
-      setLocalStudents(prev => prev.map(s => 
-        s.id === student.id 
-          ? { ...s, dropoffLocation: newDropoffLocation }
-          : s
-      ));
-      
-      console.log(`✅ ${student.name} configurado como: ${direction === 'embarque' ? 'Embarque em casa' : 'Desembarque em casa'}`);
-
       const newRouteItem: RouteItem = {
         id: Date.now().toString(),
         type: selectionType,
@@ -127,8 +100,8 @@ export const RouteSetupPage = ({
   };
 
   const handleSaveRoute = () => {
-    // Salva a rota e redireciona
-    onSave();
+    // Salva a rota com as configurações específicas
+    onSave(routeItems);
   };
 
   if (showRouteMounting) {
@@ -205,13 +178,9 @@ export const RouteSetupPage = ({
                         )}
                         <div>
                           <p className="font-medium text-gray-800">{routeItem.item.name}</p>
-                          {routeItem.type === 'student' && (
+                          {routeItem.type === 'student' && routeItem.direction && (
                             <p className="text-sm text-gray-600">
-                              {(() => {
-                                const currentStudent = localStudents.find(s => s.id === routeItem.item.id);
-                                const dropoffLocation = currentStudent?.dropoffLocation;
-                                return dropoffLocation === 'home' ? 'Desembarque em casa' : 'Embarque em casa';
-                              })()}
+                              {routeItem.direction === 'embarque' ? 'Embarque em casa' : 'Desembarque em casa'}
                             </p>
                           )}
                         </div>

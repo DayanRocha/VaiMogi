@@ -68,13 +68,13 @@ A lógica existente para alunos de "desembarque em casa" permanece inalterada, m
 - **Desembarque Individual**: Alunos de "desembarque em casa" aparecem apenas individualmente
 - **Interface Limpa**: Remove opções desnecessárias de desembarque em grupo para alunos que vão para casa
 
-### ✅ Solução Final Implementada
-- **Interface Intuitiva**: Lista de alunos agora mostra o tipo atual de cada aluno
-- **Botão de Alternância**: Permite alternar facilmente entre "Embarque em casa" e "Desembarque em casa"
-- **Função toggleStudentDropoffType**: Criada função específica para alternar o tipo do aluno
-- **Padrão Corrigido**: Novos alunos são criados como "Desembarque em casa" por padrão
-- **Sincronização Completa**: Todas as telas agora mostram o tipo correto do aluno
-- **Logs Limpos**: Removidos alerts e logs de debug, mantendo apenas logs essenciais
+### ✅ Solução Melhorada - Tipo por Rota
+- **Problema Identificado**: Um aluno pode ter tipos diferentes em rotas diferentes (manhã vs tarde)
+- **Nova Estrutura**: Tipo de embarque/desembarque é definido por rota, não por aluno
+- **Interface RouteStudent**: Nova estrutura para armazenar tipo específico de cada aluno em cada rota
+- **Flexibilidade Total**: Mesmo aluno pode ser "embarque em casa" na rota da manhã e "desembarque em casa" na rota da tarde
+- **Compatibilidade**: Mantém compatibilidade com rotas existentes usando fallback para o tipo do aluno
+- **Configuração por Rota**: Cada rota define independentemente o tipo de cada aluno
 
 ### Dados de Exemplo Atualizados
 - **Ana Silva e Bruno Santos**: Configurados como "embarque em casa" (`dropoffLocation: 'school'`)

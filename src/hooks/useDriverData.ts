@@ -295,8 +295,20 @@ export const useDriverData = () => {
         date: new Date().toISOString(),
         status: 'in_progress',
         students: route.students.map(student => {
-          const direction = student.dropoffLocation === 'home' ? 'to_home' : 'to_school';
-          console.log(`📊 ${student.name}: dropoffLocation=${student.dropoffLocation} → direction=${direction}`);
+          // Usar configuração específica da rota se disponível
+          const routeConfig = route.studentConfigs?.find(config => config.studentId === student.id);
+          
+          let direction: 'to_school' | 'to_home';
+          if (routeConfig) {
+            // Usar configuração da rota
+            direction = routeConfig.direction === 'embarque' ? 'to_school' : 'to_home';
+            console.log(`📊 ${student.name}: configuração da rota=${routeConfig.direction} → direction=${direction}`);
+          } else {
+            // Fallback para configuração do aluno
+            direction = student.dropoffLocation === 'home' ? 'to_home' : 'to_school';
+            console.log(`📊 ${student.name}: fallback dropoffLocation=${student.dropoffLocation} → direction=${direction}`);
+          }
+          
           return {
             studentId: student.id,
             status: 'waiting',

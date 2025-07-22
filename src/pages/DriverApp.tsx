@@ -334,10 +334,34 @@ export default function DriverApp() {
     setShowRouteFormPage(true);
   };
 
-  const handleRouteSetupSave = () => {
+  const handleRouteSetupSave = (routeItems?: any[]) => {
+    if (routeItems && routeItems.length > 0) {
+      // Extrair configurações dos estudantes
+      const studentConfigs = routeItems
+        .filter(item => item.type === 'student' && item.direction)
+        .map(item => ({
+          studentId: item.item.id,
+          direction: item.direction
+        }));
+      
+      // Criar nova rota com configurações
+      const newRoute = {
+        driverId: driver.id,
+        name: `Rota ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+        startTime: '07:00',
+        weekDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+        students: routeItems
+          .filter(item => item.type === 'student')
+          .map(item => item.item),
+        studentConfigs: studentConfigs
+      };
+      
+      addRoute(newRoute);
+      console.log('🚐 Rota criada com configurações específicas:', newRoute);
+    }
+    
     setShowRouteSetupPage(false);
     setShowRoutesListPage(true);
-    console.log('🚐 Rota cadastrada com sucesso! Redirecionando para "suas rotas"...');
   };
 
   const renderContent = () => {

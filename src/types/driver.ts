@@ -17,6 +17,11 @@ export interface Van {
   photo?: string;
 }
 
+export interface RouteStudentConfig {
+  studentId: string;
+  direction: 'embarque' | 'desembarque';
+}
+
 export interface Route {
   id: string;
   driverId: string;
@@ -24,6 +29,7 @@ export interface Route {
   startTime: string;
   weekDays: string[];
   students: Student[];
+  studentConfigs?: RouteStudentConfig[]; // Configurações específicas por rota
 }
 
 export interface Student {
