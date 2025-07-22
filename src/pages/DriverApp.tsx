@@ -467,6 +467,7 @@ export default function DriverApp() {
           onAddSchool={() => { }}
           students={students}
           schools={schools}
+          onUpdateStudent={updateStudent}
         />
       );
     }

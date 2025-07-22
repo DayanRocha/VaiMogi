@@ -294,7 +294,9 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
         >
           <div className="flex items-center gap-2 text-white">
             <Bell className="w-5 h-5" />
-            <span className="font-medium">Van chegou!</span>
+            <span className="font-medium">
+              {tripData.direction === 'to_school' ? 'Van no ponto!' : 'Van chegou!'}
+            </span>
           </div>
         </div>
       )}
@@ -309,7 +311,9 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
           }}
         >
           <div className="flex items-center gap-2 text-white">
-            <span className="font-medium">Embarcar!</span>
+            <span className="font-medium">
+              {tripData.direction === 'to_school' ? 'À escola!' : 'Embarcar!'}
+            </span>
             <User className="w-5 h-5" />
           </div>
         </div>
@@ -407,14 +411,24 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
             {dragX < -40 && tripData.status === 'waiting' && (
               <div className="flex items-center justify-center gap-2 text-orange-600 animate-pulse">
                 <ArrowLeft className="w-4 h-4 animate-bounce" />
-                <span className="text-sm font-medium">Deslize para notificar chegada</span>
+                <span className="text-sm font-medium">
+                  {tripData.direction === 'to_school' 
+                    ? 'Deslize para notificar - Van chegou no ponto' 
+                    : 'Deslize para notificar chegada'
+                  }
+                </span>
                 <Bell className="w-4 h-4 animate-bounce" />
               </div>
             )}
             {dragX > 40 && tripData.status === 'van_arrived' && (
               <div className="flex items-center justify-center gap-2 text-green-600 animate-pulse">
                 <User className="w-4 h-4 animate-bounce" />
-                <span className="text-sm font-medium">Deslize para embarcar</span>
+                <span className="text-sm font-medium">
+                  {tripData.direction === 'to_school' 
+                    ? 'Deslize para embarcar - Rumo à escola' 
+                    : 'Deslize para embarcar'
+                  }
+                </span>
                 <ArrowRight className="w-4 h-4 animate-bounce" />
               </div>
             )}
@@ -430,12 +444,22 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
               {swipeDirection === 'left' ? (
                 <>
                   <Bell className="w-6 h-6 animate-bounce" />
-                  <span className="font-semibold">Responsáveis notificados!</span>
+                  <span className="font-semibold">
+                    {tripData.direction === 'to_school' 
+                      ? 'Responsáveis notificados - Van chegou!' 
+                      : 'Responsáveis notificados!'
+                    }
+                  </span>
                 </>
               ) : (
                 <>
                   <User className="w-6 h-6 animate-bounce" />
-                  <span className="font-semibold">Aluno embarcado!</span>
+                  <span className="font-semibold">
+                    {tripData.direction === 'to_school' 
+                      ? 'Aluno embarcado - A caminho da escola!' 
+                      : 'Aluno embarcado!'
+                    }
+                  </span>
                 </>
               )}
             </div>
@@ -699,7 +723,16 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
         {/* Lista de estudantes embarcados agrupados por escola */}
         <div className="space-y-3 mb-6">
           {groupStudentsBySchool()
-            .filter(group => group.students.some(s => s.tripData.status === 'embarked'))
+            .filter(group => {
+              // Filtrar apenas grupos que têm alunos embarcados
+              const embarkedStudents = group.students.filter(s => s.tripData.status === 'embarked');
+              if (embarkedStudents.length === 0) return false;
+              
+              // Verificar se há pelo menos um aluno que NÃO é de "desembarque em casa"
+              // (ou seja, alunos que devem ser desembarcados na escola)
+              const hasSchoolDropoffStudents = embarkedStudents.some(s => s.tripData.direction !== 'to_home');
+              return hasSchoolDropoffStudents;
+            })
             .map((group) => {
               const embarkedStudents = group.students.filter(s => s.tripData.status === 'embarked');
               
@@ -738,6 +771,9 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
               
               if (!student || !school) return null;
 
+              // Verificar se é "embarque em casa" (direction: 'to_school')
+              const isEmbarqueEmCasa = tripStudent.direction === 'to_school';
+
               return (
                 <SwipeableStudentItem
                   key={student.id}
@@ -748,11 +784,19 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
                   isGettingLocation={isGettingLocation}
                   onSwipeLeft={() => {
                     onUpdateStudentStatus(student.id, 'van_arrived');
-                    console.log(`🔔 Notificação enviada: A van chegou no ponto de ${student.name}`);
+                    if (isEmbarqueEmCasa) {
+                      console.log(`🔔 EMBARQUE EM CASA: Responsáveis de ${student.name} notificados que a van chegou no ponto de embarque`);
+                    } else {
+                      console.log(`🔔 Notificação enviada: A van chegou no ponto de ${student.name}`);
+                    }
                   }}
                   onSwipeRight={() => {
                     onUpdateStudentStatus(student.id, 'embarked');
-                    console.log(`🚌 ${student.name} embarcou na van`);
+                    if (isEmbarqueEmCasa) {
+                      console.log(`🚌 EMBARQUE EM CASA: ${student.name} embarcou na van - Responsáveis notificados que está a caminho da escola`);
+                    } else {
+                      console.log(`🚌 ${student.name} embarcou na van`);
+                    }
                   }}
                   onShowLocationMessage={showLocationMessage}
                   onSetIsGettingLocation={setIsGettingLocation}
@@ -999,29 +1043,41 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
       <Dialog open={showHomeDropoffDialog} onOpenChange={setShowHomeDropoffDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Desembarque na Casa do Aluno</DialogTitle>
-            <DialogDescription>Selecione os alunos para desembarcar.</DialogDescription>
+            <DialogTitle>
+              {selectedStudentForHome ? 
+                `Desembarque em Casa: ${selectedStudentForHome.name}` : 
+                'Desembarque em Casa'
+              }
+            </DialogTitle>
+            <DialogDescription>
+              Confirme o desembarque do aluno na residência.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="flex items-center justify-between border-b pb-2">
-              <span className="text-sm font-medium text-gray-700">Alunos para desembarcar:</span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-orange-500 hover:bg-orange-600 text-white"
-              >
-                Desembarcar Todos
-              </Button>
+              <span className="text-sm font-medium text-gray-700">Confirmar desembarque em casa:</span>
             </div>
             
             {selectedStudentForHome && (
-              <div className="flex items-center space-x-3">
-                <div className="w-4 h-4 bg-orange-500 rounded-sm flex items-center justify-center">
-                  <CheckCircle className="w-3 h-3 text-white" />
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
+                    <Home className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">
+                      {selectedStudentForHome.name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      📍 {selectedStudentForHome.pickupPoint}
+                    </p>
+                  </div>
                 </div>
-                <label className="text-sm font-medium">
-                  {selectedStudentForHome.name}
-                </label>
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <p className="text-sm text-blue-700">
+                    ℹ️ Este aluno será desembarcado em casa (não na escola)
+                  </p>
+                </div>
               </div>
             )}
 
@@ -1030,7 +1086,7 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
                 onClick={handleConfirmHomeDropoff}
                 className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
               >
-                Desembarcar Aluno
+                Confirmar Desembarque em Casa
               </Button>
               <Button
                 variant="outline"

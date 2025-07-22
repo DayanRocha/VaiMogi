@@ -65,7 +65,8 @@ const mockStudents: Student[] = [
     guardianId: 'g1',
     pickupPoint: 'Rua A, 100',
     schoolId: 's1',
-    status: 'waiting'
+    status: 'waiting',
+    dropoffLocation: 'school' // Embarque em casa - vai para escola
   },
   {
     id: '2',
@@ -73,7 +74,8 @@ const mockStudents: Student[] = [
     guardianId: 'g2',
     pickupPoint: 'Rua B, 200',
     schoolId: 's1',
-    status: 'waiting'
+    status: 'waiting',
+    dropoffLocation: 'school' // Embarque em casa - vai para escola
   },
   {
     id: '3',
@@ -81,7 +83,8 @@ const mockStudents: Student[] = [
     guardianId: 'g3',
     pickupPoint: 'Rua C, 300',
     schoolId: 's2',
-    status: 'waiting'
+    status: 'waiting',
+    dropoffLocation: 'home' // Desembarque em casa - vai para casa
   }
 ];
 
@@ -168,6 +171,7 @@ export const useDriverData = () => {
     guardianId: string;
     guardianPhone: string;
     guardianEmail: string;
+    dropoffLocation?: 'home' | 'school';
   }) => {
     setStudents(prev => prev.map(student => 
       student.id === studentId 
@@ -176,7 +180,8 @@ export const useDriverData = () => {
             name: studentData.name,
             pickupPoint: studentData.address,
             schoolId: studentData.schoolId,
-            guardianId: studentData.guardianId
+            guardianId: studentData.guardianId,
+            ...(studentData.dropoffLocation && { dropoffLocation: studentData.dropoffLocation })
           }
         : student
     ));
@@ -252,7 +257,9 @@ export const useDriverData = () => {
         students: route.students.map(student => ({
           studentId: student.id,
           status: 'waiting',
-          direction: 'to_home' // By default, when starting a trip from school, it's going home
+          // Se dropoffLocation é 'home', significa que o aluno vai para casa (to_home)
+          // Se dropoffLocation é 'school' ou undefined, significa que o aluno vai para escola (to_school)
+          direction: student.dropoffLocation === 'home' ? 'to_home' : 'to_school'
         }))
       };
       setActiveTrip(trip);
@@ -299,21 +306,37 @@ export const useDriverData = () => {
         
         switch (status) {
           case 'van_arrived':
-            console.log(`🚐 Notificação: A van chegou ${isToHome ? 'na escola para buscar' : 'no ponto de embarque de'} ${student.name}`);
-            if (guardian) {
-              const message = isToHome 
-                ? `A van chegou na escola para buscar ${student.name} e está indo para casa`
-                : `A van chegou no ponto de embarque de ${student.name} para ir à escola`;
-              console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${message}`);
+            if (isToHome) {
+              // Lógica para "desembarque em casa" - não muda
+              console.log(`🚐 Notificação: A van chegou na escola para buscar ${student.name}`);
+              if (guardian) {
+                const message = `A van chegou na escola para buscar ${student.name} e está indo para casa`;
+                console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${message}`);
+              }
+            } else {
+              // Lógica específica para "embarque em casa" - nova funcionalidade
+              console.log(`🚐 Notificação EMBARQUE EM CASA: A van chegou no ponto de embarque de ${student.name}`);
+              if (guardian) {
+                const message = `🚐 A van chegou no ponto de embarque de ${student.name}. Prepare-se para o embarque!`;
+                console.log(`📱 Notificação enviada para responsável ${guardian.name} (${guardian.phone}): ${message}`);
+              }
             }
             break;
           case 'embarked':
-            console.log(`🚌 Notificação: ${student.name} embarcou na van`);
-            if (guardian) {
-              const message = isToHome 
-                ? `${student.name} embarcou na van na escola e está a caminho de casa`
-                : `${student.name} embarcou na van e está a caminho da escola`;
-              console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${message}`);
+            if (isToHome) {
+              // Lógica para "desembarque em casa" - não muda
+              console.log(`🚌 Notificação: ${student.name} embarcou na van na escola`);
+              if (guardian) {
+                const message = `${student.name} embarcou na van na escola e está a caminho de casa`;
+                console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${message}`);
+              }
+            } else {
+              // Lógica específica para "embarque em casa" - nova funcionalidade
+              console.log(`🚌 Notificação EMBARQUE EM CASA: ${student.name} embarcou na van e está a caminho da escola`);
+              if (guardian) {
+                const message = `🚌 ${student.name} embarcou na van e está a caminho da escola. Chegada prevista em breve!`;
+                console.log(`📱 Notificação enviada para responsável ${guardian.name} (${guardian.phone}): ${message}`);
+              }
             }
             break;
           case 'at_school':

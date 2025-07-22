@@ -21,6 +21,7 @@ interface RouteSetupPageProps {
   onAddSchool: () => void;
   students: Student[];
   schools: SchoolType[];
+  onUpdateStudent?: (studentId: string, studentData: { name: string; address: string; schoolId: string; guardianId: string; guardianPhone: string; guardianEmail: string; dropoffLocation?: 'home' | 'school'; }) => void;
 }
 
 export const RouteSetupPage = ({ 
@@ -29,7 +30,8 @@ export const RouteSetupPage = ({
   onAddStudent, 
   onAddSchool,
   students,
-  schools 
+  schools,
+  onUpdateStudent
 }: RouteSetupPageProps) => {
   const [routeItems, setRouteItems] = useState<RouteItem[]>([]);
   const [showSelectionDialog, setShowSelectionDialog] = useState(false);
@@ -62,6 +64,30 @@ export const RouteSetupPage = ({
 
   const handleConfirmDirection = (direction: 'embarque' | 'desembarque') => {
     if (selectedItem) {
+      // Se for um estudante, atualizar o dropoffLocation
+      if (selectionType === 'student' && 'dropoffLocation' in selectedItem) {
+        const student = selectedItem as Student;
+        const newDropoffLocation = direction === 'embarque' ? 'school' : 'home';
+        
+        // Atualizar o dropoffLocation do estudante se mudou
+        if (student.dropoffLocation !== newDropoffLocation && onUpdateStudent) {
+          console.log(`📝 Atualizando ${student.name}: ${direction} (dropoffLocation: ${newDropoffLocation})`);
+          
+          // Atualizar o estudante com o novo dropoffLocation
+          onUpdateStudent(student.id, {
+            name: student.name,
+            address: student.pickupPoint,
+            schoolId: student.schoolId,
+            guardianId: student.guardianId,
+            guardianPhone: '', // Estes valores não são alterados aqui
+            guardianEmail: '',
+            dropoffLocation: newDropoffLocation
+          });
+          
+          console.log(`✅ ${student.name} agora é: ${direction === 'embarque' ? 'Embarque em casa' : 'Desembarque em casa'}`);
+        }
+      }
+
       const newRouteItem: RouteItem = {
         id: Date.now().toString(),
         type: selectionType,
@@ -111,6 +137,7 @@ export const RouteSetupPage = ({
         onConfirm={handleConfirmDirection}
         selectedItem={selectedItem}
         type={selectionType}
+        onUpdateStudent={onUpdateStudent}
       />
     );
   }
