@@ -244,13 +244,20 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
     }
   };
 
-  const getStatusText = (status: string) => {
+  const getStatusText = (status: string, isToHome: boolean = false) => {
     switch (status) {
-      case 'waiting': return 'Embarque em casa';
-      case 'van_arrived': return 'Van chegou';
-      case 'embarked': return 'Embarcado';
-      case 'at_school': return 'Na escola';
-      default: return 'Embarque em casa';
+      case 'waiting': 
+        return isToHome ? 'Desembarque em casa' : 'Embarque em casa';
+      case 'van_arrived': 
+        return isToHome ? 'Van chegou na escola' : 'Van chegou';
+      case 'embarked': 
+        return isToHome ? 'Embarcado para casa' : 'Embarcado';
+      case 'at_school': 
+        return 'Na escola';
+      case 'disembarked':
+        return isToHome ? 'Desembarcado em casa' : 'Desembarcado na escola';
+      default: 
+        return isToHome ? 'Desembarque em casa' : 'Embarque em casa';
     }
   };
 
@@ -368,15 +375,25 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
             
             <div className={`transition-all duration-200 ${isDragging ? 'scale-105' : 'scale-100'}`}>
               <h4 className="font-medium text-gray-800">{student.name}</h4>
-              <p className="text-sm text-gray-500">{getStatusText(tripData.status)}</p>
+              <p className="text-sm text-gray-500">{getStatusText(tripData.status, tripData.direction === 'to_home')}</p>
               <p className="text-xs text-gray-400">{school.name}</p>
             </div>
           </div>
 
           <div className={`flex items-center gap-2 transition-all duration-200 ${isDragging ? 'opacity-50 scale-95' : 'opacity-100 scale-100'}`}>
-            <Home className="w-5 h-5 text-gray-400" />
-            <ArrowRight className="w-4 h-4 text-gray-400" />
-            <School className="w-5 h-5 text-gray-400" />
+            {tripData.direction === 'to_home' ? (
+              <>
+                <School className="w-5 h-5 text-gray-400" />
+                <ArrowRight className="w-4 h-4 text-gray-400" />
+                <Home className="w-5 h-5 text-gray-400" />
+              </>
+            ) : (
+              <>
+                <Home className="w-5 h-5 text-gray-400" />
+                <ArrowRight className="w-4 h-4 text-gray-400" />
+                <School className="w-5 h-5 text-gray-400" />
+              </>
+            )}
           </div>
         </div>
 

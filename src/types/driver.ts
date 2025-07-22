@@ -33,6 +33,7 @@ export interface Student {
   pickupPoint: string;
   schoolId: string;
   status: 'waiting' | 'embarked' | 'at_school';
+  dropoffLocation?: 'home' | 'school'; // Where to drop off the student (home or school)
 }
 
 export interface Guardian {
@@ -62,6 +63,7 @@ export interface Trip {
 export interface TripStudent {
   studentId: string;
   status: 'waiting' | 'van_arrived' | 'embarked' | 'at_school' | 'disembarked';
+  direction: 'to_school' | 'to_home'; // Direction of the trip
   pickupTime?: string;
   dropoffTime?: string;
 }

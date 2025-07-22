@@ -85,7 +85,10 @@ export const RouteExecutionScreen = ({
                 type: 'student',
                 name: selectedStudent.name,
                 details: studentPickupType === 'pickup' ? 'Embarque em casa' : 'Desembarque em casa',
-                studentData: selectedStudent
+                studentData: {
+                    ...selectedStudent,
+                    dropoffLocation: studentPickupType === 'pickup' ? 'school' : 'home'
+                }
             };
             setRouteItems(prev => [...prev, newItem]);
             setShowStudentConfirmDialog(false);

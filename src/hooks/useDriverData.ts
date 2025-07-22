@@ -251,7 +251,8 @@ export const useDriverData = () => {
         status: 'in_progress',
         students: route.students.map(student => ({
           studentId: student.id,
-          status: 'waiting'
+          status: 'waiting',
+          direction: 'to_home' // By default, when starting a trip from school, it's going home
         }))
       };
       setActiveTrip(trip);
@@ -263,7 +264,10 @@ export const useDriverData = () => {
       route.students.forEach(student => {
         const guardian = guardians.find(g => g.id === student.guardianId);
         if (guardian) {
-          console.log(`📲 Notificação enviada para ${guardian.name} (${guardian.phone}): "A van está a caminho para buscar ${student.name}. Rota: ${route.name}"`);
+          const message = student.dropoffLocation === 'home' ?
+            `"A van está a caminho da escola para buscar ${student.name}. Rota: ${route.name}"` :
+            `"A van está a caminho para buscar ${student.name}. Rota: ${route.name}"`;
+          console.log(`📲 Notificação enviada para ${guardian.name} (${guardian.phone}): ${message}`);
         }
       });
       
@@ -289,18 +293,27 @@ export const useDriverData = () => {
       const student = students.find(s => s.id === studentId);
       if (student) {
         const guardian = guardians.find(g => g.id === student.guardianId);
+        const tripStudent = activeTrip.students.find(ts => ts.studentId === studentId);
+        const direction = tripStudent?.direction || 'to_school';
+        const isToHome = direction === 'to_home';
         
         switch (status) {
           case 'van_arrived':
-            console.log(`🚐 Notificação: A van chegou no ponto de ${student.name}`);
+            console.log(`🚐 Notificação: A van chegou ${isToHome ? 'na escola para buscar' : 'no ponto de embarque de'} ${student.name}`);
             if (guardian) {
-              console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): A van chegou para buscar ${student.name}`);
+              const message = isToHome 
+                ? `A van chegou na escola para buscar ${student.name} e está indo para casa`
+                : `A van chegou no ponto de embarque de ${student.name} para ir à escola`;
+              console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${message}`);
             }
             break;
           case 'embarked':
             console.log(`🚌 Notificação: ${student.name} embarcou na van`);
             if (guardian) {
-              console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${student.name} embarcou na van e está a caminho da escola`);
+              const message = isToHome 
+                ? `${student.name} embarcou na van na escola e está a caminho de casa`
+                : `${student.name} embarcou na van e está a caminho da escola`;
+              console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${message}`);
             }
             break;
           case 'at_school':
@@ -308,10 +321,17 @@ export const useDriverData = () => {
             // Não notifica quando chega na escola, apenas quando desembarca
             break;
           case 'disembarked':
-            const school = schools.find(s => s.id === student.schoolId);
-            console.log(`🏫 Notificação: ${student.name} foi desembarcado na ${school?.name || 'escola'}`);
-            if (guardian) {
-              console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${student.name} chegou na ${school?.name || 'escola'} e foi desembarcado com segurança`);
+            if (isToHome) {
+              console.log(`🏠 Notificação: ${student.name} foi desembarcado em casa`);
+              if (guardian) {
+                console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${student.name} chegou em casa e foi desembarcado com segurança`);
+              }
+            } else {
+              const school = schools.find(s => s.id === student.schoolId);
+              console.log(`🏫 Notificação: ${student.name} foi desembarcado na ${school?.name || 'escola'}`);
+              if (guardian) {
+                console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${student.name} chegou na ${school?.name || 'escola'} e foi desembarcado com segurança`);
+              }
             }
             break;
         }
@@ -338,13 +358,23 @@ export const useDriverData = () => {
         const student = students.find(s => s.id === studentId);
         if (student) {
           const guardian = guardians.find(g => g.id === student.guardianId);
+          const tripStudent = activeTrip.students.find(ts => ts.studentId === studentId);
+          const direction = tripStudent?.direction || 'to_school';
+          const isToHome = direction === 'to_home';
           
           switch (status) {
             case 'disembarked':
-              const school = schools.find(s => s.id === student.schoolId);
-              console.log(`🏫 Notificação: ${student.name} foi desembarcado na ${school?.name || 'escola'}`);
-              if (guardian) {
-                console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${student.name} chegou na ${school?.name || 'escola'} e foi desembarcado com segurança`);
+              if (isToHome) {
+                console.log(`🏠 Notificação: ${student.name} foi desembarcado em casa`);
+                if (guardian) {
+                  console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${student.name} chegou em casa e foi desembarcado com segurança`);
+                }
+              } else {
+                const school = schools.find(s => s.id === student.schoolId);
+                console.log(`🏫 Notificação: ${student.name} foi desembarcado na ${school?.name || 'escola'}`);
+                if (guardian) {
+                  console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${student.name} chegou na ${school?.name || 'escola'} e foi desembarcado com segurança`);
+                }
               }
               break;
             // Adicionar outros casos conforme necessário
