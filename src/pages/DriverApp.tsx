@@ -143,6 +143,7 @@ export default function DriverApp() {
     finishTrip,
     addStudent,
     updateStudent,
+    toggleStudentDropoffType,
     deleteStudent,
     addGuardian,
     updateGuardian,
@@ -648,6 +649,7 @@ export default function DriverApp() {
             }}
             onEditStudent={handleEditStudent}
             onDeleteStudent={deleteStudent}
+            onToggleDropoffType={toggleStudentDropoffType}
           />
         );
 

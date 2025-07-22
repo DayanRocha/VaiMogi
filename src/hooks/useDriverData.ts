@@ -152,16 +152,27 @@ export const useDriverData = () => {
     guardianPhone: string;
     guardianEmail: string;
   }) => {
+    console.log(`🔄 addStudent chamada com dados:`, studentData);
+    
     const newStudent: Student = {
       id: Date.now().toString(),
       name: studentData.name,
       guardianId: studentData.guardianId,
       pickupPoint: studentData.address,
       schoolId: studentData.schoolId,
-      status: 'waiting'
+      status: 'waiting',
+      dropoffLocation: 'home' // Padrão: desembarque em casa (vai para casa)
     };
-    setStudents(prev => [...prev, newStudent]);
-    console.log(`📚 Novo aluno cadastrado: ${studentData.name}`);
+    
+    console.log(`📚 Criando novo aluno:`, newStudent);
+    
+    setStudents(prev => {
+      const updatedStudents = [...prev, newStudent];
+      console.log(`✅ Lista de alunos atualizada. Total: ${updatedStudents.length}`);
+      return updatedStudents;
+    });
+    
+    console.log(`✅ Novo aluno cadastrado: ${studentData.name} com dropoffLocation: ${newStudent.dropoffLocation}`);
   };
 
   const updateStudent = (studentId: string, studentData: {
@@ -173,19 +184,48 @@ export const useDriverData = () => {
     guardianEmail: string;
     dropoffLocation?: 'home' | 'school';
   }) => {
-    setStudents(prev => prev.map(student => 
-      student.id === studentId 
-        ? {
-            ...student,
-            name: studentData.name,
-            pickupPoint: studentData.address,
-            schoolId: studentData.schoolId,
-            guardianId: studentData.guardianId,
-            ...(studentData.dropoffLocation && { dropoffLocation: studentData.dropoffLocation })
-          }
-        : student
-    ));
-    console.log(`📚 Aluno atualizado: ${studentData.name}`);
+    console.log(`🔄 Atualizando estudante ${studentData.name} com dropoffLocation: ${studentData.dropoffLocation}`);
+    
+    setStudents(prev => {
+      const updatedStudents = prev.map(student => 
+        student.id === studentId 
+          ? {
+              ...student,
+              name: studentData.name,
+              pickupPoint: studentData.address,
+              schoolId: studentData.schoolId,
+              guardianId: studentData.guardianId,
+              dropoffLocation: studentData.dropoffLocation !== undefined ? studentData.dropoffLocation : student.dropoffLocation
+            }
+          : student
+      );
+      
+      // Verificar se a atualização foi aplicada
+      const updatedStudent = updatedStudents.find(s => s.id === studentId);
+      console.log(`✅ ${updatedStudent?.name} atualizado: dropoffLocation = ${updatedStudent?.dropoffLocation}`);
+      
+      return updatedStudents;
+    });
+  };
+
+  // Função específica para alternar o tipo de embarque/desembarque
+  const toggleStudentDropoffType = (studentId: string) => {
+    setStudents(prev => {
+      const updatedStudents = prev.map(student => 
+        student.id === studentId 
+          ? {
+              ...student,
+              dropoffLocation: student.dropoffLocation === 'home' ? 'school' : 'home'
+            }
+          : student
+      );
+      
+      const updatedStudent = updatedStudents.find(s => s.id === studentId);
+      const newType = updatedStudent?.dropoffLocation === 'home' ? 'Desembarque em casa' : 'Embarque em casa';
+      console.log(`🔄 ${updatedStudent?.name} alterado para: ${newType}`);
+      
+      return updatedStudents;
+    });
   };
 
   const deleteStudent = (studentId: string) => {
@@ -254,13 +294,15 @@ export const useDriverData = () => {
         routeId,
         date: new Date().toISOString(),
         status: 'in_progress',
-        students: route.students.map(student => ({
-          studentId: student.id,
-          status: 'waiting',
-          // Se dropoffLocation é 'home', significa que o aluno vai para casa (to_home)
-          // Se dropoffLocation é 'school' ou undefined, significa que o aluno vai para escola (to_school)
-          direction: student.dropoffLocation === 'home' ? 'to_home' : 'to_school'
-        }))
+        students: route.students.map(student => {
+          const direction = student.dropoffLocation === 'home' ? 'to_home' : 'to_school';
+          console.log(`📊 ${student.name}: dropoffLocation=${student.dropoffLocation} → direction=${direction}`);
+          return {
+            studentId: student.id,
+            status: 'waiting',
+            direction: direction
+          };
+        })
       };
       setActiveTrip(trip);
       
@@ -429,6 +471,7 @@ export const useDriverData = () => {
     deleteRoute,
     addStudent,
     updateStudent,
+    toggleStudentDropoffType,
     deleteStudent,
     addGuardian,
     updateGuardian,

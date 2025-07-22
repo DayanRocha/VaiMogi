@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { ArrowLeft, Info, UserPlus, School, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StudentSelectionDialog } from './StudentSelectionDialog';
@@ -39,6 +39,14 @@ export const RouteSetupPage = ({
   const [showEditInfo, setShowEditInfo] = useState(false);
   const [showRouteMounting, setShowRouteMounting] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Student | SchoolType | null>(null);
+  
+  // Estado local para forçar re-render quando estudantes são atualizados
+  const [localStudents, setLocalStudents] = useState(students);
+  
+  // Sincronizar com os estudantes externos
+  React.useEffect(() => {
+    setLocalStudents(students);
+  }, [students]);
 
   const handleAddStudent = () => {
     setSelectionType('student');
@@ -63,30 +71,35 @@ export const RouteSetupPage = ({
   };
 
   const handleConfirmDirection = (direction: 'embarque' | 'desembarque') => {
-    if (selectedItem) {
-      // Se for um estudante, atualizar o dropoffLocation
-      if (selectionType === 'student' && 'dropoffLocation' in selectedItem) {
-        const student = selectedItem as Student;
-        const newDropoffLocation = direction === 'embarque' ? 'school' : 'home';
-        
-        // Atualizar o dropoffLocation do estudante se mudou
-        if (student.dropoffLocation !== newDropoffLocation && onUpdateStudent) {
-          console.log(`📝 Atualizando ${student.name}: ${direction} (dropoffLocation: ${newDropoffLocation})`);
-          
-          // Atualizar o estudante com o novo dropoffLocation
-          onUpdateStudent(student.id, {
-            name: student.name,
-            address: student.pickupPoint,
-            schoolId: student.schoolId,
-            guardianId: student.guardianId,
-            guardianPhone: '', // Estes valores não são alterados aqui
-            guardianEmail: '',
-            dropoffLocation: newDropoffLocation
-          });
-          
-          console.log(`✅ ${student.name} agora é: ${direction === 'embarque' ? 'Embarque em casa' : 'Desembarque em casa'}`);
-        }
+    console.log(`🔄 handleConfirmDirection: ${direction} para ${selectedItem?.name}`);
+    
+    if (selectedItem && selectionType === 'student') {
+      const student = selectedItem as Student;
+      const newDropoffLocation = direction === 'embarque' ? 'school' : 'home';
+      
+      console.log(`📝 Atualizando ${student.name} para ${direction} (dropoffLocation: ${newDropoffLocation})`);
+      
+      // Atualizar o estudante diretamente
+      if (onUpdateStudent) {
+        onUpdateStudent(student.id, {
+          name: student.name,
+          address: student.pickupPoint,
+          schoolId: student.schoolId,
+          guardianId: student.guardianId,
+          guardianPhone: '',
+          guardianEmail: '',
+          dropoffLocation: newDropoffLocation
+        });
       }
+      
+      // Atualizar o estado local imediatamente
+      setLocalStudents(prev => prev.map(s => 
+        s.id === student.id 
+          ? { ...s, dropoffLocation: newDropoffLocation }
+          : s
+      ));
+      
+      console.log(`✅ ${student.name} configurado como: ${direction === 'embarque' ? 'Embarque em casa' : 'Desembarque em casa'}`);
 
       const newRouteItem: RouteItem = {
         id: Date.now().toString(),
@@ -192,8 +205,14 @@ export const RouteSetupPage = ({
                         )}
                         <div>
                           <p className="font-medium text-gray-800">{routeItem.item.name}</p>
-                          {routeItem.type === 'student' && routeItem.direction && (
-                            <p className="text-sm text-gray-600 capitalize">{routeItem.direction}</p>
+                          {routeItem.type === 'student' && (
+                            <p className="text-sm text-gray-600">
+                              {(() => {
+                                const currentStudent = localStudents.find(s => s.id === routeItem.item.id);
+                                const dropoffLocation = currentStudent?.dropoffLocation;
+                                return dropoffLocation === 'home' ? 'Desembarque em casa' : 'Embarque em casa';
+                              })()}
+                            </p>
                           )}
                         </div>
                       </div>

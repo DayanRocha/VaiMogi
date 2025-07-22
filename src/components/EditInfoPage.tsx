@@ -38,13 +38,18 @@ export const EditInfoPage = ({ onBack, onConfirm, selectedItem, type, onUpdateSt
       const newDropoffLocation = selectedDirection === 'embarque' ? 'school' : 'home';
       
       // Atualizar o estudante se a função estiver disponível
-      if (onUpdateStudent && student.dropoffLocation !== newDropoffLocation) {
-        // Criar uma cópia do estudante com o novo dropoffLocation
-        const updatedStudent = { ...student, dropoffLocation: newDropoffLocation };
-        
-        // Como a função updateStudent espera dados específicos, vamos usar uma abordagem diferente
-        // Por enquanto, vamos apenas confirmar a direção e deixar a atualização para depois
+      if (onUpdateStudent) {
         console.log(`📝 Atualizando ${student.name}: ${selectedDirection} (dropoffLocation: ${newDropoffLocation})`);
+        
+        onUpdateStudent(student.id, {
+          name: student.name,
+          address: student.pickupPoint,
+          schoolId: student.schoolId,
+          guardianId: student.guardianId,
+          guardianPhone: '',
+          guardianEmail: '',
+          dropoffLocation: newDropoffLocation
+        });
       }
       
       onConfirm(selectedDirection);

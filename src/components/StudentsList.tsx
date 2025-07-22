@@ -1,5 +1,5 @@
 
-import { User, MapPin, School, ArrowLeft, Plus, Edit, Trash2 } from 'lucide-react';
+import { User, MapPin, School, ArrowLeft, Plus, Edit, Trash2, Home, RotateCcw } from 'lucide-react';
 import { Student, School as SchoolType } from '@/types/driver';
 
 interface StudentsListProps {
@@ -9,9 +9,10 @@ interface StudentsListProps {
   onAddStudent: () => void;
   onEditStudent: (student: Student) => void;
   onDeleteStudent: (studentId: string) => void;
+  onToggleDropoffType?: (studentId: string) => void;
 }
 
-export const StudentsList = ({ students, schools, onBack, onAddStudent, onEditStudent, onDeleteStudent }: StudentsListProps) => {
+export const StudentsList = ({ students, schools, onBack, onAddStudent, onEditStudent, onDeleteStudent, onToggleDropoffType }: StudentsListProps) => {
   const getSchoolName = (schoolId: string) => {
     const school = schools.find(s => s.id === schoolId);
     return school?.name || 'Escola não encontrada';
@@ -81,9 +82,31 @@ export const StudentsList = ({ students, schools, onBack, onAddStudent, onEditSt
                       <School className="w-4 h-4 mr-1" />
                       {getSchoolName(student.schoolId)}
                     </div>
+                    <div className="flex items-center text-xs mt-1">
+                      {student.dropoffLocation === 'home' ? (
+                        <div className="flex items-center text-blue-600">
+                          <Home className="w-3 h-3 mr-1" />
+                          <span>Desembarque em casa</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center text-green-600">
+                          <School className="w-3 h-3 mr-1" />
+                          <span>Embarque em casa</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
                   <div className="flex gap-1">
+                    {onToggleDropoffType && (
+                      <button
+                        onClick={() => onToggleDropoffType(student.id)}
+                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title={`Alternar para ${student.dropoffLocation === 'home' ? 'Embarque em casa' : 'Desembarque em casa'}`}
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                      </button>
+                    )}
                     <button
                       onClick={() => onEditStudent(student)}
                       className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"

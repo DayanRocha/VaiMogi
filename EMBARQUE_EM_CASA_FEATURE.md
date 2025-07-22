@@ -57,10 +57,24 @@ A lógica existente para alunos de "desembarque em casa" permanece inalterada, m
 - **Função updateStudent**: Modificada para aceitar e atualizar o `dropoffLocation`
 - **Consistência**: Garante que a configuração na tela de rota reflita o comportamento real
 
+### Geolocalização Inteligente
+- **Van → Casa do Aluno**: Para alunos de "desembarque em casa", a rota vai da localização atual da van até a casa do aluno
+- **Van → Escola**: Para alunos de "embarque em casa", a rota vai da localização atual da van até a escola
+- **Endereços Cadastrados**: Usa os endereços já cadastrados no sistema como destino
+- **Fallback Inteligente**: Se a geolocalização falhar, usa o endereço cadastrado do motorista como origem
+
 ### Lógica de Exibição Corrigida
 - **Grupos de Escola**: Agora só aparecem quando há alunos que devem ser desembarcados NA ESCOLA
 - **Desembarque Individual**: Alunos de "desembarque em casa" aparecem apenas individualmente
 - **Interface Limpa**: Remove opções desnecessárias de desembarque em grupo para alunos que vão para casa
+
+### ✅ Solução Final Implementada
+- **Interface Intuitiva**: Lista de alunos agora mostra o tipo atual de cada aluno
+- **Botão de Alternância**: Permite alternar facilmente entre "Embarque em casa" e "Desembarque em casa"
+- **Função toggleStudentDropoffType**: Criada função específica para alternar o tipo do aluno
+- **Padrão Corrigido**: Novos alunos são criados como "Desembarque em casa" por padrão
+- **Sincronização Completa**: Todas as telas agora mostram o tipo correto do aluno
+- **Logs Limpos**: Removidos alerts e logs de debug, mantendo apenas logs essenciais
 
 ### Dados de Exemplo Atualizados
 - **Ana Silva e Bruno Santos**: Configurados como "embarque em casa" (`dropoffLocation: 'school'`)
@@ -76,11 +90,20 @@ A lógica existente para alunos de "desembarque em casa" permanece inalterada, m
 
 ## Exemplo de Uso
 
+### Embarque em Casa (Ana Silva, Bruno Santos)
 1. Motorista inicia uma rota com alunos de "embarque em casa"
-2. Ao chegar no ponto de um aluno, desliza para a esquerda
-3. Responsável recebe notificação: "A van chegou no ponto de embarque de João. Prepare-se para o embarque!"
-4. Após o aluno embarcar, motorista desliza para a direita
-5. Responsável recebe notificação: "João embarcou na van e está a caminho da escola. Chegada prevista em breve!"
+2. Clica no ícone do mapa → Rota: Van → Casa do Aluno
+3. Ao chegar no ponto, desliza para a esquerda
+4. Responsável recebe: "A van chegou no ponto de embarque de João. Prepare-se para o embarque!"
+5. Após embarcar, desliza para a direita
+6. Responsável recebe: "João embarcou na van e está a caminho da escola!"
+
+### Desembarque em Casa (Carla Oliveira)
+1. Aluno já está embarcado na van
+2. Clica no ícone do mapa → Rota: Van → Casa do Aluno
+3. Clica no aluno para abrir diálogo de desembarque em casa
+4. Confirma desembarque na residência
+5. Responsável recebe notificação de chegada em casa
 
 ## Logs de Console
 

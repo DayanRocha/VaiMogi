@@ -116,7 +116,13 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
     e.stopPropagation();
     
     onSetIsGettingLocation(true);
-    console.log(`🗺️ Solicitando localização atual do motorista...`);
+    
+    // Determinar o destino baseado no tipo de aluno
+    const isToHome = tripData.direction === 'to_home';
+    const destinationAddress = isToHome ? student.pickupPoint : school.address;
+    const destinationName = isToHome ? `casa de ${student.name}` : school.name;
+    
+    console.log(`🗺️ Solicitando localização atual do motorista para ir até ${destinationName}...`);
     
     // Verificar se geolocalização está disponível
     if (!navigator.geolocation) {
@@ -125,8 +131,8 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
       
       // Fallback para endereço cadastrado
       const driverAddress = encodeURIComponent(driver.address);
-      const studentAddress = encodeURIComponent(student.pickupPoint);
-      const url = `https://www.google.com/maps/dir/?api=1&origin=${driverAddress}&destination=${studentAddress}&travelmode=driving`;
+      const destination = encodeURIComponent(destinationAddress);
+      const url = `https://www.google.com/maps/dir/?api=1&origin=${driverAddress}&destination=${destination}&travelmode=driving`;
       window.open(url, '_blank');
       onSetIsGettingLocation(false);
       return;
@@ -136,17 +142,18 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        const studentAddress = encodeURIComponent(student.pickupPoint);
+        const destination = encodeURIComponent(destinationAddress);
         
         // Usar coordenadas atuais como origem
-        const url = `https://www.google.com/maps/dir/?api=1&origin=${latitude},${longitude}&destination=${studentAddress}&travelmode=driving`;
+        const url = `https://www.google.com/maps/dir/?api=1&origin=${latitude},${longitude}&destination=${destination}&travelmode=driving`;
         
         console.log(`🗺️ Abrindo rota no Google Maps:`);
-        console.log(`  📍 Origem (Localização Atual): ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
-        console.log(`  🎯 Destino (${student.name}): ${student.pickupPoint}`);
+        console.log(`  📍 Origem (Localização Atual da Van): ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+        console.log(`  🎯 Destino (${destinationName}): ${destinationAddress}`);
         console.log(`  📊 Precisão: ${position.coords.accuracy}m`);
+        console.log(`  🚐 Tipo: ${isToHome ? 'Van → Casa do Aluno' : 'Van → Escola'}`);
         
-        onShowLocationMessage(`Localização obtida! Precisão: ${Math.round(position.coords.accuracy)}m`, 2000);
+        onShowLocationMessage(`Localização obtida! Rota para ${destinationName}`, 2000);
         window.open(url, '_blank');
         onSetIsGettingLocation(false);
       },
@@ -173,8 +180,10 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
         
         // Fallback para endereço cadastrado
         const driverAddress = encodeURIComponent(driver.address);
-        const studentAddress = encodeURIComponent(student.pickupPoint);
-        const url = `https://www.google.com/maps/dir/?api=1&origin=${driverAddress}&destination=${studentAddress}&travelmode=driving`;
+        const isToHome = tripData.direction === 'to_home';
+        const destinationAddress = isToHome ? student.pickupPoint : school.address;
+        const destination = encodeURIComponent(destinationAddress);
+        const url = `https://www.google.com/maps/dir/?api=1&origin=${driverAddress}&destination=${destination}&travelmode=driving`;
         window.open(url, '_blank');
         onSetIsGettingLocation(false);
       },
@@ -246,20 +255,24 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
   };
 
   const getStatusText = (status: string, isToHome: boolean = false) => {
-    switch (status) {
-      case 'waiting': 
-        return isToHome ? 'Desembarque em casa' : 'Embarque em casa';
-      case 'van_arrived': 
-        return isToHome ? 'Van chegou na escola' : 'Van chegou';
-      case 'embarked': 
-        return isToHome ? 'Embarcado para casa' : 'Embarcado';
-      case 'at_school': 
-        return 'Na escola';
-      case 'disembarked':
-        return isToHome ? 'Desembarcado em casa' : 'Desembarcado na escola';
-      default: 
-        return isToHome ? 'Desembarque em casa' : 'Embarque em casa';
-    }
+    const result = (() => {
+      switch (status) {
+        case 'waiting': 
+          return isToHome ? 'Desembarque em casa' : 'Embarque em casa';
+        case 'van_arrived': 
+          return isToHome ? 'Van chegou na escola' : 'Van chegou';
+        case 'embarked': 
+          return isToHome ? 'Embarcado para casa' : 'Embarcado';
+        case 'at_school': 
+          return 'Na escola';
+        case 'disembarked':
+          return isToHome ? 'Desembarcado em casa' : 'Desembarcado na escola';
+        default: 
+          return isToHome ? 'Desembarque em casa' : 'Embarque em casa';
+      }
+    })();
+    
+    return result;
   };
 
   const showNotificationIcon = tripData.status === 'van_arrived';
@@ -346,7 +359,9 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
                   ? 'bg-gray-200 cursor-not-allowed' 
                   : 'hover:bg-gray-100'
               }`}
-              title={isGettingLocation ? 'Obtendo localização...' : `Ver rota até ${student.name}`}
+              title={isGettingLocation ? 'Obtendo localização...' : 
+                `Ver rota até ${tripData.direction === 'to_home' ? `casa de ${student.name}` : school.name}`
+              }
             >
               <Map className={`w-6 h-6 ${
                 isGettingLocation ? 'text-gray-400 animate-pulse' : 'text-orange-500'

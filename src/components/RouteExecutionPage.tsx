@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, Plus, Home, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Route, Student, School } from '@/types/driver';
@@ -30,6 +30,14 @@ export const RouteExecutionPage = ({
   onAddSchool,
   onRemoveStudent
 }: RouteExecutionPageProps) => {
+  
+  // Log para debug - verificar se os dados estão atualizados
+  useEffect(() => {
+    console.log(`🔍 RouteExecutionPage - Estudantes atualizados:`, students);
+    students.forEach(student => {
+      console.log(`📊 ${student.name}: dropoffLocation = ${student.dropoffLocation}`);
+    });
+  }, [students]);
   // Mock data para demonstrar a funcionalidade baseada na imagem
   const [routeStudents, setRouteStudents] = useState<RouteStudent[]>([
     {
@@ -92,7 +100,9 @@ export const RouteExecutionPage = ({
                   </div>
                   <div>
                     <h3 className="font-medium text-gray-800">{student.name}</h3>
-                    <p className="text-sm text-gray-600">Embarque em casa</p>
+                    <p className="text-sm text-gray-600">
+                      {student.dropoffLocation === 'home' ? 'Desembarque em casa' : 'Embarque em casa'}
+                    </p>
                     <p className="text-sm text-gray-500">{student.school}</p>
                   </div>
                 </div>
