@@ -35,7 +35,10 @@ export interface Route {
 export interface Student {
   id: string;
   name: string;
+  address: string;
   guardianId: string;
+  guardianPhone: string;
+  guardianEmail: string;
   pickupPoint: string;
   schoolId: string;
   status: 'waiting' | 'embarked' | 'at_school';

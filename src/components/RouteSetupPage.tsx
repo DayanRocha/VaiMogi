@@ -111,7 +111,7 @@ export const RouteSetupPage = ({
         students={students}
         schools={schools}
         onBack={handleBackFromRouteMounting}
-        onSaveRoute={onSave}
+        onSaveRoute={(routeItems) => onSave(routeItems)}
         onUpdateStudent={onUpdateStudent}
       />
     );

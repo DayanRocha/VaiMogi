@@ -465,7 +465,7 @@ export default function DriverApp() {
               weekDays: newRouteData.selectedDays,
               students: routeItems
                 .filter(item => item.type === 'student')
-                .map(item => item.studentData!)
+                .map(item => item.item as Student)
             };
 
             addRoute(newRoute);
@@ -654,8 +654,14 @@ export default function DriverApp() {
                 handleBackNavigation();
               }}
               onUpdateStudent={(studentId, studentData) => {
-                updateStudent(studentId, studentData);
-                console.log(`✅ Estudante ${studentId} atualizado em Editar Informações:`, studentData);
+                const student = students.find(s => s.id === studentId);
+                if (student) {
+                  updateStudent(studentId, { 
+                    ...student, 
+                    ...studentData 
+                  });
+                  console.log(`✅ Estudante ${studentId} atualizado em Editar Informações:`, studentData);
+                }
               }}
             />
           );
@@ -712,7 +718,13 @@ export default function DriverApp() {
             onEditStudent={handleEditStudent}
             onDeleteStudent={deleteStudent}
             onUpdateStudent={(studentId, dropoffLocation) => {
-              updateStudent(studentId, { dropoffLocation });
+              const student = students.find(s => s.id === studentId);
+              if (student) {
+                updateStudent(studentId, { 
+                  ...student, 
+                  dropoffLocation 
+                });
+              }
             }}
           />
         );

@@ -62,7 +62,10 @@ const mockStudents: Student[] = [
   {
     id: '1',
     name: 'Ana Silva',
+    address: 'Rua A, 100',
     guardianId: 'g1',
+    guardianPhone: '(11) 99999-1111',
+    guardianEmail: 'ana.responsavel@email.com',
     pickupPoint: 'Rua A, 100',
     schoolId: 's1',
     status: 'waiting'
@@ -70,7 +73,10 @@ const mockStudents: Student[] = [
   {
     id: '2',
     name: 'Bruno Santos',
+    address: 'Rua B, 200',
     guardianId: 'g2',
+    guardianPhone: '(11) 99999-2222',
+    guardianEmail: 'bruno.responsavel@email.com',
     pickupPoint: 'Rua B, 200',
     schoolId: 's1',
     status: 'waiting'
@@ -78,7 +84,10 @@ const mockStudents: Student[] = [
   {
     id: '3',
     name: 'Carla Oliveira',
+    address: 'Rua C, 300',
     guardianId: 'g3',
+    guardianPhone: '(11) 99999-3333',
+    guardianEmail: 'carla.responsavel@email.com',
     pickupPoint: 'Rua C, 300',
     schoolId: 's2',
     status: 'waiting'
@@ -155,7 +164,10 @@ export const useDriverData = () => {
     const newStudent: Student = {
       id: Date.now().toString(),
       name: studentData.name,
+      address: studentData.address,
       guardianId: studentData.guardianId,
+      guardianPhone: studentData.guardianPhone,
+      guardianEmail: studentData.guardianEmail,
       pickupPoint: studentData.address,
       schoolId: studentData.schoolId,
       status: 'waiting'
@@ -212,7 +224,7 @@ export const useDriverData = () => {
         student.id === studentId 
           ? {
               ...student,
-              dropoffLocation: student.dropoffLocation === 'home' ? 'school' : 'home'
+              dropoffLocation: (student.dropoffLocation === 'home' ? 'school' : 'home') as 'home' | 'school'
             }
           : student
       );

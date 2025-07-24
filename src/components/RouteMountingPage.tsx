@@ -7,10 +7,8 @@ import { Student, School } from '@/types/driver';
 interface RouteItem {
   id: string;
   type: 'student' | 'school';
-  name: string;
-  details: string;
-  studentData?: Student;
-  schoolData?: School;
+  item: Student | School;
+  direction?: 'embarque' | 'desembarque';
 }
 
 interface RouteMountingPageProps {
@@ -89,9 +87,8 @@ export const RouteMountingPage = ({
       const newItem: RouteItem = {
         id: selectedStudent.id,
         type: 'student',
-        name: selectedStudent.name,
-        details: studentPickupType === 'pickup' ? 'Embarque em casa' : 'Desembarque em casa',
-        studentData: { ...selectedStudent, dropoffLocation: newDropoffLocation }
+        item: { ...selectedStudent, dropoffLocation: newDropoffLocation },
+        direction: studentPickupType === 'pickup' ? 'embarque' : 'desembarque'
       };
       setRouteItems(prev => [...prev, newItem]);
       setShowStudentConfirmDialog(false);
@@ -104,9 +101,7 @@ export const RouteMountingPage = ({
       const newItem: RouteItem = {
         id: selectedSchool.id,
         type: 'school',
-        name: selectedSchool.name,
-        details: 'Parada',
-        schoolData: selectedSchool
+        item: selectedSchool
       };
       setRouteItems(prev => [...prev, newItem]);
       setShowSchoolConfirmDialog(false);
@@ -184,8 +179,15 @@ export const RouteMountingPage = ({
                     <SchoolIcon className="w-5 h-5 text-gray-600" />
                   )}
                   <div>
-                    <h3 className="font-medium text-gray-800">{item.name}</h3>
-                    <p className="text-sm text-gray-500">{item.details}</p>
+                    <h3 className="font-medium text-gray-800">
+                      {item.type === 'student' ? (item.item as Student).name : (item.item as School).name}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      {item.type === 'student' 
+                        ? item.direction === 'embarque' ? 'Embarque em casa' : 'Desembarque em casa'
+                        : 'Parada na escola'
+                      }
+                    </p>
                   </div>
                 </div>
                 <button
