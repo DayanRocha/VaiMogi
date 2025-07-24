@@ -1,5 +1,5 @@
 
-import { Users, Truck, Route, School, UserCheck, Navigation, User, Home, Settings, Key } from 'lucide-react';
+import { Users, Truck, Route, School, UserCheck, Navigation, User, Home, Settings, Key, LogOut } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 
 interface SettingsPageProps {
@@ -9,6 +9,7 @@ interface SettingsPageProps {
   onDriversClick?: () => void;
   onSettingsClick?: () => void;
   onTripClick?: () => void;
+  onLogout?: () => void;
   activeTopButton?: 'clients' | 'drivers' | 'settings' | 'trip' | null;
   hasActiveTrip?: boolean;
 }
@@ -20,6 +21,7 @@ export const SettingsPage = ({
   onDriversClick, 
   onSettingsClick,
   onTripClick,
+  onLogout,
   activeTopButton,
   hasActiveTrip 
 }: SettingsPageProps) => {
@@ -41,12 +43,20 @@ export const SettingsPage = ({
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #FF8C00 0%, #FFA500 100%)' }}>
       {/* Header */}
-      <div className="flex items-center justify-center p-4 pt-12">
+      <div className="flex items-center justify-between p-4 pt-12">
+        <div className="w-12"></div> {/* Spacer for centering */}
         <img 
           src="/lovable-uploads/13ad1463-722e-40c8-b16d-03c288d5ef24.png" 
           alt="Logo" 
           className="w-32 h-32 object-contain"
         />
+        <button 
+          onClick={onLogout}
+          className="w-12 h-12 rounded-xl bg-white/20 hover:bg-white/30 transition-colors flex items-center justify-center"
+          title="Sair"
+        >
+          <LogOut className="w-6 h-6 text-white" />
+        </button>
       </div>
 
       {/* Top Icons - Always visible */}

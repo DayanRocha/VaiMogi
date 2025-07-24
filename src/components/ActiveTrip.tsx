@@ -1,6 +1,6 @@
 
 import { useState, useRef } from 'react';
-import { ArrowRight, ArrowLeft, MapPin, School, CheckCircle, Navigation, User, Bell, Home, Map } from 'lucide-react';
+import { ArrowRight, ArrowLeft, MapPin, School, CheckCircle, Navigation, User, Bell, Home, Map, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -15,6 +15,7 @@ interface ActiveTripProps {
   onUpdateMultipleStudentsStatus: (studentIds: string[], status: TripStudent['status']) => void;
   onFinishTrip: () => void;
   onBack: () => void;
+  onLogout?: () => void;
 }
 
 // Componente de item de estudante com swipe
@@ -489,7 +490,7 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
   );
 };
 
-export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentStatus, onUpdateMultipleStudentsStatus, onFinishTrip, onBack }: ActiveTripProps) => {
+export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentStatus, onUpdateMultipleStudentsStatus, onFinishTrip, onBack, onLogout }: ActiveTripProps) => {
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [showGroupDisembarkDialog, setShowGroupDisembarkDialog] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState<SchoolType | null>(null);

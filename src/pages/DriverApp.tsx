@@ -28,7 +28,7 @@ import { useDriverData } from '@/hooks/useDriverData';
 import { Route, Student, Guardian, School as SchoolType } from '@/types/driver';
 
 export default function DriverApp() {
-  // const navigate = useNavigate(); // Removido temporariamente pois não está sendo usado
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('home');
   const [navigationStack, setNavigationStack] = useState<string[]>(['home']);
   const [showRouteForm, setShowRouteForm] = useState(false);
@@ -573,6 +573,7 @@ export default function DriverApp() {
             setShowDrivers(false);
             addToNavigationStack('routes');
           }}
+          onLogout={() => navigate('/auth')}
           activeTopButton={activeTopButton}
           hasActiveTrip={!!activeTrip}
         />
@@ -596,6 +597,7 @@ export default function DriverApp() {
               alert('Nenhuma viagem ativa no momento.');
             }
           }}
+          onLogout={() => navigate('/auth')}
           activeTopButton={activeTopButton}
           hasActiveTrip={!!activeTrip}
         />
@@ -619,16 +621,17 @@ export default function DriverApp() {
                 alert('Nenhuma viagem ativa no momento.');
               }
             }}
+            onLogout={() => navigate('/auth')}
             activeTopButton={activeTopButton}
             hasActiveTrip={!!activeTrip}
           />
         );
 
       case 'profile':
-        return <DriverProfile driver={driver} onUpdate={updateDriver} onBack={handleBackNavigation} />;
+        return <DriverProfile driver={driver} onUpdate={updateDriver} onBack={handleBackNavigation} onLogout={() => navigate('/auth')} />;
 
       case 'van':
-        return <VanRegistration van={van} onUpdate={updateVan} onBack={handleBackNavigation} />;
+        return <VanRegistration van={van} onUpdate={updateVan} onBack={handleBackNavigation} onLogout={() => navigate('/auth')} />;
 
       case 'routes':
         // Resetar estados quando navegar para a aba rotas
@@ -801,6 +804,7 @@ export default function DriverApp() {
               console.log('Viagem encerrada, redirecionando para Suas Rotas');
             }}
             onBack={handleBackNavigation}
+            onLogout={() => navigate('/auth')}
           />
         );
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Camera, Edit, Save, X, ArrowLeft } from 'lucide-react';
+import { Camera, Edit, Save, X, ArrowLeft, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,9 +9,10 @@ interface DriverProfileProps {
   driver: Driver;
   onUpdate: (updates: Partial<Driver>) => void;
   onBack: () => void;
+  onLogout?: () => void;
 }
 
-export const DriverProfile = ({ driver, onUpdate, onBack }: DriverProfileProps) => {
+export const DriverProfile = ({ driver, onUpdate, onBack, onLogout }: DriverProfileProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(driver);
 
@@ -43,14 +44,24 @@ export const DriverProfile = ({ driver, onUpdate, onBack }: DriverProfileProps) 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="p-4 sm:p-6 max-w-md mx-auto">
-        <div className="flex items-center gap-3 mb-8 pt-4">
-          <button 
-            onClick={onBack} 
-            className="text-gray-600 hover:text-gray-800 p-2 rounded-xl hover:bg-white/50 transition-all duration-200 active:scale-95"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-          <h1 className="text-2xl font-bold text-gray-800">Perfil do Motorista</h1>
+        <div className="flex items-center justify-between mb-8 pt-4">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={onBack} 
+              className="text-gray-600 hover:text-gray-800 p-2 rounded-xl hover:bg-white/50 transition-all duration-200 active:scale-95"
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            <h1 className="text-2xl font-bold text-gray-800">Perfil do Motorista</h1>
+          </div>
+          {onLogout && (
+            <button 
+              onClick={onLogout} 
+              className="text-gray-600 hover:text-gray-800 p-2 rounded-xl hover:bg-white/50 transition-all duration-200 active:scale-95"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          )}
         </div>
       
         {/* Profile Photo */}
