@@ -117,11 +117,15 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
     
     onSetIsGettingLocation(true);
     
-    // Determinar o destino baseado no tipo de aluno
-    const isToHome = tripData.direction === 'to_home';
-    const destinationAddress = isToHome ? student.pickupPoint : school.address;
-    const destinationName = isToHome ? `casa de ${student.name}` : school.name;
+    // Determinar o destino baseado no modo da rota ativa
+    // to_school = "Embarcar em casa" - destino é o endereço do aluno
+    // to_home = "Desembarcar em casa" - destino é o endereço da escola
+    const isEmbarcarEmCasa = tripData.direction === 'to_school';
+    const destinationAddress = isEmbarcarEmCasa ? student.pickupPoint : school.address;
+    const destinationName = isEmbarcarEmCasa ? `casa de ${student.name}` : school.name;
+    const modeDescription = isEmbarcarEmCasa ? 'Embarcar em casa' : 'Desembarcar em casa';
     
+    console.log(`🗺️ Modo: ${modeDescription}`);
     console.log(`🗺️ Solicitando localização atual do motorista para ir até ${destinationName}...`);
     
     // Verificar se geolocalização está disponível
@@ -148,10 +152,10 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
         const url = `https://www.google.com/maps/dir/?api=1&origin=${latitude},${longitude}&destination=${destination}&travelmode=driving`;
         
         console.log(`🗺️ Abrindo rota no Google Maps:`);
-        console.log(`  📍 Origem (Localização Atual da Van): ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+        console.log(`  📍 Origem (Localização Atual do Motorista): ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
         console.log(`  🎯 Destino (${destinationName}): ${destinationAddress}`);
         console.log(`  📊 Precisão: ${position.coords.accuracy}m`);
-        console.log(`  🚐 Tipo: ${isToHome ? 'Van → Casa do Aluno' : 'Van → Escola'}`);
+        console.log(`  🚐 Modo: ${modeDescription} - ${isEmbarcarEmCasa ? 'Motorista → Casa do Aluno' : 'Motorista → Escola'}`);
         
         onShowLocationMessage(`Localização obtida! Rota para ${destinationName}`, 2000);
         window.open(url, '_blank');
@@ -180,8 +184,8 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
         
         // Fallback para endereço cadastrado
         const driverAddress = encodeURIComponent(driver.address);
-        const isToHome = tripData.direction === 'to_home';
-        const destinationAddress = isToHome ? student.pickupPoint : school.address;
+        const isEmbarcarEmCasa = tripData.direction === 'to_school';
+        const destinationAddress = isEmbarcarEmCasa ? student.pickupPoint : school.address;
         const destination = encodeURIComponent(destinationAddress);
         const url = `https://www.google.com/maps/dir/?api=1&origin=${driverAddress}&destination=${destination}&travelmode=driving`;
         window.open(url, '_blank');
@@ -360,7 +364,7 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
                   : 'hover:bg-gray-100'
               }`}
               title={isGettingLocation ? 'Obtendo localização...' : 
-                `Ver rota até ${tripData.direction === 'to_home' ? `casa de ${student.name}` : school.name}`
+                `Ver rota até ${tripData.direction === 'to_school' ? `casa de ${student.name}` : school.name}`
               }
             >
               <Map className={`w-6 h-6 ${
