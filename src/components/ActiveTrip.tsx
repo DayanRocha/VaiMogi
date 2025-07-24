@@ -118,9 +118,9 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
     onSetIsGettingLocation(true);
     
     // Determinar o destino baseado no modo da rota ativa
-    // to_school = "Embarcar em casa" - destino é o endereço do aluno
-    // to_home = "Desembarcar em casa" - destino é o endereço da escola
-    const isEmbarcarEmCasa = tripData.direction === 'to_school';
+    // to_home = "Embarcar em casa" - destino é o endereço do aluno
+    // to_school = "Desembarcar em casa" - destino é o endereço da escola
+    const isEmbarcarEmCasa = tripData.direction === 'to_home';
     const destinationAddress = isEmbarcarEmCasa ? student.pickupPoint : school.address;
     const destinationName = isEmbarcarEmCasa ? `casa de ${student.name}` : school.name;
     const modeDescription = isEmbarcarEmCasa ? 'Embarcar em casa' : 'Desembarcar em casa';
@@ -184,7 +184,7 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
         
         // Fallback para endereço cadastrado
         const driverAddress = encodeURIComponent(driver.address);
-        const isEmbarcarEmCasa = tripData.direction === 'to_school';
+        const isEmbarcarEmCasa = tripData.direction === 'to_home';
         const destinationAddress = isEmbarcarEmCasa ? student.pickupPoint : school.address;
         const destination = encodeURIComponent(destinationAddress);
         const url = `https://www.google.com/maps/dir/?api=1&origin=${driverAddress}&destination=${destination}&travelmode=driving`;
@@ -364,7 +364,7 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
                   : 'hover:bg-gray-100'
               }`}
               title={isGettingLocation ? 'Obtendo localização...' : 
-                `Ver rota até ${tripData.direction === 'to_school' ? `casa de ${student.name}` : school.name}`
+                `Ver rota até ${tripData.direction === 'to_home' ? `casa de ${student.name}` : school.name}`
               }
             >
               <Map className={`w-6 h-6 ${
