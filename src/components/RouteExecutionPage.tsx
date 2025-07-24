@@ -12,6 +12,7 @@ interface RouteExecutionPageProps {
   onAddStudent: () => void;
   onAddSchool: () => void;
   onRemoveStudent: (studentId: string) => void;
+  onUpdateStudent?: (studentId: string, studentData: { name: string; address: string; schoolId: string; guardianId: string; guardianPhone: string; guardianEmail: string; dropoffLocation?: 'home' | 'school'; }) => void;
 }
 
 interface RouteStudent {
@@ -28,7 +29,8 @@ export const RouteExecutionPage = ({
   onBack,
   onAddStudent,
   onAddSchool,
-  onRemoveStudent
+  onRemoveStudent,
+  onUpdateStudent
 }: RouteExecutionPageProps) => {
   
   // Log para debug - verificar se os dados estão atualizados
@@ -66,6 +68,27 @@ export const RouteExecutionPage = ({
     onRemoveStudent(studentId);
   };
 
+  const handleToggleDropoffType = (student: Student) => {
+    if (onUpdateStudent) {
+      const newDropoffLocation = student.dropoffLocation === 'home' ? 'school' : 'home';
+      onUpdateStudent(student.id, {
+        name: student.name,
+        address: student.pickupPoint,
+        schoolId: student.schoolId,
+        guardianId: student.guardianId,
+        guardianPhone: '',
+        guardianEmail: '',
+        dropoffLocation: newDropoffLocation
+      });
+      console.log(`🔄 ${student.name} alterado para: ${newDropoffLocation === 'home' ? 'Desembarque em casa' : 'Embarque em casa'}`);
+    }
+  };
+
+  const getSchoolName = (schoolId: string) => {
+    const school = schools.find(s => s.id === schoolId);
+    return school ? school.name : 'Escola não encontrada';
+  };
+
   if (!route) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -89,7 +112,7 @@ export const RouteExecutionPage = ({
       <div className="bg-white min-h-screen rounded-t-3xl p-4">
         {/* Students List */}
         <div className="space-y-3 mb-6">
-          {routeStudents.map((student) => (
+          {route.students.map((student) => (
             <div key={student.id} className="bg-gray-50 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -101,20 +124,21 @@ export const RouteExecutionPage = ({
                   <div>
                     <h3 className="font-medium text-gray-800">{student.name}</h3>
                     <p className="text-sm text-gray-600">
-                      {student.dropoffLocation === 'home' ? 'Desembarque em casa' : 'Embarque em casa'}
+                      📍 {student.pickupPoint}
                     </p>
-                    <p className="text-sm text-gray-500">{student.school}</p>
+                    <p className="text-sm text-gray-500">🏫 {getSchoolName(student.schoolId)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                    <Home className="w-4 h-4 text-gray-600" />
-                  </button>
-                  <button className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                    <span className="text-gray-600 text-xs">👥</span>
-                  </button>
-                  <button className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                    <span className="text-gray-600 text-xs">🚗</span>
+                  <button 
+                    onClick={() => handleToggleDropoffType(student)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      student.dropoffLocation === 'home' 
+                        ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
+                        : 'bg-green-100 text-green-700 hover:bg-green-200'
+                    }`}
+                  >
+                    {student.dropoffLocation === 'home' ? '🏠 Desembarque' : '🎒 Embarque'}
                   </button>
                   <button 
                     onClick={() => handleRemoveStudent(student.id)}

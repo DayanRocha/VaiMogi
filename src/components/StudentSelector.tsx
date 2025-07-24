@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { User, MapPin, School, Check } from 'lucide-react';
+import { User, MapPin, School, Check, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Student, School as SchoolType } from '@/types/driver';
 
@@ -9,13 +9,15 @@ interface StudentSelectorProps {
   schools: SchoolType[];
   selectedStudents: Student[];
   onStudentToggle: (student: Student) => void;
+  onUpdateStudent?: (studentId: string, studentData: { dropoffLocation?: 'home' | 'school' }) => void;
 }
 
 export const StudentSelector = ({ 
   students, 
   schools, 
   selectedStudents, 
-  onStudentToggle 
+  onStudentToggle,
+  onUpdateStudent
 }: StudentSelectorProps) => {
   const getSchoolName = (schoolId: string) => {
     const school = schools.find(s => s.id === schoolId);
@@ -24,6 +26,14 @@ export const StudentSelector = ({
 
   const isStudentSelected = (studentId: string) => {
     return selectedStudents.some(s => s.id === studentId);
+  };
+
+  const handleToggleDropoffType = (student: Student) => {
+    const newDropoffLocation = student.dropoffLocation === 'home' ? 'school' : 'home';
+    if (onUpdateStudent) {
+      onUpdateStudent(student.id, { dropoffLocation: newDropoffLocation });
+      console.log(`🔄 ${student.name}: dropoffLocation alterado para ${newDropoffLocation}`);
+    }
   };
 
   return (
@@ -64,6 +74,40 @@ export const StudentSelector = ({
                       <School className="w-3 h-3 mr-1" />
                       {getSchoolName(student.schoolId)}
                     </div>
+                    
+                    {/* Mostrar opções de embarque/desembarque apenas para estudantes selecionados */}
+                    {isStudentSelected(student.id) && (
+                      <div className="mt-2 flex gap-2">
+                        <Button
+                          size="sm"
+                          variant={student.dropoffLocation === 'home' ? 'default' : 'outline'}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (student.dropoffLocation !== 'home') {
+                              handleToggleDropoffType(student);
+                            }
+                          }}
+                          className="text-xs h-6 px-2"
+                        >
+                          <Home className="w-3 h-3 mr-1" />
+                          Embarque
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={student.dropoffLocation === 'school' ? 'default' : 'outline'}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (student.dropoffLocation !== 'school') {
+                              handleToggleDropoffType(student);
+                            }
+                          }}
+                          className="text-xs h-6 px-2"
+                        >
+                          <School className="w-3 h-3 mr-1" />
+                          Desembarque
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
                 

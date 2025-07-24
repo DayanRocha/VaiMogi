@@ -14,6 +14,7 @@ interface RouteRegistrationProps {
   schools: School[];
   editingRoute?: Route | null;
   onBack: () => void;
+  onUpdateStudent?: (studentId: string, studentData: { dropoffLocation?: 'home' | 'school' }) => void;
 }
 
 const weekDays = [
@@ -32,7 +33,8 @@ export const RouteRegistration = ({
   students, 
   schools,
   editingRoute,
-  onBack
+  onBack,
+  onUpdateStudent
 }: RouteRegistrationProps) => {
   const [formData, setFormData] = useState({
     name: editingRoute?.name || '',
@@ -43,6 +45,23 @@ export const RouteRegistration = ({
   const [selectedStudents, setSelectedStudents] = useState<Student[]>(
     editingRoute?.students || []
   );
+  
+  // Função para atualizar um estudante e também atualizar o estado local
+  const handleUpdateStudent = (studentId: string, studentData: { dropoffLocation?: 'home' | 'school' }) => {
+    // Atualizar no sistema principal
+    if (onUpdateStudent) {
+      onUpdateStudent(studentId, studentData);
+    }
+    
+    // Atualizar também no estado local selectedStudents
+    setSelectedStudents(prev => 
+      prev.map(student => 
+        student.id === studentId 
+          ? { ...student, ...studentData }
+          : student
+      )
+    );
+  };
 
   const handleWeekDayToggle = (dayId: string) => {
     setFormData(prev => ({
@@ -66,13 +85,21 @@ export const RouteRegistration = ({
 
   const handleSave = () => {
     if (formData.name && formData.startTime && formData.weekDays.length > 0) {
+      // Buscar os dados atualizados dos estudantes do array principal
+      const updatedSelectedStudents = selectedStudents.map(selectedStudent => {
+        const currentStudent = students.find(s => s.id === selectedStudent.id);
+        return currentStudent || selectedStudent;
+      });
+      
       onSave({
         driverId,
         name: formData.name,
         startTime: formData.startTime,
         weekDays: formData.weekDays,
-        students: selectedStudents
+        students: updatedSelectedStudents
       });
+      
+      console.log('🔄 Rota salva com estudantes atualizados:', updatedSelectedStudents.map(s => `${s.name}: ${s.dropoffLocation}`));
       
       // Reset form
       setFormData({
@@ -144,6 +171,7 @@ export const RouteRegistration = ({
           schools={schools}
           selectedStudents={selectedStudents}
           onStudentToggle={handleStudentToggle}
+          onUpdateStudent={handleUpdateStudent}
         />
       </div>
 

@@ -35,7 +35,7 @@ export const RouteExecutionScreen = ({
         ...route.students.map(student => ({
             id: student.id,
             type: 'student' as const,
-            name: student.name,
+            name: student.name || 'Nome não informado',
             details: 'Embarque em casa',
             studentData: student
         }))
@@ -83,7 +83,7 @@ export const RouteExecutionScreen = ({
             const newItem: RouteItem = {
                 id: selectedStudent.id,
                 type: 'student',
-                name: selectedStudent.name,
+                name: selectedStudent.name || 'Nome não informado',
                 details: studentPickupType === 'pickup' ? 'Embarque em casa' : 'Desembarque em casa',
                 studentData: {
                     ...selectedStudent,
@@ -101,7 +101,7 @@ export const RouteExecutionScreen = ({
             const newItem: RouteItem = {
                 id: selectedSchool.id,
                 type: 'school',
-                name: selectedSchool.name,
+                name: selectedSchool.name || 'Escola não informada',
                 details: 'Parada',
                 schoolData: selectedSchool
             };
@@ -121,6 +121,7 @@ export const RouteExecutionScreen = ({
     };
 
     const getStudentInitials = (name: string) => {
+        if (!name) return 'N/A';
         return name
             .split(' ')
             .map(word => word.charAt(0).toUpperCase())
@@ -199,186 +200,137 @@ export const RouteExecutionScreen = ({
                         className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-full flex items-center justify-center gap-2"
                     >
                         <Plus className="w-5 h-5" />
-                        Incluir aluno
+                        Adicionar Estudante
                     </Button>
 
-                    <Button
-                        onClick={handleAddSchool}
-                        className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-full flex items-center justify-center gap-2"
-                    >
-                        <Plus className="w-5 h-5" />
-                        Incluir escola
-                    </Button>
                 </div>
 
                 {/* Action Buttons */}
                 <div className="space-y-3">
                     <Button
                         onClick={() => onSaveChanges(routeItems)}
-                        className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 text-lg font-semibold"
+                        className="w-full bg-green-500 hover:bg-green-600 text-white py-4 rounded-full"
                     >
-                        Salvar mudanças na rota
+                        Salvar Mudanças
                     </Button>
-
                     <Button
                         onClick={onStartRoute}
-                        className="w-full bg-orange-600 hover:bg-orange-700 text-white py-4 text-lg font-semibold"
+                        className="w-full bg-purple-500 hover:bg-purple-600 text-white py-4 rounded-full"
                     >
-                        Iniciar rota
+                        Iniciar Rota
                     </Button>
                 </div>
             </div>
 
             {/* Student Selection Dialog */}
             <Dialog open={showStudentDialog} onOpenChange={setShowStudentDialog}>
-                <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
+                <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Selecionar Estudante</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-3 py-4">
-                        {availableStudents.length === 0 ? (
-                            <p className="text-center text-gray-500 py-4">
-                                Todos os estudantes já foram adicionados à rota
-                            </p>
-                        ) : (
-                            availableStudents.map((student) => (
-                                <div
-                                    key={student.id}
-                                    onClick={() => handleStudentSelect(student)}
-                                    className="p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50"
-                                >
-                                    <h3 className="font-medium text-gray-800">{student.name}</h3>
-                                    <p className="text-sm text-gray-500">
-                                        Escola: {getSchoolName(student.schoolId)}
-                                    </p>
+                    <div className="space-y-3">
+                        {availableStudents.map(student => (
+                            <div
+                                key={student.id}
+                                onClick={() => handleStudentSelect(student)}
+                                className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                                        <User className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-medium">{student.name}</h4>
+                                        <p className="text-sm text-gray-500">{student.address}</p>
+                                        <p className="text-xs text-gray-400">{getSchoolName(student.schoolId)}</p>
+                                    </div>
                                 </div>
-                            ))
-                        )}
+                            </div>
+                        ))}
                     </div>
                 </DialogContent>
             </Dialog>
 
             {/* School Selection Dialog */}
             <Dialog open={showSchoolDialog} onOpenChange={setShowSchoolDialog}>
-                <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
+                <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Selecionar Escola</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-3 py-4">
-                        {availableSchools.length === 0 ? (
-                            <p className="text-center text-gray-500 py-4">
-                                Todas as escolas já foram adicionadas à rota
-                            </p>
-                        ) : (
-                            availableSchools.map((school) => (
-                                <div
-                                    key={school.id}
-                                    onClick={() => handleSchoolSelect(school)}
-                                    className="p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50"
-                                >
-                                    <h3 className="font-medium text-gray-800">{school.name}</h3>
-                                    <p className="text-sm text-gray-500">{school.address}</p>
+                    <div className="space-y-3">
+                        {availableSchools.map(school => (
+                            <div
+                                key={school.id}
+                                onClick={() => handleSchoolSelect(school)}
+                                className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                                        <SchoolIcon className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-medium">{school.name}</h4>
+                                        <p className="text-sm text-gray-500">{school.address}</p>
+                                    </div>
                                 </div>
-                            ))
-                        )}
+                            </div>
+                        ))}
                     </div>
                 </DialogContent>
             </Dialog>
 
             {/* Student Confirmation Dialog */}
             <Dialog open={showStudentConfirmDialog} onOpenChange={setShowStudentConfirmDialog}>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Configurar Estudante</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        {selectedStudent && (
-                            <>
-                                <div className="text-center">
-                                    <h3 className="font-medium text-gray-800 mb-2">{selectedStudent.name}</h3>
-                                    <p className="text-sm text-gray-500">
-                                        Escola: {getSchoolName(selectedStudent.schoolId)}
-                                    </p>
-                                </div>
-
-                                <div className="space-y-3">
-                                    <div className="flex items-center space-x-2">
-                                        <input
-                                            type="radio"
-                                            id="pickup"
-                                            name="pickupType"
-                                            checked={studentPickupType === 'pickup'}
-                                            onChange={() => setStudentPickupType('pickup')}
-                                        />
-                                        <label htmlFor="pickup" className="text-sm">Embarcar em casa</label>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        <input
-                                            type="radio"
-                                            id="dropoff"
-                                            name="pickupType"
-                                            checked={studentPickupType === 'dropoff'}
-                                            onChange={() => setStudentPickupType('dropoff')}
-                                        />
-                                        <label htmlFor="dropoff" className="text-sm">Desembarcar em casa</label>
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-2 pt-4">
+                    {selectedStudent && (
+                        <div className="space-y-4">
+                            <div className="p-3 border rounded-lg">
+                                <h4 className="font-medium">{selectedStudent.name}</h4>
+                                <p className="text-sm text-gray-500">{selectedStudent.address}</p>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Tipo de parada:</label>
+                                <div className="flex gap-2">
                                     <Button
-                                        onClick={handleConfirmStudent}
-                                        className="flex-1 bg-green-500 hover:bg-green-600 text-white"
-                                    >
-                                        Confirmar
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setShowStudentConfirmDialog(false)}
+                                        onClick={() => setStudentPickupType('pickup')}
+                                        variant={studentPickupType === 'pickup' ? 'default' : 'outline'}
                                         className="flex-1"
                                     >
-                                        Cancelar
+                                        Embarque
+                                    </Button>
+                                    <Button
+                                        onClick={() => setStudentPickupType('dropoff')}
+                                        variant={studentPickupType === 'dropoff' ? 'default' : 'outline'}
+                                        className="flex-1"
+                                    >
+                                        Desembarque
                                     </Button>
                                 </div>
-                            </>
-                        )}
-                    </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button
+                                    onClick={() => setShowStudentConfirmDialog(false)}
+                                    variant="outline"
+                                    className="flex-1"
+                                >
+                                    Cancelar
+                                </Button>
+                                <Button
+                                    onClick={handleConfirmStudent}
+                                    className="flex-1"
+                                >
+                                    Adicionar
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </DialogContent>
             </Dialog>
 
-            {/* School Confirmation Dialog */}
-            <Dialog open={showSchoolConfirmDialog} onOpenChange={setShowSchoolConfirmDialog}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Confirmar Escola</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        {selectedSchool && (
-                            <>
-                                <div className="text-center">
-                                    <h3 className="font-medium text-gray-800 mb-2">{selectedSchool.name}</h3>
-                                    <p className="text-sm text-gray-500">{selectedSchool.address}</p>
-                                </div>
 
-                                <div className="flex gap-2 pt-4">
-                                    <Button
-                                        onClick={handleConfirmSchool}
-                                        className="flex-1 bg-green-500 hover:bg-green-600 text-white"
-                                    >
-                                        Confirmar
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setShowSchoolConfirmDialog(false)}
-                                        className="flex-1"
-                                    >
-                                        Cancelar
-                                    </Button>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                </DialogContent>
-            </Dialog>
         </div>
     );
 };

@@ -377,6 +377,13 @@ export default function DriverApp() {
             handleBackNavigation();
           }}
           onSaveChanges={(routeItems) => {
+            // Detectar novos alunos adicionados
+            const currentStudentIds = executingRoute.students.map(s => s.id);
+            const newStudents = routeItems
+              .filter(item => item.type === 'student')
+              .map(item => item.studentData!)
+              .filter(student => !currentStudentIds.includes(student.id));
+            
             // Atualizar a rota com os novos itens
             const updatedRoute = {
               ...executingRoute,
@@ -385,15 +392,35 @@ export default function DriverApp() {
                 .map(item => item.studentData!)
             };
             updateRoute(executingRoute.id, updatedRoute);
+            
+            // Armazenar os IDs dos novos alunos para usar no restart
+            if (newStudents.length > 0) {
+              setExecutingRoute(prev => ({
+                ...updatedRoute,
+                newStudentIds: newStudents.map(s => s.id)
+              } as any));
+              console.log('Novos alunos adicionados:', newStudents.map(s => s.name));
+            }
+            
             console.log('Mudanças salvas na rota:', updatedRoute);
           }}
           onStartRoute={() => {
-            // Iniciar a execução da rota
-            startTrip(executingRoute.id);
+            // Verificar se há novos alunos para notificar seletivamente
+            const newStudentIds = (executingRoute as any)?.newStudentIds;
+            
+            if (newStudentIds && newStudentIds.length > 0) {
+              // Reiniciar rota com notificações apenas para novos alunos
+              startTrip(executingRoute.id, newStudentIds);
+              console.log('Rota reiniciada com notificações para novos alunos:', newStudentIds);
+            } else {
+              // Iniciar rota normalmente (primeira vez)
+              startTrip(executingRoute.id);
+              console.log('Rota iniciada:', executingRoute.name);
+            }
+            
             setShowRouteExecutionScreen(false);
             setExecutingRoute(null);
             setActiveTab('trip');
-            console.log('Rota iniciada:', executingRoute.name);
           }}
         />
       );
@@ -409,6 +436,10 @@ export default function DriverApp() {
           onAddStudent={() => setShowStudentForm(true)}
           onAddSchool={() => setShowSchoolForm(true)}
           onRemoveStudent={(studentId) => console.log('Remove student:', studentId)}
+          onUpdateStudent={(studentId, studentData) => {
+            updateStudent(studentId, studentData);
+            console.log(`✅ Estudante ${studentId} atualizado:`, studentData);
+          }}
         />
       );
     }
@@ -619,6 +650,10 @@ export default function DriverApp() {
                 setEditingRoute(null);
                 handleBackNavigation();
               }}
+              onUpdateStudent={(studentId, studentData) => {
+                updateStudent(studentId, studentData);
+                console.log(`✅ Estudante ${studentId} atualizado em Editar Informações:`, studentData);
+              }}
             />
           );
         }
@@ -673,7 +708,9 @@ export default function DriverApp() {
             }}
             onEditStudent={handleEditStudent}
             onDeleteStudent={deleteStudent}
-            onToggleDropoffType={toggleStudentDropoffType}
+            onUpdateStudent={(studentId, dropoffLocation) => {
+              updateStudent(studentId, { dropoffLocation });
+            }}
           />
         );
 

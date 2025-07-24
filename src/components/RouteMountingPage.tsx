@@ -19,6 +19,7 @@ interface RouteMountingPageProps {
   schools: School[];
   onBack: () => void;
   onSaveRoute: (routeItems: RouteItem[]) => void;
+  onUpdateStudent?: (studentId: string, studentData: { name: string; address: string; schoolId: string; guardianId: string; guardianPhone: string; guardianEmail: string; dropoffLocation?: 'home' | 'school'; }) => void;
 }
 
 export const RouteMountingPage = ({
@@ -26,7 +27,8 @@ export const RouteMountingPage = ({
   students,
   schools,
   onBack,
-  onSaveRoute
+  onSaveRoute,
+  onUpdateStudent
 }: RouteMountingPageProps) => {
   const [routeItems, setRouteItems] = useState<RouteItem[]>([]);
   const [showStudentDialog, setShowStudentDialog] = useState(false);
@@ -68,12 +70,28 @@ export const RouteMountingPage = ({
 
   const handleConfirmStudent = () => {
     if (selectedStudent) {
+      // Atualizar o dropoffLocation do estudante baseado na seleção
+      const newDropoffLocation = studentPickupType === 'pickup' ? 'school' : 'home';
+      
+      // Atualizar o estudante se a função estiver disponível
+      if (onUpdateStudent) {
+        onUpdateStudent(selectedStudent.id, {
+          name: selectedStudent.name,
+          address: selectedStudent.pickupPoint,
+          schoolId: selectedStudent.schoolId,
+          guardianId: selectedStudent.guardianId,
+          guardianPhone: '', // Estes campos podem ser vazios pois não estão sendo alterados
+          guardianEmail: '',
+          dropoffLocation: newDropoffLocation
+        });
+      }
+      
       const newItem: RouteItem = {
         id: selectedStudent.id,
         type: 'student',
         name: selectedStudent.name,
-        details: studentPickupType === 'pickup' ? 'Embarque' : 'Desembarque',
-        studentData: selectedStudent
+        details: studentPickupType === 'pickup' ? 'Embarque em casa' : 'Desembarque em casa',
+        studentData: { ...selectedStudent, dropoffLocation: newDropoffLocation }
       };
       setRouteItems(prev => [...prev, newItem]);
       setShowStudentConfirmDialog(false);
@@ -147,14 +165,7 @@ export const RouteMountingPage = ({
             Adicionar estudante
           </Button>
 
-          <Button
-            onClick={handleAddSchool}
-            variant="outline"
-            className="w-full py-4 border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2"
-          >
-            <SchoolIcon className="w-5 h-5" />
-            Adicionar escola
-          </Button>
+
         </div>
 
         {/* Route Items List */}

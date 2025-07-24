@@ -1,6 +1,8 @@
 
-import { User, MapPin, School, ArrowLeft, Plus, Edit, Trash2, Home, RotateCcw } from 'lucide-react';
+import { useState } from 'react';
+import { User, MapPin, School, ArrowLeft, Plus, Edit, Trash2, Home } from 'lucide-react';
 import { Student, School as SchoolType } from '@/types/driver';
+import { StudentConfigDialog } from './StudentConfigDialog';
 
 interface StudentsListProps {
   students: Student[];
@@ -9,13 +11,30 @@ interface StudentsListProps {
   onAddStudent: () => void;
   onEditStudent: (student: Student) => void;
   onDeleteStudent: (studentId: string) => void;
-  onToggleDropoffType?: (studentId: string) => void;
+  onUpdateStudent: (studentId: string, dropoffLocation: 'home' | 'school') => void;
 }
 
-export const StudentsList = ({ students, schools, onBack, onAddStudent, onEditStudent, onDeleteStudent, onToggleDropoffType }: StudentsListProps) => {
+export const StudentsList = ({ students, schools, onBack, onAddStudent, onEditStudent, onDeleteStudent, onUpdateStudent }: StudentsListProps) => {
+  const [showConfigDialog, setShowConfigDialog] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const getSchoolName = (schoolId: string) => {
     const school = schools.find(s => s.id === schoolId);
     return school?.name || 'Escola não encontrada';
+  };
+
+  const getSchool = (schoolId: string) => {
+    return schools.find(s => s.id === schoolId) || null;
+  };
+
+  const handleStudentClick = (student: Student) => {
+    setSelectedStudent(student);
+    setShowConfigDialog(true);
+  };
+
+  const handleConfigConfirm = (studentId: string, dropoffLocation: 'home' | 'school') => {
+    onUpdateStudent(studentId, dropoffLocation);
+    setShowConfigDialog(false);
+    setSelectedStudent(null);
   };
 
   const handleDelete = (student: Student) => {
@@ -67,10 +86,16 @@ export const StudentsList = ({ students, schools, onBack, onAddStudent, onEditSt
             {students.map((student) => (
               <div key={student.id} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
                 <div className="flex items-start">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                  <div 
+                    className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3 cursor-pointer hover:bg-blue-200 transition-colors"
+                    onClick={() => handleStudentClick(student)}
+                  >
                     <User className="w-5 h-5 text-blue-600" />
                   </div>
-                  <div className="flex-1">
+                  <div 
+                    className="flex-1 cursor-pointer"
+                    onClick={() => handleStudentClick(student)}
+                  >
                     <h3 className="font-semibold text-gray-800">{student.name}</h3>
                     
                     <div className="flex items-center text-sm text-gray-600 mt-1">
@@ -82,39 +107,38 @@ export const StudentsList = ({ students, schools, onBack, onAddStudent, onEditSt
                       <School className="w-4 h-4 mr-1" />
                       {getSchoolName(student.schoolId)}
                     </div>
-                    <div className="flex items-center text-xs mt-1">
-                      {student.dropoffLocation === 'home' ? (
-                        <div className="flex items-center text-blue-600">
-                          <Home className="w-3 h-3 mr-1" />
-                          <span>Desembarque em casa</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center text-green-600">
-                          <School className="w-3 h-3 mr-1" />
-                          <span>Embarque em casa</span>
-                        </div>
-                      )}
-                    </div>
+                    {student.dropoffLocation && (
+                      <div className="flex items-center text-xs mt-1">
+                        {student.dropoffLocation === 'home' ? (
+                          <div className="flex items-center text-blue-600">
+                            <Home className="w-3 h-3 mr-1" />
+                            <span>Desembarque em casa</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center text-green-600">
+                            <School className="w-3 h-3 mr-1" />
+                            <span>Embarque em casa</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   
                   <div className="flex gap-1">
-                    {onToggleDropoffType && (
-                      <button
-                        onClick={() => onToggleDropoffType(student.id)}
-                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title={`Alternar para ${student.dropoffLocation === 'home' ? 'Embarque em casa' : 'Desembarque em casa'}`}
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                      </button>
-                    )}
                     <button
-                      onClick={() => onEditStudent(student)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditStudent(student);
+                      }}
                       className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(student)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(student);
+                      }}
                       className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -126,6 +150,18 @@ export const StudentsList = ({ students, schools, onBack, onAddStudent, onEditSt
           </div>
         )}
       </div>
+
+      {/* Student Config Dialog */}
+      <StudentConfigDialog
+        open={showConfigDialog}
+        onClose={() => {
+          setShowConfigDialog(false);
+          setSelectedStudent(null);
+        }}
+        student={selectedStudent}
+        school={selectedStudent ? getSchool(selectedStudent.schoolId) : null}
+        onConfirm={handleConfigConfirm}
+      />
     </div>
   );
 };

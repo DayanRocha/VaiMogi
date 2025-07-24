@@ -142,14 +142,6 @@ export const RoutesList = ({
             </Button>
 
             <Button
-              onClick={handleEditRoute}
-              variant="outline"
-              className="w-full border-orange-500 text-orange-500 hover:bg-orange-50 py-4 text-lg font-semibold"
-            >
-              Editar informações
-            </Button>
-
-            <Button
               onClick={handleCancelRoute}
               variant="outline"
               className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 py-4 text-lg font-semibold"

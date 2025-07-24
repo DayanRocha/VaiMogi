@@ -164,15 +164,6 @@ export const SavedRoutesList = ({
             </Button>
 
             <Button
-              onClick={handleEditRoute}
-              className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 text-lg font-semibold"
-            >
-              Editar informações
-            </Button>
-
-
-
-            <Button
               onClick={handleDeleteRoute}
               className="w-full bg-red-500 hover:bg-red-600 text-white py-4 text-lg font-semibold"
             >

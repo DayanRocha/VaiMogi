@@ -65,8 +65,7 @@ const mockStudents: Student[] = [
     guardianId: 'g1',
     pickupPoint: 'Rua A, 100',
     schoolId: 's1',
-    status: 'waiting',
-    dropoffLocation: 'school' // Embarque em casa - vai para escola
+    status: 'waiting'
   },
   {
     id: '2',
@@ -74,8 +73,7 @@ const mockStudents: Student[] = [
     guardianId: 'g2',
     pickupPoint: 'Rua B, 200',
     schoolId: 's1',
-    status: 'waiting',
-    dropoffLocation: 'school' // Embarque em casa - vai para escola
+    status: 'waiting'
   },
   {
     id: '3',
@@ -83,8 +81,7 @@ const mockStudents: Student[] = [
     guardianId: 'g3',
     pickupPoint: 'Rua C, 300',
     schoolId: 's2',
-    status: 'waiting',
-    dropoffLocation: 'home' // Desembarque em casa - vai para casa
+    status: 'waiting'
   }
 ];
 
@@ -120,6 +117,7 @@ export const useDriverData = () => {
   const [schools, setSchools] = useState<School[]>(mockSchools);
   const [guardians, setGuardians] = useState<Guardian[]>(mockGuardians);
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
+  const [notifiedGuardians, setNotifiedGuardians] = useState<Set<string>>(new Set());
 
   const updateDriver = (updatedDriver: Partial<Driver>) => {
     setDriver(prev => ({ ...prev, ...updatedDriver }));
@@ -160,8 +158,7 @@ export const useDriverData = () => {
       guardianId: studentData.guardianId,
       pickupPoint: studentData.address,
       schoolId: studentData.schoolId,
-      status: 'waiting',
-      dropoffLocation: 'home' // Padrão: desembarque em casa (vai para casa)
+      status: 'waiting'
     };
     
     console.log(`📚 Criando novo aluno:`, newStudent);
@@ -286,9 +283,67 @@ export const useDriverData = () => {
     console.log(`🏫 Escola excluída: ${school?.name}`);
   };
 
-  const startTrip = (routeId: string) => {
+  const startTrip = (routeId: string, newStudentIds?: string[]) => {
     const route = routes.find(r => r.id === routeId);
     if (route) {
+      // Se há uma viagem ativa e novos alunos, atualizar a viagem existente
+      if (activeTrip && newStudentIds && newStudentIds.length > 0) {
+        // Adicionar novos alunos à viagem ativa
+        const newTripStudents = newStudentIds.map(studentId => {
+          const student = route.students.find(s => s.id === studentId);
+          if (!student) return null;
+          
+          const routeConfig = route.studentConfigs?.find(config => config.studentId === student.id);
+          
+          let direction: 'to_school' | 'to_home';
+          if (routeConfig) {
+            direction = routeConfig.direction === 'embarque' ? 'to_school' : 'to_home';
+            console.log(`📊 ${student.name}: configuração da rota=${routeConfig.direction} → direction=${direction}`);
+          } else {
+            direction = student.dropoffLocation === 'home' ? 'to_home' : 'to_school';
+            console.log(`📊 ${student.name}: fallback dropoffLocation=${student.dropoffLocation} → direction=${direction}`);
+          }
+          
+          return {
+            studentId: student.id,
+            status: 'waiting' as const,
+            direction: direction
+          };
+        }).filter(Boolean) as TripStudent[];
+        
+        // Atualizar viagem ativa com novos alunos
+        const updatedTrip = {
+          ...activeTrip,
+          students: [...activeTrip.students, ...newTripStudents]
+        };
+        setActiveTrip(updatedTrip);
+        
+        console.log(`🚐 ROTA ATUALIZADA: ${route.name}`);
+        console.log(`📱 Notificando apenas os ${newStudentIds.length} novos alunos adicionados...`);
+        
+        // Notificar apenas os novos alunos que ainda não foram notificados
+        const studentsToNotify = route.students.filter(student => newStudentIds.includes(student.id));
+        let newNotifications = 0;
+        
+        studentsToNotify.forEach(student => {
+          const guardian = guardians.find(g => g.id === student.guardianId);
+          if (guardian && !notifiedGuardians.has(guardian.id)) {
+            const message = student.dropoffLocation === 'home' ?
+              `"A van está a caminho da escola para buscar ${student.name}. Rota: ${route.name}"` :
+              `"A van está a caminho para buscar ${student.name}. Rota: ${route.name}"`;
+            console.log(`📲 Notificação enviada para ${guardian.name} (${guardian.phone}): ${message}`);
+            setNotifiedGuardians(prev => new Set([...prev, guardian.id]));
+            newNotifications++;
+          } else if (guardian && notifiedGuardians.has(guardian.id)) {
+            console.log(`⏭️ Notificação já enviada para ${guardian.name} - pulando`);
+          }
+        });
+        
+        console.log(`✅ ${newNotifications} novos responsáveis notificados sobre a adição à rota ${route.name}`);
+        return;
+      }
+      
+      // Criar nova viagem (primeira vez ou sem novos alunos)
       const trip: Trip = {
         id: Date.now().toString(),
         routeId,
@@ -318,21 +373,25 @@ export const useDriverData = () => {
       };
       setActiveTrip(trip);
       
-      // Notificar todos os responsáveis dos estudantes da rota
       console.log(`🚐 ROTA INICIADA: ${route.name}`);
-      console.log(`📱 Notificando todos os responsáveis que a van está a caminho...`);
-      
-      route.students.forEach(student => {
-        const guardian = guardians.find(g => g.id === student.guardianId);
-        if (guardian) {
-          const message = student.dropoffLocation === 'home' ?
-            `"A van está a caminho da escola para buscar ${student.name}. Rota: ${route.name}"` :
-            `"A van está a caminho para buscar ${student.name}. Rota: ${route.name}"`;
-          console.log(`📲 Notificação enviada para ${guardian.name} (${guardian.phone}): ${message}`);
-        }
-      });
-      
-      console.log(`✅ ${route.students.length} responsáveis notificados sobre o início da rota ${route.name}`);
+       console.log(`📱 Verificando quais responsáveis ainda não foram notificados...`);
+       
+       let newNotifications = 0;
+       route.students.forEach(student => {
+         const guardian = guardians.find(g => g.id === student.guardianId);
+         if (guardian && !notifiedGuardians.has(guardian.id)) {
+           const message = student.dropoffLocation === 'home' ?
+             `"A van está a caminho da escola para buscar ${student.name}. Rota: ${route.name}"` :
+             `"A van está a caminho para buscar ${student.name}. Rota: ${route.name}"`;
+           console.log(`📲 Notificação enviada para ${guardian.name} (${guardian.phone}): ${message}`);
+           setNotifiedGuardians(prev => new Set([...prev, guardian.id]));
+           newNotifications++;
+         } else if (guardian && notifiedGuardians.has(guardian.id)) {
+           console.log(`⏭️ Notificação já enviada para ${guardian.name} - pulando`);
+         }
+       });
+       
+       console.log(`✅ ${newNotifications} novos responsáveis notificados sobre o início da rota ${route.name}`);
     }
   };
 
@@ -464,7 +523,12 @@ export const useDriverData = () => {
   const finishTrip = () => {
     if (activeTrip) {
       setActiveTrip({ ...activeTrip, status: 'completed' });
-      setTimeout(() => setActiveTrip(null), 2000);
+      setTimeout(() => {
+        setActiveTrip(null);
+        // Limpar notificações quando a viagem é finalizada para permitir novas notificações na próxima viagem
+        setNotifiedGuardians(new Set());
+        console.log('🔄 Histórico de notificações limpo - próxima viagem poderá enviar notificações novamente');
+      }, 2000);
     }
   };
 
