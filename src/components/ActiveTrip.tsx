@@ -118,16 +118,18 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
     
     onSetIsGettingLocation(true);
     
-    // Determinar o destino baseado no modo da rota ativa
-    // to_home = "Embarcar em casa" - destino é o endereço do aluno
-    // to_school = "Desembarcar em casa" - destino é o endereço da escola
-    const isEmbarcarEmCasa = tripData.direction === 'to_home';
+    // Determinar origem e destino baseado no modo da rota ativa
+    // to_school = "Embarque em casa" - origem: endereço do motorista → destino: casa do aluno
+    // to_home = "Desembarcar em casa" - origem: endereço do motorista → destino: escola
+    const isEmbarcarEmCasa = tripData.direction === 'to_school';
+    const originAddress = driver.address; // Sempre parte do endereço do motorista
     const destinationAddress = isEmbarcarEmCasa ? student.pickupPoint : school.address;
     const destinationName = isEmbarcarEmCasa ? `casa de ${student.name}` : school.name;
     const modeDescription = isEmbarcarEmCasa ? 'Embarcar em casa' : 'Desembarcar em casa';
     
     console.log(`🗺️ Modo: ${modeDescription}`);
-    console.log(`🗺️ Solicitando localização atual do motorista para ir até ${destinationName}...`);
+    console.log(`🗺️ Origem: Endereço do motorista (${originAddress})`);
+    console.log(`🗺️ Destino: ${destinationName} (${destinationAddress})`);
     
     // Verificar se geolocalização está disponível
     if (!navigator.geolocation) {
@@ -135,9 +137,9 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
       onShowLocationMessage('Geolocalização não suportada. Usando endereço cadastrado.');
       
       // Fallback para endereço cadastrado
-      const driverAddress = encodeURIComponent(driver.address);
+      const origin = encodeURIComponent(originAddress);
       const destination = encodeURIComponent(destinationAddress);
-      const url = `https://www.google.com/maps/dir/?api=1&origin=${driverAddress}&destination=${destination}&travelmode=driving`;
+      const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
       window.open(url, '_blank');
       onSetIsGettingLocation(false);
       return;
@@ -184,11 +186,9 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
         onShowLocationMessage(errorMessage, 4000);
         
         // Fallback para endereço cadastrado
-        const driverAddress = encodeURIComponent(driver.address);
-        const isEmbarcarEmCasa = tripData.direction === 'to_home';
-        const destinationAddress = isEmbarcarEmCasa ? student.pickupPoint : school.address;
+        const origin = encodeURIComponent(originAddress);
         const destination = encodeURIComponent(destinationAddress);
-        const url = `https://www.google.com/maps/dir/?api=1&origin=${driverAddress}&destination=${destination}&travelmode=driving`;
+        const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
         window.open(url, '_blank');
         onSetIsGettingLocation(false);
       },
@@ -365,7 +365,7 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
                   : 'hover:bg-gray-100'
               }`}
               title={isGettingLocation ? 'Obtendo localização...' : 
-                `Ver rota até ${tripData.direction === 'to_home' ? `casa de ${student.name}` : school.name}`
+                `Ver rota do motorista até ${tripData.direction === 'to_school' ? `casa de ${student.name}` : school.name}`
               }
             >
               <Map className={`w-6 h-6 ${
@@ -409,7 +409,7 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
           </div>
 
           <div className={`flex items-center gap-2 transition-all duration-200 ${isDragging ? 'opacity-50 scale-95' : 'opacity-100 scale-100'}`}>
-            {tripData.direction === 'to_home' ? (
+            {tripData.direction === 'to_school' ? (
               <>
                 <School className="w-5 h-5 text-gray-400" />
                 <ArrowRight className="w-4 h-4 text-gray-400" />
@@ -498,6 +498,8 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
   const [isDisembarking, setIsDisembarking] = useState(false);
   const [showHomeDropoffDialog, setShowHomeDropoffDialog] = useState(false);
   const [selectedStudentForHome, setSelectedStudentForHome] = useState<Student | null>(null);
+  const [disembarkType, setDisembarkType] = useState<'school' | 'home'>('school');
+  const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
 
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
@@ -592,7 +594,9 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
       return;
     }
 
+    setDisembarkType('school');
     setSelectedSchool(school);
+    setSelectedAddress(null);
     // Ao abrir o diálogo, todos os alunos da escola são pré-selecionados
     setSelectedStudentsForDisembark(schoolStudents.map(ts => ts.studentId));
     setShowGroupDisembarkDialog(true);
@@ -615,35 +619,43 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
       return;
     }
 
+    setDisembarkType('school');
     setSelectedSchool(school);
+    setSelectedAddress(null);
     // Ao abrir o diálogo, todos os alunos embarcados são pré-selecionados para desembarque
     setSelectedStudentsForDisembark(schoolStudents.map(ts => ts.studentId));
     setShowGroupDisembarkDialog(true);
   };
 
   const handleConfirmGroupDisembark = async () => {
-    const studentsToDisembark = selectedStudentsForDisembark.map(id => getStudent(id)).filter(Boolean);
-    
-    setIsDisembarking(true);
-    console.log(`🚌 DESEMBARQUE EM GRUPO: ${studentsToDisembark.length} alunos na ${selectedSchool?.name}:`);
-    studentsToDisembark.forEach(student => console.log(`  - ${student?.name}`));
-    
-    try {
-      // Usar a função de atualização em grupo para processar todos de uma vez
-      console.log('🏫 Processando desembarque EM GRUPO usando updateMultipleStudentsStatus...');
-      onUpdateMultipleStudentsStatus(selectedStudentsForDisembark, 'disembarked');
+    if (disembarkType === 'home') {
+      await handleConfirmGroupHomeDropoff();
+    } else {
+      const studentsToDisembark = selectedStudentsForDisembark.map(id => getStudent(id)).filter(Boolean);
       
-      console.log(`✅ DESEMBARQUE EM GRUPO CONCLUÍDO! ${studentsToDisembark.length} alunos desembarcados JUNTOS na ${selectedSchool?.name}`);
-      console.log('📱 Todos os responsáveis sendo notificados simultaneamente...');
+      setIsDisembarking(true);
+      console.log(`🚌 DESEMBARQUE EM GRUPO: ${studentsToDisembark.length} alunos na ${selectedSchool?.name}:`);
+      studentsToDisembark.forEach(student => console.log(`  - ${student?.name}`));
       
-      // Pequeno delay apenas para mostrar o feedback visual
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-    } finally {
-      setIsDisembarking(false);
-      setShowGroupDisembarkDialog(false);
-      setSelectedSchool(null);
-      setSelectedStudentsForDisembark([]);
+      try {
+        // Usar a função de atualização em grupo para processar todos de uma vez
+        console.log('🏫 Processando desembarque EM GRUPO usando updateMultipleStudentsStatus...');
+        onUpdateMultipleStudentsStatus(selectedStudentsForDisembark, 'disembarked');
+        
+        console.log(`✅ DESEMBARQUE EM GRUPO CONCLUÍDO! ${studentsToDisembark.length} alunos desembarcados JUNTOS na ${selectedSchool?.name}`);
+        console.log('📱 Todos os responsáveis sendo notificados simultaneamente...');
+        
+        // Pequeno delay apenas para mostrar o feedback visual
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+      } finally {
+        setIsDisembarking(false);
+        setShowGroupDisembarkDialog(false);
+        setSelectedSchool(null);
+        setSelectedStudentsForDisembark([]);
+        setSelectedAddress(null);
+        setDisembarkType('school');
+      }
     }
   };
 
@@ -660,8 +672,31 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
   };
 
   const handleStudentHomeDropoff = (student: Student) => {
-    setSelectedStudentForHome(student);
-    setShowHomeDropoffDialog(true);
+    // Encontrar todos os alunos no mesmo endereço
+    const studentsAtSameAddress = trip.students
+      .filter(tripStudent => {
+        const s = getStudent(tripStudent.studentId);
+        return s && 
+               s.pickupPoint === student.pickupPoint && 
+               tripStudent.status === 'embarked' && 
+               tripStudent.direction === 'to_home';
+      })
+      .map(tripStudent => getStudent(tripStudent.studentId))
+      .filter(Boolean) as Student[];
+
+    if (studentsAtSameAddress.length > 1) {
+      // Múltiplos alunos no mesmo endereço - abrir diálogo de grupo
+      setDisembarkType('home');
+      setSelectedAddress(student.pickupPoint);
+      setSelectedStudentsForDisembark(studentsAtSameAddress.map(s => s.id));
+      setShowGroupDisembarkDialog(true);
+      console.log(`🏠 Desembarque em grupo no endereço: ${student.pickupPoint}`);
+      console.log(`👥 Alunos no mesmo endereço:`, studentsAtSameAddress.map(s => s.name));
+    } else {
+      // Apenas um aluno - usar diálogo individual
+      setSelectedStudentForHome(student);
+      setShowHomeDropoffDialog(true);
+    }
   };
 
   const handleConfirmHomeDropoff = () => {
@@ -673,12 +708,62 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
     }
   };
 
+  const handleConfirmGroupHomeDropoff = async () => {
+    const studentsToDisembark = selectedStudentsForDisembark.map(id => getStudent(id)).filter(Boolean);
+    
+    setIsDisembarking(true);
+    console.log(`🏠 DESEMBARQUE EM GRUPO EM CASA: ${studentsToDisembark.length} alunos no mesmo endereço:`);
+    studentsToDisembark.forEach(student => console.log(`  - ${student?.name}`));
+    
+    try {
+      // Usar a função de atualização em grupo para processar todos de uma vez
+      console.log('🏠 Processando desembarque EM GRUPO em casa usando updateMultipleStudentsStatus...');
+      onUpdateMultipleStudentsStatus(selectedStudentsForDisembark, 'disembarked');
+      
+      const address = studentsToDisembark[0]?.pickupPoint || 'endereço';
+      console.log(`✅ DESEMBARQUE EM GRUPO CONCLUÍDO! ${studentsToDisembark.length} alunos desembarcados JUNTOS no endereço: ${address}`);
+      console.log('📱 Todos os responsáveis sendo notificados simultaneamente...');
+      
+      // Pequeno delay apenas para mostrar o feedback visual
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+    } finally {
+      setIsDisembarking(false);
+      setShowGroupDisembarkDialog(false);
+      setSelectedStudentsForDisembark([]);
+      setSelectedAddress(null);
+      setDisembarkType('school');
+    }
+  };
+
 
 
   const allStudentsCompleted = trip.students.every(s => s.status === 'disembarked');
   
+  // Agrupar estudantes por endereço para desembarque em casa
+  const groupStudentsByAddress = () => {
+    const groups: { [address: string]: { address: string; students: { student: Student; tripData: TripStudent }[] } } = {};
+    
+    trip.students
+      .filter(tripStudent => tripStudent.status === 'embarked' && tripStudent.direction === 'to_home')
+      .forEach((tripStudent) => {
+        const student = getStudent(tripStudent.studentId);
+        if (!student) return;
+        
+        const address = student.pickupPoint;
+        if (!groups[address]) {
+          groups[address] = { address, students: [] };
+        }
+        
+        groups[address].students.push({ student, tripData: tripStudent });
+      });
+    
+    return Object.values(groups);
+  };
+
   // Recalcular grupos sempre que o estado da viagem mudar
   const schoolGroups = groupStudentsBySchool();
+  const addressGroups = groupStudentsByAddress();
 
 
 
@@ -748,9 +833,9 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
               const embarkedStudents = group.students.filter(s => s.tripData.status === 'embarked');
               if (embarkedStudents.length === 0) return false;
               
-              // Verificar se há pelo menos um aluno que NÃO é de "desembarque em casa"
+              // Verificar se há pelo menos um aluno que é de "embarque em casa"
               // (ou seja, alunos que devem ser desembarcados na escola)
-              const hasSchoolDropoffStudents = embarkedStudents.some(s => s.tripData.direction !== 'to_home');
+              const hasSchoolDropoffStudents = embarkedStudents.some(s => s.tripData.direction === 'to_school');
               return hasSchoolDropoffStudents;
             })
             .map((group) => {
@@ -825,40 +910,52 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
             })}
         </div>
 
-        {/* Lista de estudantes embarcados indo para casa */}
+        {/* Lista de estudantes embarcados agrupados por endereço para desembarque em casa */}
         <div className="space-y-3 mb-6">
-          {trip.students
-            .filter(tripStudent => {
-              return tripStudent.status === 'embarked' && tripStudent.direction === 'to_home';
-            })
-            .map((tripStudent) => {
-              const student = getStudent(tripStudent.studentId);
-              const school = student ? getSchool(student.schoolId) : null;
+          {addressGroups.map((group) => (
+            <div key={`address-${group.address}`} className="space-y-2">
+              {/* Cabeçalho do grupo de endereço */}
+              {group.students.length > 1 && (
+                <div className="bg-blue-50 rounded-lg p-3 border-l-4 border-blue-400">
+                  <div className="flex items-center gap-2">
+                    <Home className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-800">
+                      {group.students.length} alunos no mesmo endereço
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-1 truncate">{group.address}</p>
+                </div>
+              )}
               
-              if (!student || !school) return null;
+              {/* Lista de alunos no endereço */}
+              {group.students.map(({ student, tripData }) => {
+                const school = getSchool(student.schoolId);
+                if (!school) return null;
 
-              return (
-                <SwipeableStudentItem
-                  key={`home-${student.id}`}
-                  student={student}
-                  tripData={tripStudent}
-                  school={school}
-                  driver={driver}
-                  isGettingLocation={isGettingLocation}
-                  onSwipeLeft={() => {
-                    onUpdateStudentStatus(student.id, 'van_arrived');
-                    console.log(`🔔 Notificação enviada: A van chegou no ponto de ${student.name}`);
-                  }}
-                  onSwipeRight={() => {
-                    onUpdateStudentStatus(student.id, 'embarked');
-                    console.log(`🚌 ${student.name} embarcou na van`);
-                  }}
-                  onShowLocationMessage={showLocationMessage}
-                  onSetIsGettingLocation={setIsGettingLocation}
-                  onStudentClick={() => handleStudentHomeDropoff(student)}
-                />
-              );
-            })}
+                return (
+                  <SwipeableStudentItem
+                    key={`home-${student.id}`}
+                    student={student}
+                    tripData={tripData}
+                    school={school}
+                    driver={driver}
+                    isGettingLocation={isGettingLocation}
+                    onSwipeLeft={() => {
+                      onUpdateStudentStatus(student.id, 'van_arrived');
+                      console.log(`🔔 Notificação enviada: A van chegou no ponto de ${student.name}`);
+                    }}
+                    onSwipeRight={() => {
+                      onUpdateStudentStatus(student.id, 'embarked');
+                      console.log(`🚌 ${student.name} embarcou na van`);
+                    }}
+                    onShowLocationMessage={showLocationMessage}
+                    onSetIsGettingLocation={setIsGettingLocation}
+                    onStudentClick={() => handleStudentHomeDropoff(student)}
+                  />
+                );
+              })}
+            </div>
+          ))}
         </div>
 
 
@@ -890,8 +987,18 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
       <Dialog open={showGroupDisembarkDialog} onOpenChange={setShowGroupDisembarkDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Desembarque: {selectedSchool?.name}</DialogTitle>
-            <DialogDescription>Selecione os alunos para desembarcar.</DialogDescription>
+            <DialogTitle>
+              {disembarkType === 'home' 
+                ? 'Desembarque em Casa' 
+                : `Desembarque: ${selectedSchool?.name}`
+              }
+            </DialogTitle>
+            <DialogDescription>
+              {disembarkType === 'home' 
+                ? `Alunos no endereço: ${selectedAddress}` 
+                : 'Selecione os alunos para desembarcar.'
+              }
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             {/* Botão para selecionar/desselecionar todos */}
@@ -901,34 +1008,61 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const schoolStudents = trip.students.filter(tripStudent => {
+                  const filteredStudents = trip.students.filter(tripStudent => {
                     const student = getStudent(tripStudent.studentId);
-                    return student && student.schoolId === selectedSchool?.id && (tripStudent.status === 'at_school' || tripStudent.status === 'embarked');
+                    if (!student) return false;
+                    
+                    if (disembarkType === 'home') {
+                      return student.pickupPoint === selectedAddress && 
+                             tripStudent.status === 'embarked' && 
+                             tripStudent.direction === 'to_home';
+                    } else {
+                      return student.schoolId === selectedSchool?.id && 
+                             (tripStudent.status === 'at_school' || tripStudent.status === 'embarked');
+                    }
                   });
-                  const allSelected = schoolStudents.every(ts => selectedStudentsForDisembark.includes(ts.studentId));
+                  const allSelected = filteredStudents.every(ts => selectedStudentsForDisembark.includes(ts.studentId));
                   if (allSelected) {
                     setSelectedStudentsForDisembark([]);
                   } else {
-                    setSelectedStudentsForDisembark(schoolStudents.map(ts => ts.studentId));
+                    setSelectedStudentsForDisembark(filteredStudents.map(ts => ts.studentId));
                   }
                 }}
               >
                 {(() => {
-                  const schoolStudents = trip.students.filter(tripStudent => {
+                  const filteredStudents = trip.students.filter(tripStudent => {
                     const student = getStudent(tripStudent.studentId);
-                    return student && student.schoolId === selectedSchool?.id && (tripStudent.status === 'at_school' || tripStudent.status === 'embarked');
+                    if (!student) return false;
+                    
+                    if (disembarkType === 'home') {
+                      return student.pickupPoint === selectedAddress && 
+                             tripStudent.status === 'embarked' && 
+                             tripStudent.direction === 'to_home';
+                    } else {
+                      return student.schoolId === selectedSchool?.id && 
+                             (tripStudent.status === 'at_school' || tripStudent.status === 'embarked');
+                    }
                   });
-                  const allSelected = schoolStudents.every(ts => selectedStudentsForDisembark.includes(ts.studentId));
+                  const allSelected = filteredStudents.every(ts => selectedStudentsForDisembark.includes(ts.studentId));
                   return allSelected ? 'Desmarcar Todos' : 'Selecionar Todos';
                 })()}
               </Button>
             </div>
             
-            {/* Lista de todos os alunos da escola */}
+            {/* Lista de alunos filtrados por tipo */}
             {trip.students
               .filter(tripStudent => {
                 const student = getStudent(tripStudent.studentId);
-                return student && student.schoolId === selectedSchool?.id && (tripStudent.status === 'at_school' || tripStudent.status === 'embarked');
+                if (!student) return false;
+                
+                if (disembarkType === 'home') {
+                  return student.pickupPoint === selectedAddress && 
+                         tripStudent.status === 'embarked' && 
+                         tripStudent.direction === 'to_home';
+                } else {
+                  return student.schoolId === selectedSchool?.id && 
+                         (tripStudent.status === 'at_school' || tripStudent.status === 'embarked');
+                }
               })
               .map((tripStudent) => {
                 const student = getStudent(tripStudent.studentId);
@@ -955,11 +1089,13 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
                 className="flex-1 bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50"
               >
                 {isDisembarking ? (
-                  'Desembarcando...'
+                  disembarkType === 'home' ? 'Desembarcando em Casa...' : 'Desembarcando...'
                 ) : selectedStudentsForDisembark.length === 1 ? (
-                  'Desembarcar Aluno' 
+                  disembarkType === 'home' ? 'Desembarcar em Casa' : 'Desembarcar Aluno'
                 ) : (
-                  `Desembarcar ${selectedStudentsForDisembark.length} Alunos`
+                  disembarkType === 'home' 
+                    ? `Desembarcar ${selectedStudentsForDisembark.length} Alunos em Casa`
+                    : `Desembarcar ${selectedStudentsForDisembark.length} Alunos`
                 )}
               </Button>
               <Button

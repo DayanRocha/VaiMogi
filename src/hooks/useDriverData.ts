@@ -6,6 +6,7 @@ import { Driver, Van, Route, Student, School, Guardian, Trip, TripStudent } from
 const mockDriver: Driver = {
   id: '1',
   name: 'João Silva',
+  email: 'joao.silva@email.com',
   phone: '(11) 99999-9999',
   address: 'Rua das Flores, 123 - São Paulo, SP',
   photo: '/placeholder.svg'
@@ -119,17 +120,78 @@ const mockRoutes: Route[] = [
 ];
 
 export const useDriverData = () => {
-  const [driver, setDriver] = useState<Driver>(mockDriver);
+  // Carregar dados do motorista do localStorage se existirem
+  const getInitialDriver = (): Driver => {
+    const savedDriverData = localStorage.getItem('driverData');
+    if (savedDriverData) {
+      try {
+        const parsedData = JSON.parse(savedDriverData);
+        return { ...mockDriver, ...parsedData };
+      } catch (error) {
+        console.error('Erro ao carregar dados do motorista:', error);
+      }
+    }
+    return mockDriver;
+  };
+
+  // Carregar dados dos responsáveis do localStorage se existirem
+  const getInitialGuardians = (): Guardian[] => {
+    const savedGuardians = localStorage.getItem('guardians');
+    if (savedGuardians) {
+      try {
+        const parsedData = JSON.parse(savedGuardians);
+        console.log('📋 Responsáveis carregados do localStorage:', parsedData);
+        return parsedData;
+      } catch (error) {
+        console.error('Erro ao carregar dados dos responsáveis:', error);
+      }
+    }
+    console.log('📋 Usando dados mock dos responsáveis');
+    return mockGuardians;
+  };
+
+  // Carregar dados dos estudantes do localStorage se existirem
+  const getInitialStudents = (): Student[] => {
+    const savedStudents = localStorage.getItem('students');
+    if (savedStudents) {
+      try {
+        const parsedData = JSON.parse(savedStudents);
+        console.log('👨‍🎓 Estudantes carregados do localStorage:', parsedData);
+        return parsedData;
+      } catch (error) {
+        console.error('Erro ao carregar dados dos estudantes:', error);
+      }
+    }
+    console.log('👨‍🎓 Usando dados mock dos estudantes');
+    return mockStudents;
+  };
+
+  const [driver, setDriver] = useState<Driver>(getInitialDriver());
   const [van, setVan] = useState<Van>(mockVan);
   const [routes, setRoutes] = useState<Route[]>(mockRoutes);
-  const [students, setStudents] = useState<Student[]>(mockStudents);
+  const [students, setStudents] = useState<Student[]>(getInitialStudents());
   const [schools, setSchools] = useState<School[]>(mockSchools);
-  const [guardians, setGuardians] = useState<Guardian[]>(mockGuardians);
+  const [guardians, setGuardians] = useState<Guardian[]>(getInitialGuardians());
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
   const [notifiedGuardians, setNotifiedGuardians] = useState<Set<string>>(new Set());
 
+  // Salvar responsáveis no localStorage sempre que mudarem
+  useEffect(() => {
+    localStorage.setItem('guardians', JSON.stringify(guardians));
+    console.log('💾 Responsáveis salvos no localStorage:', guardians);
+  }, [guardians]);
+
+  // Salvar estudantes no localStorage sempre que mudarem
+  useEffect(() => {
+    localStorage.setItem('students', JSON.stringify(students));
+    console.log('💾 Estudantes salvos no localStorage:', students);
+  }, [students]);
+
   const updateDriver = (updatedDriver: Partial<Driver>) => {
-    setDriver(prev => ({ ...prev, ...updatedDriver }));
+    const newDriverData = { ...driver, ...updatedDriver };
+    setDriver(newDriverData);
+    // Salvar no localStorage
+    localStorage.setItem('driverData', JSON.stringify(newDriverData));
   };
 
   const updateVan = (updatedVan: Partial<Van>) => {
@@ -256,12 +318,19 @@ export const useDriverData = () => {
   };
 
   const updateGuardian = (guardianId: string, guardianData: Partial<Guardian>) => {
-    setGuardians(prev => prev.map(guardian => 
-      guardian.id === guardianId 
-        ? { ...guardian, ...guardianData }
-        : guardian
-    ));
-    console.log(`👤 Responsável atualizado: ${guardianData.name || 'Código gerado'}`);
+    setGuardians(prev => {
+      const updated = prev.map(guardian => 
+        guardian.id === guardianId 
+          ? { ...guardian, ...guardianData }
+          : guardian
+      );
+      console.log(`👤 Responsável atualizado:`, {
+        id: guardianId,
+        data: guardianData,
+        updatedGuardian: updated.find(g => g.id === guardianId)
+      });
+      return updated;
+    });
   };
 
   const deleteGuardian = (guardianId: string) => {

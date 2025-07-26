@@ -98,6 +98,19 @@ export const DriverProfile = ({ driver, onUpdate, onBack, onLogout }: DriverProf
           </div>
 
           <div>
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+              disabled={!isEditing}
+              className={!isEditing ? "bg-gray-50" : ""}
+              placeholder="exemplo@email.com"
+            />
+          </div>
+
+          <div>
             <Label htmlFor="phone">Telefone</Label>
             <Input
               id="phone"
@@ -105,6 +118,7 @@ export const DriverProfile = ({ driver, onUpdate, onBack, onLogout }: DriverProf
               onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
               disabled={!isEditing}
               className={!isEditing ? "bg-gray-50" : ""}
+              placeholder="(11) 99999-9999"
             />
           </div>
 
@@ -119,6 +133,8 @@ export const DriverProfile = ({ driver, onUpdate, onBack, onLogout }: DriverProf
             />
           </div>
         </div>
+
+
 
         {/* Action Buttons */}
         <div className="mt-6 flex gap-3">

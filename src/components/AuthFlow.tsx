@@ -41,15 +41,111 @@ export const AuthFlow = () => {
     }
   };
 
+  // Função de login do responsável
+  const handleGuardianLogin = async (code: string) => {
+    setIsLoading(true);
+    try {
+      // Aqui você implementaria a validação do código
+      console.log('Guardian login attempt:', { code });
+      
+      // Simular chamada de API para validar código
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Buscar responsável pelo código único no sistema
+      const savedGuardians = localStorage.getItem('guardians');
+      let guardians = [];
+      
+      console.log('🔍 Dados salvos no localStorage:', savedGuardians);
+      
+      if (savedGuardians) {
+        try {
+          guardians = JSON.parse(savedGuardians);
+          console.log('📋 Responsáveis carregados:', guardians);
+        } catch (error) {
+          console.error('❌ Erro ao carregar responsáveis:', error);
+        }
+      } else {
+        console.log('⚠️ Nenhum responsável encontrado no localStorage');
+      }
+      
+      // Procurar responsável com o código fornecido
+      console.log('🔎 Procurando responsável com código:', code);
+      console.log('📊 Total de responsáveis:', guardians.length);
+      
+      // Debug: mostrar todos os códigos disponíveis
+      guardians.forEach((g: any, index: number) => {
+        console.log(`👤 Responsável ${index + 1}:`, {
+          name: g.name,
+          uniqueCode: g.uniqueCode,
+          isActive: g.isActive !== false // Considera true se não definido
+        });
+      });
+      
+      // Primeiro, buscar responsável apenas pelo código
+      const guardianByCode = guardians.find((g: any) => g.uniqueCode === code);
+      console.log('🔍 Responsável encontrado por código:', guardianByCode);
+      
+      if (!guardianByCode) {
+        console.log('❌ Código não encontrado na base de dados');
+        throw new Error('Código não encontrado');
+      }
+      
+      // Verificar se o responsável está ativo
+      const isActive = guardianByCode.isActive !== false; // Default é true se não definido
+      console.log('🔒 Status do responsável:', { isActive, rawStatus: guardianByCode.isActive });
+      
+      if (!isActive) {
+        console.log('⚠️ Responsável encontrado mas está inativo');
+        throw new Error('INACTIVE_GUARDIAN');
+      }
+      
+      const guardian = guardianByCode;
+      
+      // Salvar dados do responsável logado
+      const guardianData = {
+        id: guardian.id,
+        code: guardian.uniqueCode,
+        name: guardian.name,
+        email: guardian.email,
+        phone: guardian.phone || '',
+        codeGeneratedAt: guardian.codeGeneratedAt
+      };
+      
+      localStorage.setItem('guardianData', JSON.stringify(guardianData));
+      localStorage.setItem('guardianLoggedIn', 'true');
+      
+      console.log(`✅ Login do responsável ${guardian.name} realizado com sucesso usando código ${code}`);
+      
+      // Redirecionar para a aplicação do responsável
+      navigate('/guardian');
+    } catch (error) {
+      console.error('Erro no login do responsável:', error);
+      throw error; // Re-throw para ser capturado pelo componente
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Função de cadastro
-  const handleRegister = async (name: string, email: string, password: string) => {
+  const handleRegister = async (name: string, email: string, phone: string, password: string) => {
     setIsLoading(true);
     try {
       // Aqui você implementaria a lógica de cadastro
-      console.log('Register attempt:', { name, email, password });
+      console.log('Register attempt:', { name, email, phone, password });
       
       // Simular chamada de API
       await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Salvar dados do motorista no localStorage (temporário)
+      const driverData = {
+        id: Date.now().toString(),
+        name,
+        email,
+        phone,
+        address: '', // Será preenchido depois no perfil
+        photo: '/placeholder.svg'
+      };
+      localStorage.setItem('driverData', JSON.stringify(driverData));
       
       // Primeiro cadastro sempre mostra boas-vindas
       setDriverName(name);
@@ -117,6 +213,7 @@ export const AuthFlow = () => {
     return (
       <LoginPage
         onLogin={handleLogin}
+        onGuardianLogin={handleGuardianLogin}
         onNavigateToRegister={() => setCurrentView('register')}
         onForgotPassword={handleForgotPassword}
         onGoogleLogin={handleGoogleAuth}

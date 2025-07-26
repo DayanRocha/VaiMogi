@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Eye, EyeOff, Mail, Lock, User, ArrowRight, Check } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 interface RegisterPageProps {
-  onRegister: (name: string, email: string, password: string) => void;
+  onRegister: (name: string, email: string, phone: string, password: string) => void;
   onNavigateToLogin: () => void;
   onGoogleRegister: () => void;
 }
@@ -14,6 +14,7 @@ export const RegisterPage = ({ onRegister, onNavigateToLogin, onGoogleRegister }
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phone: '',
     password: '',
     confirmPassword: ''
   });
@@ -23,6 +24,7 @@ export const RegisterPage = ({ onRegister, onNavigateToLogin, onGoogleRegister }
   const [errors, setErrors] = useState<{
     name?: string;
     email?: string;
+    phone?: string;
     password?: string;
     confirmPassword?: string;
   }>({});
@@ -31,6 +33,7 @@ export const RegisterPage = ({ onRegister, onNavigateToLogin, onGoogleRegister }
     const newErrors: {
       name?: string;
       email?: string;
+      phone?: string;
       password?: string;
       confirmPassword?: string;
     } = {};
@@ -47,6 +50,13 @@ export const RegisterPage = ({ onRegister, onNavigateToLogin, onGoogleRegister }
       newErrors.email = 'E-mail é obrigatório';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'E-mail inválido';
+    }
+    
+    // Validação do telefone
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Telefone é obrigatório';
+    } else if (!/^\(\d{2}\)\s\d{4,5}-\d{4}$/.test(formData.phone)) {
+      newErrors.phone = 'Telefone deve estar no formato (11) 99999-9999';
     }
     
     // Validação da senha
@@ -76,7 +86,7 @@ export const RegisterPage = ({ onRegister, onNavigateToLogin, onGoogleRegister }
     
     setIsLoading(true);
     try {
-      await onRegister(formData.name.trim(), formData.email, formData.password);
+      await onRegister(formData.name.trim(), formData.email, formData.phone, formData.password);
     } finally {
       setIsLoading(false);
     }
@@ -91,7 +101,26 @@ export const RegisterPage = ({ onRegister, onNavigateToLogin, onGoogleRegister }
     }
   };
 
+  const formatPhone = (value: string) => {
+    // Remove tudo que não é número
+    const numbers = value.replace(/\D/g, '');
+    
+    // Aplica a máscara (11) 99999-9999
+    if (numbers.length <= 2) {
+      return numbers;
+    } else if (numbers.length <= 7) {
+      return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+    } else {
+      return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+    }
+  };
+
   const handleInputChange = (field: keyof typeof formData, value: string) => {
+    // Formatação especial para telefone
+    if (field === 'phone') {
+      value = formatPhone(value);
+    }
+    
     setFormData(prev => ({ ...prev, [field]: value }));
     // Limpar erro do campo quando o usuário começar a digitar
     if (errors[field]) {
@@ -180,6 +209,29 @@ export const RegisterPage = ({ onRegister, onNavigateToLogin, onGoogleRegister }
               </div>
               {errors.email && (
                 <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+              )}
+            </div>
+
+            {/* Phone Field */}
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="text-sm font-medium text-gray-700">
+                Telefone
+              </Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  className={`pl-10 h-12 border-2 rounded-xl transition-all duration-200 focus:border-orange-500 focus:ring-orange-500 ${
+                    errors.phone ? 'border-red-300' : 'border-gray-200'
+                  }`}
+                  placeholder="(11) 99999-9999"
+                />
+              </div>
+              {errors.phone && (
+                <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
               )}
             </div>
 
