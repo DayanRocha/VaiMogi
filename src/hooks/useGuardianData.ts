@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Driver, Van, Student, Trip, Guardian } from '@/types/driver';
+import { notificationService } from '@/services/notificationService';
 
 export interface GuardianNotification {
   id: string;
@@ -46,23 +47,194 @@ const getLoggedGuardian = (): Guardian => {
   };
 };
 
-const mockDriver: Driver = {
-  id: '1',
-  name: 'João Silva',
-  email: 'joao.silva@email.com',
-  phone: '(11) 99999-9999',
-  address: 'Rua das Flores, 123 - São Paulo, SP',
-  photo: '/placeholder.svg'
+// Função para buscar dados do motorista do localStorage
+const getDriverData = (guardianId: string): Driver => {
+  // Primeiro tentar buscar dados individuais do motorista
+  const savedDriverData = localStorage.getItem('driverData');
+  const savedDrivers = localStorage.getItem('drivers');
+  
+  console.log('🔍 Buscando dados do motorista para responsável:', guardianId);
+  console.log('🔍 DriverData encontrado:', !!savedDriverData);
+  console.log('🔍 Drivers encontrado:', !!savedDrivers);
+  
+  // Primeiro tentar driverData (dados individuais)
+  if (savedDriverData) {
+    try {
+      const driverData = JSON.parse(savedDriverData);
+      console.log('📊 Dados do motorista individual:', driverData);
+      
+      // Converter para formato Driver se necessário
+      const driver: Driver = {
+        id: driverData.id || '1',
+        name: driverData.name || 'Motorista',
+        email: driverData.email || '',
+        phone: driverData.phone || '',
+        address: driverData.address || '',
+        photo: driverData.photo || '/placeholder.svg'
+      };
+      
+      console.log('✅ Motorista encontrado (individual):', driver.name);
+      return driver;
+    } catch (error) {
+      console.error('❌ Erro ao carregar driverData:', error);
+    }
+  }
+  
+  // Se não encontrou individual, tentar lista de drivers
+  if (savedDrivers) {
+    try {
+      const drivers = JSON.parse(savedDrivers);
+      console.log('📊 Motoristas disponíveis:', drivers.length);
+      console.log('📊 Dados dos motoristas:', drivers);
+      
+      if (drivers.length > 0) {
+        // Primeiro, tentar encontrar por associação com estudantes/rotas
+        const savedStudents = localStorage.getItem('students');
+        if (savedStudents) {
+          const students = JSON.parse(savedStudents);
+          console.log('👥 Estudantes cadastrados:', students.length);
+          
+          // Encontrar estudantes do responsável
+          const guardianStudents = students.filter((s: Student) => s.guardianId === guardianId);
+          console.log('👶 Estudantes do responsável:', guardianStudents.length);
+          
+          if (guardianStudents.length > 0) {
+            // Buscar rotas que contenham esses estudantes
+            const savedRoutes = localStorage.getItem('routes');
+            if (savedRoutes) {
+              const routes = JSON.parse(savedRoutes);
+              console.log('🛣️ Rotas disponíveis:', routes.length);
+              
+              // Encontrar rota que contém os estudantes do responsável
+              const relevantRoute = routes.find((route: any) => 
+                route.students && route.students.some((routeStudent: any) => 
+                  guardianStudents.some(gs => gs.id === routeStudent.id)
+                )
+              );
+              
+              if (relevantRoute) {
+                console.log('✅ Rota encontrada:', relevantRoute.name, 'Motorista ID:', relevantRoute.driverId);
+                
+                // Encontrar o motorista dessa rota
+                const driver = drivers.find((d: Driver) => d.id === relevantRoute.driverId);
+                if (driver) {
+                  console.log('🚗 Motorista encontrado por rota:', driver.name);
+                  return driver;
+                }
+              }
+            }
+          }
+        }
+        
+        // Se não encontrou por rota, pegar o primeiro motorista disponível
+        const driver = drivers[0];
+        console.log('⚠️ Usando primeiro motorista disponível:', driver.name);
+        return driver;
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar dados do motorista:', error);
+    }
+  } else {
+    console.log('❌ Nenhum motorista encontrado no localStorage');
+  }
+  
+  console.log('🔄 Usando dados mock do motorista');
+  // Fallback para dados mock
+  return {
+    id: '1',
+    name: 'João Silva',
+    email: 'joao.silva@email.com',
+    phone: '(11) 99999-9999',
+    address: 'Rua das Flores, 123 - São Paulo, SP',
+    photo: '/placeholder.svg'
+  };
 };
 
-const mockVan: Van = {
-  id: '1',
-  driverId: '1',
-  model: 'Mercedes Sprinter',
-  plate: 'ABC-1234',
-  capacity: 20,
-  observations: 'Van escolar equipada com cintos de segurança',
-  photo: '/placeholder.svg'
+// Função para buscar dados da van do localStorage
+const getVanData = (driverId: string): Van => {
+  console.log('🚐 Buscando van do motorista:', driverId);
+  
+  // A van pode estar salva junto com os dados do motorista ou separadamente
+  // Primeiro, verificar se há dados da van no useDriverData (que usa mockVan)
+  const savedDriverData = localStorage.getItem('driverData');
+  if (savedDriverData) {
+    try {
+      const driverData = JSON.parse(savedDriverData);
+      // Se o driver tem uma van associada, usar ela
+      if (driverData.van) {
+        console.log('✅ Van encontrada nos dados do motorista:', driverData.van.model);
+        return {
+          id: driverData.van.id || '1',
+          driverId: driverId,
+          model: driverData.van.model || 'Modelo não informado',
+          plate: driverData.van.plate || 'Placa não informada',
+          capacity: driverData.van.capacity || 0,
+          observations: driverData.van.observations || '',
+          photo: driverData.van.photo || '/placeholder.svg'
+        };
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar dados da van do motorista:', error);
+    }
+  }
+  
+  // Tentar buscar em lista de vans
+  const savedVans = localStorage.getItem('vans');
+  if (savedVans) {
+    try {
+      const vans = JSON.parse(savedVans);
+      console.log('🚐 Vans disponíveis:', vans.length);
+      console.log('🚐 Dados das vans:', vans);
+      
+      // Buscar van do motorista específico
+      const van = vans.find((v: Van) => v.driverId === driverId);
+      if (van) {
+        console.log('✅ Van encontrada na lista:', van.model, van.plate);
+        return {
+          id: van.id,
+          driverId: van.driverId,
+          model: van.model || 'Modelo não informado',
+          plate: van.plate || 'Placa não informada',
+          capacity: van.capacity || 0,
+          observations: van.observations || '',
+          photo: van.photo || '/placeholder.svg'
+        };
+      } else {
+        console.log('⚠️ Van não encontrada para motorista específico:', driverId);
+        
+        // Se não encontrou van específica, pegar a primeira disponível
+        if (vans.length > 0) {
+          const firstVan = vans[0];
+          console.log('⚠️ Usando primeira van disponível:', firstVan.model);
+          return {
+            id: firstVan.id,
+            driverId: firstVan.driverId,
+            model: firstVan.model || 'Modelo não informado',
+            plate: firstVan.plate || 'Placa não informada',
+            capacity: firstVan.capacity || 0,
+            observations: firstVan.observations || '',
+            photo: firstVan.photo || '/placeholder.svg'
+          };
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar dados da van:', error);
+    }
+  } else {
+    console.log('❌ Nenhuma van encontrada no localStorage');
+  }
+  
+  console.log('🔄 Usando dados mock da van');
+  // Fallback para dados mock
+  return {
+    id: '1',
+    driverId: driverId,
+    model: 'Mercedes Sprinter',
+    plate: 'ABC-1234',
+    capacity: 20,
+    observations: 'Van escolar equipada com cintos de segurança',
+    photo: '/placeholder.svg'
+  };
 };
 
 const mockStudents: Student[] = [
@@ -122,14 +294,22 @@ const getGuardianChildren = (guardianId: string): Student[] => {
 const getSchools = () => {
   const savedSchools = localStorage.getItem('schools');
   
+  console.log('🏫 Buscando escolas no localStorage...');
+  
   if (savedSchools) {
     try {
-      return JSON.parse(savedSchools);
+      const schools = JSON.parse(savedSchools);
+      console.log('🏫 Escolas encontradas:', schools.length);
+      console.log('🏫 Dados das escolas:', schools);
+      return schools;
     } catch (error) {
-      console.error('Erro ao carregar escolas:', error);
+      console.error('❌ Erro ao carregar escolas:', error);
     }
+  } else {
+    console.log('❌ Nenhuma escola encontrada no localStorage');
   }
   
+  console.log('🔄 Usando dados mock das escolas');
   // Fallback para dados mock
   return [
     { id: '1', name: 'Escola Municipal João Silva', address: 'Rua da Escola, 100' },
@@ -139,36 +319,86 @@ const getSchools = () => {
 
 export const useGuardianData = () => {
   const guardian = getLoggedGuardian();
-  const [driver] = useState<Driver>(mockDriver);
-  const [van] = useState<Van>(mockVan);
-  const [students] = useState<Student[]>(getGuardianChildren(guardian.id));
-  const [schools] = useState(getSchools());
+  
+  // Debug: mostrar dados do guardian
+  console.log('👤 Guardian logado:', guardian);
+  
+  const [driver, setDriver] = useState<Driver>(() => {
+    const driverData = getDriverData(guardian.id);
+    console.log('🚗 Driver inicial:', driverData);
+    return driverData;
+  });
+  
+  const [van, setVan] = useState<Van>(() => {
+    const initialDriver = getDriverData(guardian.id);
+    const vanData = getVanData(initialDriver.id);
+    console.log('🚐 Van inicial:', vanData);
+    return vanData;
+  });
+  
+  const [students, setStudents] = useState<Student[]>(() => getGuardianChildren(guardian.id));
+  const [schools, setSchools] = useState(() => getSchools());
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
-  const [notifications, setNotifications] = useState<GuardianNotification[]>(mockNotifications);
+  const [notifications, setNotifications] = useState<GuardianNotification[]>(() => {
+    // Carregar notificações reais do localStorage
+    const storedNotifications = notificationService.getStoredNotifications();
+    console.log('📱 Notificações carregadas do localStorage:', storedNotifications.length);
+    return storedNotifications;
+  });
 
-  // Simular atualizações em tempo real
+  // Atualizar dados quando houver mudanças no localStorage
   useEffect(() => {
-    const interval = setInterval(() => {
-      // Simular novas notificações ocasionalmente
-      if (Math.random() > 0.95) {
-        const newNotification: GuardianNotification = {
-          id: Date.now().toString(),
-          type: 'at_school',
-          studentName: 'Pedro Silva',
-          message: 'Pedro Silva chegou na escola',
-          timestamp: new Date().toISOString(),
-          isRead: false,
-          location: { lat: -23.555520, lng: -46.638308 }
-        };
-        
-        setNotifications(prev => [newNotification, ...prev]);
-      }
-    }, 10000); // Check every 10 seconds
+    const updateData = () => {
+      const newDriver = getDriverData(guardian.id);
+      const newVan = getVanData(newDriver.id);
+      const newStudents = getGuardianChildren(guardian.id);
+      const newSchools = getSchools();
+      
+      setDriver(newDriver);
+      setVan(newVan);
+      setStudents(newStudents);
+      setSchools(newSchools);
+    };
 
-    return () => clearInterval(interval);
+    // Escutar mudanças no localStorage
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'drivers' || e.key === 'vans' || e.key === 'students' || e.key === 'schools') {
+        updateData();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Também verificar periodicamente para mudanças na mesma aba
+    const interval = setInterval(updateData, 5000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, [guardian.id]);
+
+  // Escutar notificações reais do serviço
+  useEffect(() => {
+    const handleNewNotification = (notification: GuardianNotification) => {
+      console.log('📱 Nova notificação recebida:', notification);
+      setNotifications(prev => [notification, ...prev]);
+    };
+
+    // Registrar listener para novas notificações
+    notificationService.addListener(handleNewNotification);
+
+    // Cleanup: remover listener quando componente for desmontado
+    return () => {
+      notificationService.removeListener(handleNewNotification);
+    };
   }, []);
 
   const markNotificationAsRead = (notificationId: string) => {
+    // Marcar como lida no serviço (localStorage)
+    notificationService.markAsRead(notificationId);
+    
+    // Atualizar estado local
     setNotifications(prev => 
       prev.map(notification => 
         notification.id === notificationId 

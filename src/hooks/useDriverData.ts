@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { Driver, Van, Route, Student, School, Guardian, Trip, TripStudent } from '@/types/driver';
+import { useNotificationIntegration } from '@/hooks/useNotificationIntegration';
 
 // Mock data - In a real app, this would come from Supabase
 const mockDriver: Driver = {
@@ -166,14 +167,59 @@ export const useDriverData = () => {
     return mockStudents;
   };
 
+  // Carregar dados da van do localStorage se existirem
+  const getInitialVan = (): Van => {
+    const savedDriverData = localStorage.getItem('driverData');
+    if (savedDriverData) {
+      try {
+        const driverData = JSON.parse(savedDriverData);
+        if (driverData.van) {
+          console.log('🚐 Van carregada do localStorage:', driverData.van);
+          return driverData.van;
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados da van:', error);
+      }
+    }
+    console.log('🚐 Usando dados mock da van');
+    return mockVan;
+  };
+
+  // Carregar dados das escolas do localStorage se existirem
+  const getInitialSchools = (): School[] => {
+    const savedSchools = localStorage.getItem('schools');
+    if (savedSchools) {
+      try {
+        const parsedData = JSON.parse(savedSchools);
+        console.log('🏫 Escolas carregadas do localStorage:', parsedData);
+        return parsedData;
+      } catch (error) {
+        console.error('Erro ao carregar dados das escolas:', error);
+      }
+    }
+    console.log('🏫 Usando dados mock das escolas');
+    return mockSchools;
+  };
+
   const [driver, setDriver] = useState<Driver>(getInitialDriver());
-  const [van, setVan] = useState<Van>(mockVan);
+  const [van, setVan] = useState<Van>(getInitialVan());
   const [routes, setRoutes] = useState<Route[]>(mockRoutes);
   const [students, setStudents] = useState<Student[]>(getInitialStudents());
-  const [schools, setSchools] = useState<School[]>(mockSchools);
+  const [schools, setSchools] = useState<School[]>(getInitialSchools());
   const [guardians, setGuardians] = useState<Guardian[]>(getInitialGuardians());
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
   const [notifiedGuardians, setNotifiedGuardians] = useState<Set<string>>(new Set());
+
+  // Hook para integração com notificações
+  const {
+    notifyRouteStarted,
+    notifyVanArrived,
+    notifyEmbarked,
+    notifyAtSchool,
+    notifyDisembarked,
+    notifyGroupDisembarked,
+    notifyRouteFinished
+  } = useNotificationIntegration({ students, schools });
 
   // Salvar responsáveis no localStorage sempre que mudarem
   useEffect(() => {
@@ -187,6 +233,12 @@ export const useDriverData = () => {
     console.log('💾 Estudantes salvos no localStorage:', students);
   }, [students]);
 
+  // Salvar escolas no localStorage sempre que mudarem
+  useEffect(() => {
+    localStorage.setItem('schools', JSON.stringify(schools));
+    console.log('💾 Escolas salvas no localStorage:', schools);
+  }, [schools]);
+
   const updateDriver = (updatedDriver: Partial<Driver>) => {
     const newDriverData = { ...driver, ...updatedDriver };
     setDriver(newDriverData);
@@ -195,7 +247,17 @@ export const useDriverData = () => {
   };
 
   const updateVan = (updatedVan: Partial<Van>) => {
-    setVan(prev => ({ ...prev, ...updatedVan }));
+    const newVanData = { ...van, ...updatedVan };
+    setVan(newVanData);
+    
+    // Salvar van junto com os dados do motorista
+    const currentDriverData = JSON.parse(localStorage.getItem('driverData') || '{}');
+    const updatedDriverData = {
+      ...currentDriverData,
+      van: newVanData
+    };
+    localStorage.setItem('driverData', JSON.stringify(updatedDriverData));
+    console.log('💾 Van salva junto com dados do motorista:', newVanData);
   };
 
   const addRoute = (route: Omit<Route, 'id'>) => {
@@ -455,30 +517,18 @@ export const useDriverData = () => {
       setActiveTrip(trip);
       
       console.log(`🚐 ROTA INICIADA: ${route.name}`);
-       console.log(`📱 Verificando quais responsáveis ainda não foram notificados...`);
-       
-       let newNotifications = 0;
-       route.students.forEach(student => {
-         const guardian = guardians.find(g => g.id === student.guardianId);
-         if (guardian && !notifiedGuardians.has(guardian.id)) {
-           const message = student.dropoffLocation === 'home' ?
-             `"A van está a caminho da escola para buscar ${student.name}. Rota: ${route.name}"` :
-             `"A van está a caminho para buscar ${student.name}. Rota: ${route.name}"`;
-           console.log(`📲 Notificação enviada para ${guardian.name} (${guardian.phone}): ${message}`);
-           setNotifiedGuardians(prev => new Set([...prev, guardian.id]));
-           newNotifications++;
-         } else if (guardian && notifiedGuardians.has(guardian.id)) {
-           console.log(`⏭️ Notificação já enviada para ${guardian.name} - pulando`);
-         }
-       });
-       
-       console.log(`✅ ${newNotifications} novos responsáveis notificados sobre o início da rota ${route.name}`);
+      
+      // Notificar início da rota usando o serviço
+      notifyRouteStarted(trip.students);
     }
   };
 
-  const updateStudentStatus = (studentId: string, status: TripStudent['status']) => {
+  const updateStudentStatus = async (studentId: string, status: TripStudent['status']) => {
     if (activeTrip) {
       console.log(`🔄 Atualizando status do aluno ${studentId} para: ${status}`);
+      
+      const tripStudent = activeTrip.students.find(ts => ts.studentId === studentId);
+      const direction = tripStudent?.direction || 'to_school';
       
       const updatedTrip = {
         ...activeTrip,
@@ -490,73 +540,25 @@ export const useDriverData = () => {
       
       console.log(`✅ Status atualizado. Estado atual da viagem:`, updatedTrip.students);
       
-      // Send notifications based on status
-      const student = students.find(s => s.id === studentId);
-      if (student) {
-        const guardian = guardians.find(g => g.id === student.guardianId);
-        const tripStudent = activeTrip.students.find(ts => ts.studentId === studentId);
-        const direction = tripStudent?.direction || 'to_school';
-        const isToHome = direction === 'to_home';
-        
-        switch (status) {
-          case 'van_arrived':
-            if (isToHome) {
-              // Lógica para "desembarque em casa" - não muda
-              console.log(`🚐 Notificação: A van chegou na escola para buscar ${student.name}`);
-              if (guardian) {
-                const message = `A van chegou na escola para buscar ${student.name} e está indo para casa`;
-                console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${message}`);
-              }
-            } else {
-              // Lógica específica para "embarque em casa" - nova funcionalidade
-              console.log(`🚐 Notificação EMBARQUE EM CASA: A van chegou no ponto de embarque de ${student.name}`);
-              if (guardian) {
-                const message = `🚐 A van chegou no ponto de embarque de ${student.name}. Prepare-se para o embarque!`;
-                console.log(`📱 Notificação enviada para responsável ${guardian.name} (${guardian.phone}): ${message}`);
-              }
-            }
-            break;
-          case 'embarked':
-            if (isToHome) {
-              // Lógica para "desembarque em casa" - não muda
-              console.log(`🚌 Notificação: ${student.name} embarcou na van na escola`);
-              if (guardian) {
-                const message = `${student.name} embarcou na van na escola e está a caminho de casa`;
-                console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${message}`);
-              }
-            } else {
-              // Lógica específica para "embarque em casa" - nova funcionalidade
-              console.log(`🚌 Notificação EMBARQUE EM CASA: ${student.name} embarcou na van e está a caminho da escola`);
-              if (guardian) {
-                const message = `🚌 ${student.name} embarcou na van e está a caminho da escola. Chegada prevista em breve!`;
-                console.log(`📱 Notificação enviada para responsável ${guardian.name} (${guardian.phone}): ${message}`);
-              }
-            }
-            break;
-          case 'at_school':
-            console.log(`🏫 ${student.name} chegou na escola`);
-            // Não notifica quando chega na escola, apenas quando desembarca
-            break;
-          case 'disembarked':
-            if (isToHome) {
-              console.log(`🏠 Notificação: ${student.name} foi desembarcado em casa`);
-              if (guardian) {
-                console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${student.name} chegou em casa e foi desembarcado com segurança`);
-              }
-            } else {
-              const school = schools.find(s => s.id === student.schoolId);
-              console.log(`🏫 Notificação: ${student.name} foi desembarcado na ${school?.name || 'escola'}`);
-              if (guardian) {
-                console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${student.name} chegou na ${school?.name || 'escola'} e foi desembarcado com segurança`);
-              }
-            }
-            break;
-        }
+      // Enviar notificações reais usando o serviço
+      switch (status) {
+        case 'van_arrived':
+          await notifyVanArrived(studentId, direction);
+          break;
+        case 'embarked':
+          await notifyEmbarked(studentId, direction);
+          break;
+        case 'at_school':
+          await notifyAtSchool(studentId);
+          break;
+        case 'disembarked':
+          await notifyDisembarked(studentId, direction);
+          break;
       }
     }
   };
 
-  const updateMultipleStudentsStatus = (studentIds: string[], status: TripStudent['status']) => {
+  const updateMultipleStudentsStatus = async (studentIds: string[], status: TripStudent['status']) => {
     if (activeTrip) {
       console.log(`🔄 ATUALIZAÇÃO EM GRUPO: ${studentIds.length} alunos para status: ${status}`);
       
@@ -570,39 +572,41 @@ export const useDriverData = () => {
       
       console.log(`✅ Status atualizado EM GRUPO. Estado atual da viagem:`, updatedTrip.students);
       
-      // Send notifications for all students at once
-      studentIds.forEach(studentId => {
-        const student = students.find(s => s.id === studentId);
-        if (student) {
-          const guardian = guardians.find(g => g.id === student.guardianId);
-          const tripStudent = activeTrip.students.find(ts => ts.studentId === studentId);
-          const direction = tripStudent?.direction || 'to_school';
-          const isToHome = direction === 'to_home';
-          
-          switch (status) {
-            case 'disembarked':
-              if (isToHome) {
-                console.log(`🏠 Notificação: ${student.name} foi desembarcado em casa`);
-                if (guardian) {
-                  console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${student.name} chegou em casa e foi desembarcado com segurança`);
-                }
-              } else {
-                const school = schools.find(s => s.id === student.schoolId);
-                console.log(`🏫 Notificação: ${student.name} foi desembarcado na ${school?.name || 'escola'}`);
-                if (guardian) {
-                  console.log(`📱 Notificação enviada para ${guardian.name} (${guardian.phone}): ${student.name} chegou na ${school?.name || 'escola'} e foi desembarcado com segurança`);
-                }
-              }
-              break;
-            // Adicionar outros casos conforme necessário
+      // Enviar notificações em grupo usando o serviço
+      const tripStudent = activeTrip.students.find(ts => studentIds.includes(ts.studentId));
+      const direction = tripStudent?.direction || 'to_school';
+      
+      switch (status) {
+        case 'van_arrived':
+          for (const studentId of studentIds) {
+            await notifyVanArrived(studentId, direction);
           }
-        }
-      });
+          break;
+        case 'embarked':
+          for (const studentId of studentIds) {
+            await notifyEmbarked(studentId, direction);
+          }
+          break;
+        case 'at_school':
+          for (const studentId of studentIds) {
+            await notifyAtSchool(studentId);
+          }
+          break;
+        case 'disembarked':
+          await notifyGroupDisembarked(studentIds, direction);
+          break;
+      }
     }
   };
 
   const finishTrip = () => {
     if (activeTrip) {
+      // Determinar direção da rota baseado nos estudantes
+      const direction = activeTrip.students[0]?.direction || 'to_school';
+      
+      // Notificar fim da rota
+      notifyRouteFinished(direction);
+      
       setActiveTrip({ ...activeTrip, status: 'completed' });
       setTimeout(() => {
         setActiveTrip(null);

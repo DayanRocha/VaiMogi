@@ -6,6 +6,7 @@ import { GuardianMenuModal } from '@/components/GuardianMenuModal';
 import { NotificationPanel } from '@/components/NotificationPanel';
 import { GuardianWelcomeDialog } from '@/components/GuardianWelcomeDialog';
 import { useGuardianData } from '@/hooks/useGuardianData';
+import { audioService } from '@/services/audioService';
 
 export const GuardianApp = () => {
   const navigate = useNavigate();
@@ -64,6 +65,30 @@ export const GuardianApp = () => {
       setShowWelcome(true);
     }
   }, [guardian.id]);
+
+  // Inicializar serviço de áudio
+  useEffect(() => {
+    const initAudio = async () => {
+      await audioService.init();
+    };
+    
+    initAudio();
+    
+    // Tentar solicitar permissão de áudio após primeira interação
+    const handleFirstInteraction = async () => {
+      await audioService.requestAudioPermission();
+      document.removeEventListener('click', handleFirstInteraction);
+      document.removeEventListener('touchstart', handleFirstInteraction);
+    };
+
+    document.addEventListener('click', handleFirstInteraction);
+    document.addEventListener('touchstart', handleFirstInteraction);
+
+    return () => {
+      document.removeEventListener('click', handleFirstInteraction);
+      document.removeEventListener('touchstart', handleFirstInteraction);
+    };
+  }, []);
 
   const handleLogout = () => {
     const confirmLogout = window.confirm('Tem certeza que deseja sair?');
