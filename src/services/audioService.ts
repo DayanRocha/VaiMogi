@@ -195,7 +195,7 @@ class AudioService {
   // Usar apenas um arquivo de áudio para todas as notificações
   private getAudioFilePath(type: NotificationSoundType): string {
     // Usar sempre o mesmo arquivo de buzina para todas as notificações
-    return '/buzina-van.mp3';
+    return '/sounds/buzina-van.mp3';
   }
 
   // Carregar arquivo de áudio do projeto
@@ -228,15 +228,15 @@ class AudioService {
     console.log('🔄 Tentando carregar buzina-van.mp3...');
     
     try {
-      const audio = new Audio('/buzina-van.mp3');
-      audio.volume = 0.7;
+      const audio = new Audio('/sounds/buzina-van.mp3');
+      audio.volume = 1.0;  // Corrigido para volume máximo válido
       audio.preload = 'auto';
       
       // Aguardar carregamento com timeout
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
           reject(new Error('Timeout ao carregar áudio'));
-        }, 10000); // 10 segundos timeout
+        }, 10000);
         
         audio.addEventListener('canplaythrough', () => {
           clearTimeout(timeout);
@@ -249,29 +249,11 @@ class AudioService {
           console.error('❌ Erro ao carregar buzina:', e);
           reject(e);
         });
-        
-        audio.load();
       });
       
-      // Usar o mesmo áudio para todos os tipos
-      const soundTypes: NotificationSoundType[] = [
-        'route_started',
-        'van_arrived', 
-        'embarked',
-        'at_school',
-        'disembarked',
-        'route_finished',
-        'default'
-      ];
-
-      soundTypes.forEach(type => {
-        this.audioFiles.set(type, audio);
-      });
-      
-      console.log(`🎵 Buzina-van.mp3 carregada e associada a ${soundTypes.length} tipos de notificação`);
+      this.audioFiles.set('default', audio);
     } catch (error) {
       console.warn('⚠️ Erro ao carregar buzina-van.mp3:', error);
-      console.warn('🔄 Sistema usará tons gerados como fallback');
     }
   }
 
@@ -287,8 +269,9 @@ class AudioService {
 
     try {
       // Criar uma nova instância para permitir sobreposição
-      const audioClone = new Audio('/buzina-van.mp3');
+      const audioClone = new Audio('/sounds/buzina-van.mp3');  // Caminho corrigido
       audioClone.volume = 0.7;
+      audioClone.playbackRate = 1.0;  // Taxa de reprodução normal
       audioClone.currentTime = 0;
       
       console.log(`🎵 Reproduzindo buzina-van.mp3 para ${type}...`);

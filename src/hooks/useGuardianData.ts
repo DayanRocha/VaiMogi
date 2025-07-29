@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Driver, Van, Student, Trip, Guardian } from '@/types/driver';
 import { notificationService } from '@/services/notificationService';
+import { audioService, NotificationSoundType } from '@/services/audioService';
 
 export interface GuardianNotification {
   id: string;
@@ -380,14 +381,24 @@ export const useGuardianData = () => {
 
   // Escutar notificações reais do serviço
   useEffect(() => {
-    const handleNewNotification = (notification: GuardianNotification) => {
+    const handleNewNotification = async (notification: GuardianNotification) => {
       console.log('📱 Nova notificação recebida:', notification);
       setNotifications(prev => [notification, ...prev]);
+      
+      // Reproduzir som da buzina ao receber notificação
+      try {
+        const soundType: NotificationSoundType = notification.type as NotificationSoundType;
+        console.log('🔊 Tentando reproduzir som para tipo:', soundType); // Adicione este log
+        await audioService.playNotificationSound(soundType);
+        console.log('✅ Som reproduzido com sucesso'); // Adicione este log
+      } catch (error) {
+        console.error('❌ Erro ao reproduzir som:', error);
+      }
     };
-
+  
     // Registrar listener para novas notificações
     notificationService.addListener(handleNewNotification);
-
+  
     // Cleanup: remover listener quando componente for desmontado
     return () => {
       notificationService.removeListener(handleNewNotification);

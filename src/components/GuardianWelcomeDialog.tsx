@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { audioService } from '@/services/audioService'; // Adicione esta importação
 
 interface GuardianWelcomeDialogProps {
   isOpen: boolean;
@@ -116,7 +117,15 @@ export const GuardianWelcomeDialog = ({ isOpen, onClose, guardianName }: Guardia
 
         <div className="flex flex-col gap-3 mt-6">
           <Button
-            onClick={onClose}
+            onClick={async () => {
+              try {
+                await audioService.requestAudioPermission(); // Solicita permissão de áudio
+                console.log('✅ Permissão de áudio solicitada');
+              } catch (error) {
+                console.error('❌ Erro ao solicitar permissão de áudio:', error);
+              }
+              onClose(); // Chama o fechamento original
+            }}
             className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-xl transition-all duration-200 transform hover:scale-[1.02]"
           >
             Começar a acompanhar! 👨‍👩‍👧‍👦
