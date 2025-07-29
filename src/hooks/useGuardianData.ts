@@ -419,6 +419,22 @@ export const useGuardianData = () => {
     );
   };
 
+  const deleteNotification = (notificationId: string) => {
+    // Excluir no serviço (localStorage)
+    notificationService.deleteNotification(notificationId);
+    
+    // Atualizar estado local
+    setNotifications(prev => prev.filter(n => n.id !== notificationId));
+  };
+
+  const deleteNotifications = (notificationIds: string[]) => {
+    // Excluir múltiplas no serviço (localStorage)
+    notificationService.deleteNotifications(notificationIds);
+    
+    // Atualizar estado local
+    setNotifications(prev => prev.filter(n => !notificationIds.includes(n.id)));
+  };
+
   const getUnreadCount = () => {
     return notifications.filter(n => !n.isRead).length;
   };
@@ -432,6 +448,8 @@ export const useGuardianData = () => {
     activeTrip,
     notifications,
     markNotificationAsRead,
+    deleteNotification,
+    deleteNotifications,
     getUnreadCount
   };
 };

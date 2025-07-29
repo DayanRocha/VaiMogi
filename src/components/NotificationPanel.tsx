@@ -1,21 +1,29 @@
-import { X, Bell, MapPin, User, School, Home, Truck } from 'lucide-react';
+import { X, Bell, MapPin, User, School, Home, Truck, Trash2, CheckSquare, Square } from 'lucide-react';
 import { GuardianNotification } from '@/hooks/useGuardianData';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useState } from 'react';
 
 interface NotificationPanelProps {
   isOpen: boolean;
   onClose: () => void;
   notifications: GuardianNotification[];
   onMarkAsRead: (notificationId: string) => void;
+  onDeleteNotification?: (notificationId: string) => void;
+  onDeleteNotifications?: (notificationIds: string[]) => void;
 }
 
 export const NotificationPanel = ({ 
   isOpen, 
   onClose, 
   notifications, 
-  onMarkAsRead 
+  onMarkAsRead,
+  onDeleteNotification,
+  onDeleteNotifications
 }: NotificationPanelProps) => {
+  const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const getNotificationIcon = (type: GuardianNotification['type']) => {
     switch (type) {
       case 'van_arrived':
@@ -58,6 +66,16 @@ export const NotificationPanel = ({
   };
 
   const handleNotificationClick = (notification: GuardianNotification) => {
+    if (isSelectionMode) {
+      const isSelected = selectedNotifications.includes(notification.id);
+      if (isSelected) {
+        setSelectedNotifications(prev => prev.filter(id => id !== notification.id));
+      } else {
+        setSelectedNotifications(prev => [...prev, notification.id]);
+      }
+      return;
+    }
+
     if (!notification.isRead) {
       onMarkAsRead(notification.id);
     }
@@ -69,6 +87,34 @@ export const NotificationPanel = ({
     }
   };
 
+  const handleDeleteSingle = (notificationId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDeleteNotification) {
+      onDeleteNotification(notificationId);
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (selectedNotifications.length === notifications.length) {
+      setSelectedNotifications([]);
+    } else {
+      setSelectedNotifications(notifications.map(n => n.id));
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    if (onDeleteNotifications && selectedNotifications.length > 0) {
+      onDeleteNotifications(selectedNotifications);
+      setSelectedNotifications([]);
+      setIsSelectionMode(false);
+    }
+  };
+
+  const handleToggleSelectionMode = () => {
+    setIsSelectionMode(!isSelectionMode);
+    setSelectedNotifications([]);
+  };
+
   const unreadNotifications = notifications.filter(n => !n.isRead);
   const readNotifications = notifications.filter(n => n.isRead);
 
@@ -76,15 +122,55 @@ export const NotificationPanel = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Bell className="w-5 h-5 text-blue-500" />
-            Notificações
-            {unreadNotifications.length > 0 && (
-              <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                {unreadNotifications.length}
-              </span>
+          <DialogTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bell className="w-5 h-5 text-blue-500" />
+              Notificações
+              {unreadNotifications.length > 0 && (
+                <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                  {unreadNotifications.length}
+                </span>
+              )}
+            </div>
+            {notifications.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleToggleSelectionMode}
+                className="text-sm"
+              >
+                {isSelectionMode ? 'Cancelar' : 'Selecionar'}
+              </Button>
             )}
           </DialogTitle>
+          {isSelectionMode && notifications.length > 0 && (
+            <div className="flex items-center justify-between pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSelectAll}
+                className="flex items-center gap-2"
+              >
+                {selectedNotifications.length === notifications.length ? (
+                  <CheckSquare className="w-4 h-4" />
+                ) : (
+                  <Square className="w-4 h-4" />
+                )}
+                {selectedNotifications.length === notifications.length ? 'Desmarcar todas' : 'Selecionar todas'}
+              </Button>
+              {selectedNotifications.length > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleDeleteSelected}
+                  className="flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Excluir ({selectedNotifications.length})
+                </Button>
+              )}
+            </div>
+          )}
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4 py-4">
@@ -104,9 +190,16 @@ export const NotificationPanel = ({
                       <div
                         key={notification.id}
                         onClick={() => handleNotificationClick(notification)}
-                        className={`border-l-4 p-3 rounded-r-lg cursor-pointer hover:shadow-md transition-shadow ${getNotificationColor(notification.type)}`}
+                        className={`border-l-4 p-3 rounded-r-lg cursor-pointer hover:shadow-md transition-shadow ${getNotificationColor(notification.type)} ${isSelectionMode ? 'bg-gray-50' : ''}`}
                       >
                         <div className="flex items-start gap-3">
+                          {isSelectionMode && (
+                            <Checkbox
+                              checked={selectedNotifications.includes(notification.id)}
+                              onCheckedChange={() => handleNotificationClick(notification)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          )}
                           {getNotificationIcon(notification.type)}
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-gray-800">
@@ -127,7 +220,19 @@ export const NotificationPanel = ({
                               )}
                             </div>
                           </div>
-                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          {!isSelectionMode ? (
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => handleDeleteSingle(notification.id, e)}
+                                className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     ))}
@@ -144,9 +249,16 @@ export const NotificationPanel = ({
                       <div
                         key={notification.id}
                         onClick={() => handleNotificationClick(notification)}
-                        className={`border-l-4 p-3 rounded-r-lg cursor-pointer hover:shadow-md transition-shadow opacity-75 ${getNotificationColor(notification.type)}`}
+                        className={`border-l-4 p-3 rounded-r-lg cursor-pointer hover:shadow-md transition-shadow opacity-75 ${getNotificationColor(notification.type)} ${isSelectionMode ? 'bg-gray-50' : ''}`}
                       >
                         <div className="flex items-start gap-3">
+                          {isSelectionMode && (
+                            <Checkbox
+                              checked={selectedNotifications.includes(notification.id)}
+                              onCheckedChange={() => handleNotificationClick(notification)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          )}
                           {getNotificationIcon(notification.type)}
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-gray-700">
@@ -167,6 +279,16 @@ export const NotificationPanel = ({
                               )}
                             </div>
                           </div>
+                          {!isSelectionMode && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => handleDeleteSingle(notification.id, e)}
+                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}

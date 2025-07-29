@@ -21,7 +21,9 @@ export const GuardianApp = () => {
     schools,
     activeTrip, 
     notifications,
-    markNotificationAsRead 
+    markNotificationAsRead,
+    deleteNotification,
+    deleteNotifications
   } = useGuardianData();
 
   // Verificar se o responsável ainda está ativo
@@ -150,6 +152,8 @@ export const GuardianApp = () => {
         onClose={() => setShowNotifications(false)}
         notifications={notifications}
         onMarkAsRead={markNotificationAsRead}
+        onDeleteNotification={deleteNotification}
+        onDeleteNotifications={deleteNotifications}
       />
 
       {/* Welcome Dialog */}

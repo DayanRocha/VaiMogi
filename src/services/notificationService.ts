@@ -176,6 +176,32 @@ class NotificationService {
     }
   }
 
+  // Excluir notificação individual
+  deleteNotification(notificationId: string) {
+    try {
+      const notifications = this.getStoredNotifications();
+      const updatedNotifications = notifications.filter(notification => notification.id !== notificationId);
+      
+      localStorage.setItem('guardianNotifications', JSON.stringify(updatedNotifications));
+      console.log('🗑️ Notificação excluída:', notificationId);
+    } catch (error) {
+      console.error('❌ Erro ao excluir notificação:', error);
+    }
+  }
+
+  // Excluir múltiplas notificações
+  deleteNotifications(notificationIds: string[]) {
+    try {
+      const notifications = this.getStoredNotifications();
+      const updatedNotifications = notifications.filter(notification => !notificationIds.includes(notification.id));
+      
+      localStorage.setItem('guardianNotifications', JSON.stringify(updatedNotifications));
+      console.log('🗑️ Notificações excluídas:', notificationIds.length);
+    } catch (error) {
+      console.error('❌ Erro ao excluir notificações:', error);
+    }
+  }
+
   // Limpar todas as notificações
   clearAllNotifications() {
     localStorage.removeItem('guardianNotifications');
