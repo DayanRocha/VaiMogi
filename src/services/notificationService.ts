@@ -113,10 +113,8 @@ class NotificationService {
     // Salvar notificação no localStorage para persistência
     this.saveNotificationToStorage(notification);
     
-    // Reproduzir som da notificação
-    await this.playNotificationSound(event.type);
-    
     // Notificar todos os listeners (componentes que estão escutando)
+    // O som será reproduzido apenas do lado do responsável
     this.notifyListeners(notification);
     
     console.log('✅ Notificação enviada:', notification);
