@@ -6,31 +6,28 @@ export const useRouteTracking = () => {
   const [activeRoute, setActiveRoute] = useState<ActiveRoute | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Carregar rota ativa inicial
   useEffect(() => {
-    // Carregar rota ativa inicial
-    const loadActiveRoute = () => {
-      console.log('🔍 Carregando rota ativa...');
-      const route = routeTrackingService.getActiveRoute();
-      setActiveRoute(route);
-      setIsLoading(false);
-      
-      if (route) {
-        console.log('✅ Rota ativa encontrada:', {
-          id: route.id,
-          driverName: route.driverName,
-          studentsCount: route.studentPickups?.length || 0,
-          isActive: route.isActive,
-          hasLocation: !!route.currentLocation
-        });
-      } else {
-        console.log('❌ Nenhuma rota ativa encontrada');
-      }
-    };
+    console.log('🔍 Carregando rota ativa...');
+    const route = routeTrackingService.getActiveRoute();
+    setActiveRoute(route);
+    setIsLoading(false);
+    
+    if (route) {
+      console.log('✅ Rota ativa encontrada:', {
+        id: route.id,
+        driverName: route.driverName,
+        studentsCount: route.studentPickups?.length || 0,
+        isActive: route.isActive,
+        hasLocation: !!route.currentLocation
+      });
+    } else {
+      console.log('❌ Nenhuma rota ativa encontrada');
+    }
+  }, []);
 
-    // Carregar imediatamente
-    loadActiveRoute();
-
-    // Listener para mudanças na rota
+  // Listener para mudanças na rota
+  useEffect(() => {
     const handleRouteChange = (route: ActiveRoute | null) => {
       console.log('🔄 Rota alterada:', route ? 'Ativa' : 'Inativa');
       setActiveRoute(route);
@@ -54,6 +51,23 @@ export const useRouteTracking = () => {
       routeTrackingService.removeListener(handleRouteChange);
     };
   }, []);
+
+  // Log de debug periódico
+  useEffect(() => {
+    const debugInterval = setInterval(() => {
+      const hasRoute = activeRoute !== null && activeRoute.isActive;
+      if (hasRoute) {
+        console.log('🐛 Debug - Estado atual:', {
+          hasRoute,
+          driverLocation: activeRoute?.currentLocation ? `${activeRoute.currentLocation.lat}, ${activeRoute.currentLocation.lng}` : 'Ausente',
+          nextDestination: activeRoute?.studentPickups.find(s => s.status === 'pending')?.studentName || 'Nenhum',
+          progress: activeRoute ? `${((activeRoute.studentPickups.filter(s => s.status !== 'pending').length / activeRoute.studentPickups.length) * 100).toFixed(1)}%` : '0%'
+        });
+      }
+    }, 10000); // Log a cada 10 segundos
+
+    return () => clearInterval(debugInterval);
+  }, [activeRoute]);
 
   // Verificar se há uma rota ativa
   const hasActiveRoute = activeRoute !== null && activeRoute.isActive;
@@ -107,22 +121,6 @@ export const useRouteTracking = () => {
       return `${(distance / 1000).toFixed(1)}km`;
     }
   };
-
-  // Log de debug periódico
-  useEffect(() => {
-    const debugInterval = setInterval(() => {
-      if (hasActiveRoute) {
-        console.log('🐛 Debug - Estado atual:', {
-          hasRoute: hasActiveRoute,
-          driverLocation: driverLocation ? `${driverLocation.lat}, ${driverLocation.lng}` : 'Ausente',
-          nextDestination: nextDestination?.studentName || 'Nenhum',
-          progress: `${routeProgress.toFixed(1)}%`
-        });
-      }
-    }, 10000); // Log a cada 10 segundos
-
-    return () => clearInterval(debugInterval);
-  }, [hasActiveRoute, driverLocation, nextDestination, routeProgress]);
 
   return {
     activeRoute,

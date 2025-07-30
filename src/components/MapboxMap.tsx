@@ -1,7 +1,6 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
-import { Navigation, AlertCircle } from 'lucide-react';
+import { Navigation, AlertCircle, RefreshCw } from 'lucide-react';
 import { ActiveRoute, RouteLocation } from '@/services/routeTrackingService';
 import { MAPBOX_CONFIG, isMapboxConfigured } from '@/config/maps';
 
@@ -32,98 +31,123 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [driverMarker, setDriverMarker] = useState<mapboxgl.Marker | null>(null);
   const [studentMarkers, setStudentMarkers] = useState<mapboxgl.Marker[]>([]);
+  const [retryCount, setRetryCount] = useState(0);
 
-  // Configurar token do Mapbox
-  useEffect(() => {
-    console.log('🔑 Configurando Mapbox token...');
-    mapboxgl.accessToken = MAPBOX_CONFIG.accessToken;
-    console.log('🔑 Token configurado:', MAPBOX_CONFIG.accessToken ? 'Presente' : 'Ausente');
-  }, []);
-
-  // Inicializar mapa
-  useEffect(() => {
+  // Função para reinicializar o mapa
+  const initializeMap = async () => {
     if (!mapContainer.current || map.current) return;
 
-    const initializeMap = async () => {
-      try {
-        console.log('🗺️ Inicializando Mapbox...');
-        
-        if (!isMapboxConfigured()) {
-          throw new Error('Token do Mapbox não configurado corretamente');
-        }
-
-        // Centro inicial - São Paulo como padrão
-        const center: [number, number] = driverLocation 
-          ? [driverLocation.lng, driverLocation.lat]
-          : [MAPBOX_CONFIG.defaultCenter.lng, MAPBOX_CONFIG.defaultCenter.lat];
-
-        console.log('📍 Centro do mapa:', center);
-
-        const mapInstance = new mapboxgl.Map({
-          container: mapContainer.current!,
-          style: MAPBOX_CONFIG.style,
-          center: center,
-          zoom: MAPBOX_CONFIG.defaultZoom,
-          attributionControl: true
-        });
-
-        // Aguardar carregamento do mapa
-        mapInstance.on('load', () => {
-          console.log('✅ Mapbox carregado com sucesso');
-          setIsLoading(false);
-          setError(null);
-        });
-
-        // Tratar erros
-        mapInstance.on('error', (e) => {
-          console.error('❌ Erro no Mapbox:', e);
-          setError(`Erro no mapa: ${e.error?.message || 'Erro desconhecido'}`);
-          setIsLoading(false);
-        });
-
-        // Adicionar controles de navegação
-        mapInstance.addControl(new mapboxgl.NavigationControl(), 'top-left');
-        mapInstance.addControl(new mapboxgl.FullscreenControl(), 'top-right');
-
-        map.current = mapInstance;
-
-      } catch (err: any) {
-        console.error('❌ Erro ao inicializar Mapbox:', err);
-        setError(`Erro de inicialização: ${err.message}`);
-        setIsLoading(false);
+    try {
+      console.log('🗺️ Inicializando Mapbox... (tentativa ' + (retryCount + 1) + ')');
+      
+      // Verificar configuração
+      console.log('🔑 Verificando configuração do Mapbox...');
+      console.log('🔑 Token presente:', !!MAPBOX_CONFIG.accessToken);
+      console.log('🔑 Token válido:', MAPBOX_CONFIG.accessToken.startsWith('pk.'));
+      
+      if (!isMapboxConfigured()) {
+        throw new Error('Token do Mapbox inválido ou não configurado');
       }
-    };
 
-    // Timeout para detectar problemas de carregamento
+      // Configurar token
+      mapboxgl.accessToken = MAPBOX_CONFIG.accessToken;
+
+      // Centro inicial
+      const center: [number, number] = driverLocation 
+        ? [driverLocation.lng, driverLocation.lat]
+        : [MAPBOX_CONFIG.defaultCenter.lng, MAPBOX_CONFIG.defaultCenter.lat];
+
+      console.log('📍 Centro do mapa:', center);
+
+      // Criar instância do mapa
+      const mapInstance = new mapboxgl.Map({
+        container: mapContainer.current!,
+        style: MAPBOX_CONFIG.style,
+        center: center,
+        zoom: MAPBOX_CONFIG.defaultZoom,
+        attributionControl: true
+      });
+
+      console.log('🗺️ Instância do mapa criada');
+
+      // Aguardar carregamento
+      mapInstance.on('load', () => {
+        console.log('✅ Mapa carregado com sucesso!');
+        setIsLoading(false);
+        setError(null);
+        setRetryCount(0);
+      });
+
+      // Tratar erros
+      mapInstance.on('error', (e) => {
+        console.error('❌ Erro no mapa:', e);
+        const errorMsg = e.error?.message || 'Erro desconhecido';
+        setError(`Erro no mapa: ${errorMsg}`);
+        setIsLoading(false);
+      });
+
+      // Adicionar controles
+      mapInstance.addControl(new mapboxgl.NavigationControl(), 'top-left');
+      mapInstance.addControl(new mapboxgl.FullscreenControl(), 'top-right');
+
+      map.current = mapInstance;
+      console.log('🗺️ Mapa configurado completamente');
+
+    } catch (err: any) {
+      console.error('❌ Erro ao inicializar mapa:', err);
+      setError(`Falha na inicialização: ${err.message}`);
+      setIsLoading(false);
+    }
+  };
+
+  // Configurar token e inicializar mapa
+  useEffect(() => {
+    // Timeout para detectar problemas
     const timeoutId = setTimeout(() => {
       if (isLoading) {
-        console.error('⏰ Timeout ao carregar Mapbox');
-        setError('Timeout ao carregar o mapa. Verificando conexão...');
+        console.error('⏰ Timeout ao carregar mapa');
+        setError('Timeout no carregamento. Verifique sua conexão.');
         setIsLoading(false);
       }
-    }, 15000); // 15 segundos
+    }, 20000);
 
     initializeMap();
 
     return () => {
       clearTimeout(timeoutId);
       if (map.current) {
+        console.log('🧹 Limpando mapa...');
         map.current.remove();
         map.current = null;
       }
     };
-  }, []);
+  }, [retryCount]);
+
+  // Função para tentar novamente
+  const handleRetry = () => {
+    console.log('🔄 Tentando recarregar mapa...');
+    setIsLoading(true);
+    setError(null);
+    setRetryCount(prev => prev + 1);
+    
+    if (map.current) {
+      map.current.remove();
+      map.current = null;
+    }
+  };
 
   // Atualizar marcador do motorista
   useEffect(() => {
     if (!map.current || !driverLocation) return;
+
+    console.log('📍 Atualizando localização do motorista:', driverLocation);
 
     // Remover marcador anterior
     if (driverMarker) {
       driverMarker.remove();
     }
 
-    // Criar elemento HTML personalizado para o motorista
+    // Criar elemento do motorista
     const driverElement = document.createElement('div');
     driverElement.innerHTML = `
       <div style="
@@ -141,7 +165,7 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
       ">🚐</div>
     `;
 
-    // Criar marcador do motorista
+    // Criar marcador
     const marker = new mapboxgl.Marker(driverElement)
       .setLngLat([driverLocation.lng, driverLocation.lat])
       .setPopup(
@@ -150,10 +174,7 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
             <div style="padding: 8px;">
               <h3 style="margin: 0 0 8px 0; color: #1f2937;">${activeRoute.driverName}</h3>
               <p style="margin: 0; font-size: 12px; color: #6b7280;">
-                Última atualização: ${new Date(driverLocation.timestamp).toLocaleTimeString()}
-              </p>
-              <p style="margin: 4px 0 0 0; font-size: 12px; color: #6b7280;">
-                Precisão: ${driverLocation.accuracy ? Math.round(driverLocation.accuracy) + 'm' : 'N/A'}
+                Atualizado: ${new Date(driverLocation.timestamp).toLocaleTimeString()}
               </p>
             </div>
           `)
@@ -162,19 +183,20 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
 
     setDriverMarker(marker);
 
-    // Centralizar mapa na localização do motorista
+    // Centralizar no motorista
     map.current.flyTo({
       center: [driverLocation.lng, driverLocation.lat],
       zoom: 15,
       duration: 1000
     });
 
-    console.log('📍 Localização do motorista atualizada:', driverLocation);
-  }, [driverLocation, activeRoute.driverName, map.current]);
+  }, [driverLocation, activeRoute.driverName]);
 
   // Atualizar marcadores dos estudantes
   useEffect(() => {
     if (!map.current || !activeRoute.studentPickups) return;
+
+    console.log('👥 Atualizando marcadores dos estudantes:', activeRoute.studentPickups.length);
 
     // Remover marcadores anteriores
     studentMarkers.forEach(marker => marker.remove());
@@ -188,7 +210,6 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
       const color = student.status === 'pending' ? (isNext ? '#F59E0B' : '#EF4444') :
                    student.status === 'picked_up' ? '#3B82F6' : '#10B981';
 
-      // Criar elemento HTML personalizado para o estudante
       const studentElement = document.createElement('div');
       studentElement.innerHTML = `
         <div style="
@@ -211,7 +232,6 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
       const statusText = student.status === 'pending' ? 'Aguardando' :
                         student.status === 'picked_up' ? 'Na Van' : 'Entregue';
 
-      // Criar marcador do estudante
       const marker = new mapboxgl.Marker(studentElement)
         .setLngLat([student.lng, student.lat])
         .setPopup(
@@ -233,135 +253,7 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
     });
 
     setStudentMarkers(newMarkers);
-  }, [activeRoute.studentPickups, nextDestination, map.current]);
-
-  // Desenhar rota até o próximo destino
-  useEffect(() => {
-    if (!map.current || !driverLocation || !nextDestination || !nextDestination.lat || !nextDestination.lng) {
-      // Remover rota se não há destino
-      if (map.current && map.current.getSource('route')) {
-        map.current.removeLayer('route');
-        map.current.removeSource('route');
-      }
-      return;
-    }
-
-    const drawRoute = () => {
-      if (!map.current || !driverLocation || !nextDestination) return;
-
-      // Remover rota anterior se existir
-      if (map.current.getSource('route')) {
-        map.current.removeLayer('route');
-        map.current.removeSource('route');
-      }
-
-      // Buscar rota usando Mapbox Directions API
-      const directionsUrl = `${MAPBOX_CONFIG.directionsApiUrl}/${driverLocation.lng},${driverLocation.lat};${nextDestination.lng},${nextDestination.lat}?geometries=geojson&access_token=${MAPBOX_CONFIG.accessToken}`;
-
-      fetch(directionsUrl)
-        .then(response => response.json())
-        .then(data => {
-          if (data.routes && data.routes.length > 0) {
-            const route = data.routes[0];
-
-            // Adicionar fonte da rota
-            map.current!.addSource('route', {
-              type: 'geojson',
-              data: {
-                type: 'Feature',
-                properties: {},
-                geometry: route.geometry
-              }
-            });
-
-            // Adicionar camada da rota
-            map.current!.addLayer({
-              id: 'route',
-              type: 'line',
-              source: 'route',
-              layout: {
-                'line-join': 'round',
-                'line-cap': 'round'
-              },
-              paint: {
-                'line-color': '#3B82F6',
-                'line-width': 4,
-                'line-opacity': 0.8
-              }
-            });
-
-            // Ajustar zoom para mostrar toda a rota
-            const coordinates = route.geometry.coordinates;
-            const bounds = coordinates.reduce((bounds: mapboxgl.LngLatBounds, coord: [number, number]) => {
-              return bounds.extend(coord);
-            }, new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
-
-            map.current!.fitBounds(bounds, {
-              padding: 50,
-              duration: 1000
-            });
-
-            console.log('🛣️ Rota desenhada para:', nextDestination.studentName);
-          }
-        })
-        .catch(error => {
-          console.error('❌ Erro ao buscar rota:', error);
-          // Fallback: linha direta
-          drawStraightLine();
-        });
-    };
-
-    const drawStraightLine = () => {
-      if (!map.current || !driverLocation || !nextDestination) return;
-
-      // Remover rota anterior se existir
-      if (map.current.getSource('route')) {
-        map.current.removeLayer('route');
-        map.current.removeSource('route');
-      }
-
-      // Linha direta como fallback
-      map.current.addSource('route', {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          properties: {},
-          geometry: {
-            type: 'LineString',
-            coordinates: [
-              [driverLocation.lng, driverLocation.lat],
-              [nextDestination.lng, nextDestination.lat]
-            ]
-          }
-        }
-      });
-
-      map.current.addLayer({
-        id: 'route',
-        type: 'line',
-        source: 'route',
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round'
-        },
-        paint: {
-          'line-color': '#3B82F6',
-          'line-width': 4,
-          'line-opacity': 0.8,
-          'line-dasharray': [2, 2]
-        }
-      });
-
-      console.log('🛣️ Linha direta desenhada para:', nextDestination.studentName);
-    };
-
-    // Aguardar o mapa estar carregado
-    if (map.current.isStyleLoaded()) {
-      drawRoute();
-    } else {
-      map.current.on('styledata', drawRoute);
-    }
-  }, [driverLocation, nextDestination, map.current]);
+  }, [activeRoute.studentPickups, nextDestination]);
 
   if (error) {
     return (
@@ -370,17 +262,21 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
           <AlertCircle className="w-16 h-16 mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">Erro no Mapa</h3>
           <p className="text-sm mb-4">{error}</p>
-          <div className="bg-red-50 p-3 rounded-lg text-xs text-left">
-            <p className="font-semibold mb-2">Debug:</p>
-            <p><strong>Token:</strong> {isMapboxConfigured() ? '✅ Válido' : '❌ Inválido'}</p>
-            <p><strong>Rota:</strong> {activeRoute ? '✅ Ativa' : '❌ Inativa'}</p>
-            <p><strong>Driver:</strong> {driverLocation ? '✅ Presente' : '❌ Ausente'}</p>
+          
+          <div className="bg-red-50 p-3 rounded-lg text-xs text-left mb-4">
+            <p className="font-semibold mb-2">Informações de Debug:</p>
+            <p><strong>Token configurado:</strong> {isMapboxConfigured() ? '✅ Sim' : '❌ Não'}</p>
+            <p><strong>Rota ativa:</strong> {activeRoute ? '✅ Sim' : '❌ Não'}</p>
+            <p><strong>Localização:</strong> {driverLocation ? '✅ Sim' : '❌ Não'}</p>
+            <p><strong>Tentativas:</strong> {retryCount + 1}</p>
           </div>
+          
           <button 
-            onClick={() => window.location.reload()} 
-            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            onClick={handleRetry}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-2 mx-auto"
           >
-            🔄 Recarregar
+            <RefreshCw className="w-4 h-4" />
+            Tentar Novamente
           </button>
         </div>
       </div>
@@ -394,11 +290,21 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
           <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
           <p className="text-lg font-semibold mb-2">Carregando Mapbox</p>
           <p className="text-sm text-gray-500 mb-4">Inicializando mapa em tempo real...</p>
-          <div className="bg-blue-50 p-3 rounded-lg text-xs">
+          
+          <div className="bg-blue-50 p-3 rounded-lg text-xs max-w-xs mx-auto">
             <p><strong>Motorista:</strong> {activeRoute.driverName}</p>
             <p><strong>Estudantes:</strong> {activeRoute.studentPickups?.length || 0}</p>
-            <p><strong>Direção:</strong> {activeRoute.direction === 'to_school' ? 'Para Escola' : 'Para Casa'}</p>
+            <p><strong>Tentativa:</strong> {retryCount + 1}</p>
           </div>
+          
+          {retryCount > 0 && (
+            <button 
+              onClick={handleRetry}
+              className="mt-4 text-sm text-blue-600 hover:text-blue-800"
+            >
+              Forçar nova tentativa
+            </button>
+          )}
         </div>
       </div>
     );
