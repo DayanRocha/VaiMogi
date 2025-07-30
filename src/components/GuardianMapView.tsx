@@ -2,7 +2,7 @@ import React from 'react';
 import { MapPin } from 'lucide-react';
 import { Driver, Van, Student, Trip } from '@/types/driver';
 import { useRouteTracking } from '@/hooks/useRouteTracking';
-import { RouteTrackingMap } from '@/components/RouteTrackingMap';
+import { MapboxMap } from '@/components/MapboxMap';
 import { MapDebugPanel } from '@/components/MapDebugPanel';
 
 interface GuardianMapViewProps {
@@ -51,7 +51,7 @@ export const GuardianMapView = ({ driver, van, students, activeTrip }: GuardianM
             {/* Active Route View with Route Tracking Map */}
             <div className="w-full h-full">
               {/* Route Tracking Map - Dynamic Trajectory */}
-              <RouteTrackingMap
+              <MapboxMap
                 activeRoute={activeRoute!}
                 driverLocation={driverLocation}
                 nextDestination={nextDestination}
