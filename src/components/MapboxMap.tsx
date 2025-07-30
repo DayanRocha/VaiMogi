@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { Navigation, AlertCircle } from 'lucide-react';
@@ -34,26 +35,24 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
 
   // Configurar token do Mapbox
   useEffect(() => {
+    console.log('🔑 Configurando Mapbox token...');
     mapboxgl.accessToken = MAPBOX_CONFIG.accessToken;
+    console.log('🔑 Token configurado:', MAPBOX_CONFIG.accessToken ? 'Presente' : 'Ausente');
   }, []);
 
   // Inicializar mapa
   useEffect(() => {
-    if (!mapContainer.current) return;
+    if (!mapContainer.current || map.current) return;
 
     const initializeMap = async () => {
       try {
         console.log('🗺️ Inicializando Mapbox...');
-        console.log('🔑 Token:', MAPBOX_CONFIG.accessToken.substring(0, 20) + '...');
+        
+        if (!isMapboxConfigured()) {
+          throw new Error('Token do Mapbox não configurado corretamente');
+        }
 
-        // Timeout para evitar travamento
-        const timeoutId = setTimeout(() => {
-          console.error('⏰ Timeout ao carregar Mapbox');
-          setError('Timeout ao carregar o mapa. Verifique sua conexão.');
-          setIsLoading(false);
-        }, 10000); // 10 segundos
-
-        // Centro inicial - localização do motorista ou São Paulo
+        // Centro inicial - São Paulo como padrão
         const center: [number, number] = driverLocation 
           ? [driverLocation.lng, driverLocation.lat]
           : [MAPBOX_CONFIG.defaultCenter.lng, MAPBOX_CONFIG.defaultCenter.lat];
@@ -61,7 +60,7 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
         console.log('📍 Centro do mapa:', center);
 
         const mapInstance = new mapboxgl.Map({
-          container: mapContainer.current,
+          container: mapContainer.current!,
           style: MAPBOX_CONFIG.style,
           center: center,
           zoom: MAPBOX_CONFIG.defaultZoom,
@@ -70,16 +69,15 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
 
         // Aguardar carregamento do mapa
         mapInstance.on('load', () => {
-          clearTimeout(timeoutId);
           console.log('✅ Mapbox carregado com sucesso');
           setIsLoading(false);
+          setError(null);
         });
 
         // Tratar erros
         mapInstance.on('error', (e) => {
-          clearTimeout(timeoutId);
           console.error('❌ Erro no Mapbox:', e);
-          setError(`Erro no Mapbox: ${e.error?.message || 'Erro desconhecido'}`);
+          setError(`Erro no mapa: ${e.error?.message || 'Erro desconhecido'}`);
           setIsLoading(false);
         });
 
@@ -89,20 +87,31 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
 
         map.current = mapInstance;
 
-        return () => {
-          clearTimeout(timeoutId);
-          if (map.current) {
-            map.current.remove();
-          }
-        };
-      } catch (err) {
+      } catch (err: any) {
         console.error('❌ Erro ao inicializar Mapbox:', err);
-        setError(`Erro de inicialização: ${err}`);
+        setError(`Erro de inicialização: ${err.message}`);
         setIsLoading(false);
       }
     };
 
+    // Timeout para detectar problemas de carregamento
+    const timeoutId = setTimeout(() => {
+      if (isLoading) {
+        console.error('⏰ Timeout ao carregar Mapbox');
+        setError('Timeout ao carregar o mapa. Verificando conexão...');
+        setIsLoading(false);
+      }
+    }, 15000); // 15 segundos
+
     initializeMap();
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
+    };
   }, []);
 
   // Atualizar marcador do motorista
@@ -161,7 +170,7 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
     });
 
     console.log('📍 Localização do motorista atualizada:', driverLocation);
-  }, [driverLocation, activeRoute.driverName]);
+  }, [driverLocation, activeRoute.driverName, map.current]);
 
   // Atualizar marcadores dos estudantes
   useEffect(() => {
@@ -224,7 +233,7 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
     });
 
     setStudentMarkers(newMarkers);
-  }, [activeRoute.studentPickups, nextDestination]);
+  }, [activeRoute.studentPickups, nextDestination, map.current]);
 
   // Desenhar rota até o próximo destino
   useEffect(() => {
@@ -237,16 +246,7 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
       return;
     }
 
-    // Aguardar o mapa estar carregado
-    if (!map.current.isStyleLoaded()) {
-      map.current.on('styledata', () => {
-        drawRoute();
-      });
-    } else {
-      drawRoute();
-    }
-
-    function drawRoute() {
+    const drawRoute = () => {
       if (!map.current || !driverLocation || !nextDestination) return;
 
       // Remover rota anterior se existir
@@ -309,9 +309,9 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
           // Fallback: linha direta
           drawStraightLine();
         });
-    }
+    };
 
-    function drawStraightLine() {
+    const drawStraightLine = () => {
       if (!map.current || !driverLocation || !nextDestination) return;
 
       // Remover rota anterior se existir
@@ -351,8 +351,17 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
           'line-dasharray': [2, 2]
         }
       });
+
+      console.log('🛣️ Linha direta desenhada para:', nextDestination.studentName);
+    };
+
+    // Aguardar o mapa estar carregado
+    if (map.current.isStyleLoaded()) {
+      drawRoute();
+    } else {
+      map.current.on('styledata', drawRoute);
     }
-  }, [driverLocation, nextDestination]);
+  }, [driverLocation, nextDestination, map.current]);
 
   if (error) {
     return (
@@ -362,16 +371,16 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
           <h3 className="text-lg font-semibold mb-2">Erro no Mapa</h3>
           <p className="text-sm mb-4">{error}</p>
           <div className="bg-red-50 p-3 rounded-lg text-xs text-left">
-            <p className="font-semibold mb-2">Informações de Debug:</p>
-            <p><strong>Mapbox Token:</strong> {isMapboxConfigured() ? 'Configurado ✅' : 'Não configurado ❌'}</p>
-            <p><strong>Rota Ativa:</strong> {activeRoute ? 'Sim' : 'Não'}</p>
-            <p><strong>Localização:</strong> {driverLocation ? 'Disponível' : 'Indisponível'}</p>
+            <p className="font-semibold mb-2">Debug:</p>
+            <p><strong>Token:</strong> {isMapboxConfigured() ? '✅ Válido' : '❌ Inválido'}</p>
+            <p><strong>Rota:</strong> {activeRoute ? '✅ Ativa' : '❌ Inativa'}</p>
+            <p><strong>Driver:</strong> {driverLocation ? '✅ Presente' : '❌ Ausente'}</p>
           </div>
           <button 
             onClick={() => window.location.reload()} 
             className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
-            🔄 Recarregar Página
+            🔄 Recarregar
           </button>
         </div>
       </div>
@@ -384,8 +393,8 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
         <div className="text-center text-gray-600">
           <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
           <p className="text-lg font-semibold mb-2">Carregando Mapbox</p>
-          <p className="text-sm text-gray-500">Inicializando mapa em tempo real...</p>
-          <div className="mt-4 bg-blue-50 p-3 rounded-lg text-xs">
+          <p className="text-sm text-gray-500 mb-4">Inicializando mapa em tempo real...</p>
+          <div className="bg-blue-50 p-3 rounded-lg text-xs">
             <p><strong>Motorista:</strong> {activeRoute.driverName}</p>
             <p><strong>Estudantes:</strong> {activeRoute.studentPickups?.length || 0}</p>
             <p><strong>Direção:</strong> {activeRoute.direction === 'to_school' ? 'Para Escola' : 'Para Casa'}</p>
@@ -405,28 +414,24 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
         <div className="space-y-1 text-xs">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">🚐</div>
-            <span>Motorista (Van)</span>
+            <span>Motorista</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-yellow-500 rounded-full text-white text-xs flex items-center justify-center font-bold">N</div>
-            <span>Próximo destino</span>
+            <div className="w-4 h-4 bg-yellow-500 rounded-full text-white text-xs flex items-center justify-center font-bold">1</div>
+            <span>Próximo</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center font-bold">P</div>
+            <div className="w-4 h-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center font-bold">2</div>
             <span>Aguardando</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-green-500 rounded-full text-white text-xs flex items-center justify-center font-bold">✓</div>
             <span>Concluído</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-1 bg-blue-500"></div>
-            <span>Rota</span>
-          </div>
         </div>
       </div>
 
-      {/* Informações da rota */}
+      {/* Info da rota */}
       {nextDestination && (
         <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-sm rounded-lg p-3 shadow-lg z-10">
           <div className="flex items-center gap-2 mb-1">
