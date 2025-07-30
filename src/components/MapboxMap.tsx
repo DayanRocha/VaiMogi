@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
-import { Navigation, AlertCircle, RefreshCw } from 'lucide-react';
+import { Navigation, AlertCircle, RefreshCw, MapPin } from 'lucide-react';
 import { ActiveRoute, RouteLocation } from '@/services/routeTrackingService';
 import { MAPBOX_CONFIG, isMapboxConfigured } from '@/config/maps';
 
@@ -32,32 +32,52 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
   const [driverMarker, setDriverMarker] = useState<mapboxgl.Marker | null>(null);
   const [studentMarkers, setStudentMarkers] = useState<mapboxgl.Marker[]>([]);
   const [retryCount, setRetryCount] = useState(0);
+  const [initializationAttempted, setInitializationAttempted] = useState(false);
 
-  // Função para reinicializar o mapa
+  // Validar se os dados necessários estão disponíveis antes de inicializar
+  const canInitializeMap = () => {
+    if (!activeRoute || !driverLocation) {
+      console.log('❌ Dados insuficientes para inicializar mapa:', {
+        activeRoute: !!activeRoute,
+        driverLocation: !!driverLocation,
+        hasValidCoords: driverLocation ? !isNaN(driverLocation.lat) && !isNaN(driverLocation.lng) : false
+      });
+      return false;
+    }
+
+    if (!isMapboxConfigured()) {
+      console.log('❌ Mapbox não configurado adequadamente');
+      return false;
+    }
+
+    // Verificar se as coordenadas são válidas
+    if (isNaN(driverLocation.lat) || isNaN(driverLocation.lng)) {
+      console.log('❌ Coordenadas inválidas:', driverLocation);
+      return false;
+    }
+
+    return true;
+  };
+
+  // Função para inicializar o mapa apenas quando necessário
   const initializeMap = async () => {
-    if (!mapContainer.current || map.current) return;
+    if (!mapContainer.current || map.current || !canInitializeMap()) {
+      return;
+    }
+
+    setInitializationAttempted(true);
 
     try {
-      console.log('🗺️ Inicializando Mapbox... (tentativa ' + (retryCount + 1) + ')');
+      console.log('🗺️ Inicializando Mapbox com dados válidos...');
       
-      // Verificar configuração
-      console.log('🔑 Verificando configuração do Mapbox...');
-      console.log('🔑 Token presente:', !!MAPBOX_CONFIG.accessToken);
-      console.log('🔑 Token válido:', MAPBOX_CONFIG.accessToken.startsWith('pk.'));
-      
-      if (!isMapboxConfigured()) {
-        throw new Error('Token do Mapbox inválido ou não configurado');
-      }
-
       // Configurar token
       mapboxgl.accessToken = MAPBOX_CONFIG.accessToken;
 
-      // Centro inicial
-      const center: [number, number] = driverLocation 
-        ? [driverLocation.lng, driverLocation.lat]
-        : [MAPBOX_CONFIG.defaultCenter.lng, MAPBOX_CONFIG.defaultCenter.lat];
-
+      // Centro na localização do motorista
+      const center: [number, number] = [driverLocation!.lng, driverLocation!.lat];
+      
       console.log('📍 Centro do mapa:', center);
+      console.log('🚐 Motorista:', activeRoute.driverName);
 
       // Criar instância do mapa
       const mapInstance = new mapboxgl.Map({
@@ -70,18 +90,29 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
 
       console.log('🗺️ Instância do mapa criada');
 
+      // Timeout de segurança
+      const loadTimeout = setTimeout(() => {
+        if (isLoading) {
+          console.error('⏰ Timeout ao carregar mapa');
+          setError('Timeout no carregamento. Verifique sua conexão de internet.');
+          setIsLoading(false);
+        }
+      }, 15000);
+
       // Aguardar carregamento
       mapInstance.on('load', () => {
         console.log('✅ Mapa carregado com sucesso!');
+        clearTimeout(loadTimeout);
         setIsLoading(false);
         setError(null);
         setRetryCount(0);
       });
 
-      // Tratar erros
+      // Tratar erros específicos
       mapInstance.on('error', (e) => {
         console.error('❌ Erro no mapa:', e);
-        const errorMsg = e.error?.message || 'Erro desconhecido';
+        clearTimeout(loadTimeout);
+        const errorMsg = e.error?.message || 'Erro de rede ou configuração';
         setError(`Erro no mapa: ${errorMsg}`);
         setIsLoading(false);
       });
@@ -97,31 +128,24 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
       console.error('❌ Erro ao inicializar mapa:', err);
       setError(`Falha na inicialização: ${err.message}`);
       setIsLoading(false);
+      setInitializationAttempted(true);
     }
   };
 
-  // Configurar token e inicializar mapa
+  // Inicializar mapa apenas quando os dados estão disponíveis
   useEffect(() => {
-    // Timeout para detectar problemas
-    const timeoutId = setTimeout(() => {
-      if (isLoading) {
-        console.error('⏰ Timeout ao carregar mapa');
-        setError('Timeout no carregamento. Verifique sua conexão.');
-        setIsLoading(false);
-      }
-    }, 20000);
-
-    initializeMap();
+    if (canInitializeMap() && !initializationAttempted) {
+      initializeMap();
+    }
 
     return () => {
-      clearTimeout(timeoutId);
       if (map.current) {
         console.log('🧹 Limpando mapa...');
         map.current.remove();
         map.current = null;
       }
     };
-  }, [retryCount]);
+  }, [activeRoute, driverLocation, retryCount, initializationAttempted]);
 
   // Função para tentar novamente
   const handleRetry = () => {
@@ -129,6 +153,7 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
     setIsLoading(true);
     setError(null);
     setRetryCount(prev => prev + 1);
+    setInitializationAttempted(false);
     
     if (map.current) {
       map.current.remove();
@@ -255,6 +280,25 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
     setStudentMarkers(newMarkers);
   }, [activeRoute.studentPickups, nextDestination]);
 
+  // Se não pode inicializar, mostrar aviso
+  if (!canInitializeMap() && !isLoading && !error) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-gray-100">
+        <div className="text-center text-gray-600 max-w-md mx-auto p-4">
+          <MapPin className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+          <h3 className="text-lg font-semibold mb-2">Aguardando Dados</h3>
+          <p className="text-sm mb-4">Esperando localização válida do motorista para exibir o mapa</p>
+          
+          <div className="bg-gray-50 p-3 rounded-lg text-xs text-left">
+            <p><strong>Rota ativa:</strong> {activeRoute ? '✅ Sim' : '❌ Não'}</p>
+            <p><strong>Localização:</strong> {driverLocation ? '✅ Sim' : '❌ Não'}</p>
+            <p><strong>Token Mapbox:</strong> {isMapboxConfigured() ? '✅ Sim' : '❌ Não'}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-gray-100">
@@ -288,23 +332,14 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
       <div className="w-full h-full flex items-center justify-center bg-gray-100">
         <div className="text-center text-gray-600">
           <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-lg font-semibold mb-2">Carregando Mapbox</p>
-          <p className="text-sm text-gray-500 mb-4">Inicializando mapa em tempo real...</p>
+          <p className="text-lg font-semibold mb-2">Carregando Mapa</p>
+          <p className="text-sm text-gray-500 mb-4">Inicializando visualização em tempo real...</p>
           
           <div className="bg-blue-50 p-3 rounded-lg text-xs max-w-xs mx-auto">
             <p><strong>Motorista:</strong> {activeRoute.driverName}</p>
             <p><strong>Estudantes:</strong> {activeRoute.studentPickups?.length || 0}</p>
-            <p><strong>Tentativa:</strong> {retryCount + 1}</p>
+            <p><strong>Status:</strong> Carregando mapa...</p>
           </div>
-          
-          {retryCount > 0 && (
-            <button 
-              onClick={handleRetry}
-              className="mt-4 text-sm text-blue-600 hover:text-blue-800"
-            >
-              Forçar nova tentativa
-            </button>
-          )}
         </div>
       </div>
     );
