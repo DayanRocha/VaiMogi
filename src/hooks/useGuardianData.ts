@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Driver, Van, Student, Trip, Guardian } from '@/types/driver';
 import { notificationService } from '@/services/notificationService';
 import { audioService, NotificationSoundType } from '@/services/audioService';
+import { routeTrackingService } from '@/services/routeTrackingService';
 
 export interface GuardianNotification {
   id: string;
