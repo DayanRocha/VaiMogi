@@ -30,6 +30,8 @@ class RouteTrackingService {
   private static instance: RouteTrackingService;
   private listeners: ((route: ActiveRoute | null) => void)[] = [];
   private locationUpdateInterval: NodeJS.Timeout | null = null;
+  private isApplicationActive: boolean = true;
+  private lastActivityTime: number = Date.now();
 
   static getInstance(): RouteTrackingService {
     if (!RouteTrackingService.instance) {
@@ -38,22 +40,79 @@ class RouteTrackingService {
     return RouteTrackingService.instance;
   }
 
-  // Adicionar listener para mudanças na rota
+  constructor() {
+    // Registrar eventos para detectar quando a aplicação fica inativa/ativa
+    this.setupApplicationLifecycleHandlers();
+    
+    // Restaurar rota ativa ao inicializar o serviço
+    this.restoreActiveRouteOnInit();
+  }
+
+  private setupApplicationLifecycleHandlers() {
+    // Detectar quando a aplicação fica inativa (navegador minimizado, aba inativa, etc.)
+    document.addEventListener('visibilitychange', () => {
+      this.isApplicationActive = !document.hidden;
+      this.lastActivityTime = Date.now();
+      
+      if (this.isApplicationActive) {
+        console.log('🔄 Aplicação voltou a ser ativa - verificando rota...');
+        this.restoreActiveRouteOnInit();
+      } else {
+        console.log('⏸️ Aplicação ficou inativa - mantendo rota ativa');
+        // NÃO parar o rastreamento quando a aplicação fica inativa
+        // A rota deve continuar ativa
+      }
+    });
+
+    // Detectar quando a janela/aba está perdendo o foco
+    window.addEventListener('beforeunload', () => {
+      console.log('⚠️ Janela sendo fechada - rota permanece ativa no localStorage');
+      // NÃO encerrar a rota quando a janela for fechada
+      // A rota deve persistir para quando o motorista voltar
+    });
+
+    // Detectar quando a aplicação volta ao foco
+    window.addEventListener('focus', () => {
+      this.isApplicationActive = true;
+      this.lastActivityTime = Date.now();
+      console.log('🔄 Aplicação recuperou o foco - verificando rota...');
+      this.restoreActiveRouteOnInit();
+    });
+  }
+
+  private restoreActiveRouteOnInit() {
+    const route = this.getActiveRoute();
+    if (route && route.isActive) {
+      console.log('🔄 Restaurando rota ativa encontrada:', {
+        id: route.id,
+        driverName: route.driverName,
+        studentsCount: route.studentPickups?.length || 0,
+        startTime: route.startTime
+      });
+      
+      // Reiniciar rastreamento de localização se necessário
+      if (!this.locationUpdateInterval) {
+        this.startLocationTracking();
+        console.log('📍 Rastreamento de localização reiniciado');
+      }
+      
+      // Notificar listeners sobre a rota ativa
+      this.notifyListeners(route);
+    }
+  }
+
   addListener(callback: (route: ActiveRoute | null) => void) {
     this.listeners.push(callback);
   }
 
-  // Remover listener
   removeListener(callback: (route: ActiveRoute | null) => void) {
     this.listeners = this.listeners.filter(listener => listener !== callback);
   }
 
-  // Notificar todos os listeners
   private notifyListeners(route: ActiveRoute | null) {
     this.listeners.forEach(listener => listener(route));
   }
 
-  // Obter rota ativa atual
   getActiveRoute(): ActiveRoute | null {
     try {
       const stored = localStorage.getItem('activeRoute');
@@ -76,12 +135,17 @@ class RouteTrackingService {
         
         if (hoursDiff > 24) {
           // Rota muito antiga, remover
-          console.log('⏰ Rota muito antiga, removendo...');
-          this.endRoute();
+          console.log('⏰ Rota muito antiga (>24h), removendo automaticamente...');
+          this.cleanupOldRoute();
           return null;
         }
         
-        return route;
+        // Se a rota estava ativa, ela deve continuar ativa
+        // independentemente do estado da aplicação
+        if (route.isActive) {
+          console.log('✅ Rota ativa válida encontrada - mantendo estado');
+          return route;
+        }
       }
     } catch (error) {
       console.error('❌ Erro ao carregar rota ativa:', error);
@@ -90,7 +154,13 @@ class RouteTrackingService {
     return null;
   }
 
-  // Iniciar nova rota
+  private cleanupOldRoute() {
+    localStorage.removeItem('activeRoute');
+    this.stopLocationTracking();
+    this.notifyListeners(null);
+    console.log('🧹 Rota antiga removida do sistema');
+  }
+
   startRoute(driverId: string, driverName: string, direction: 'to_school' | 'to_home', students: any[]) {
     const route: ActiveRoute = {
       id: Date.now().toString(),
@@ -109,8 +179,8 @@ class RouteTrackingService {
       }))
     };
 
-    // Salvar rota
-    localStorage.setItem('activeRoute', JSON.stringify(route));
+    // Salvar rota com flag de persistência
+    this.persistRoute(route);
     
     // Iniciar rastreamento de localização
     this.startLocationTracking();
@@ -118,11 +188,20 @@ class RouteTrackingService {
     // Notificar listeners
     this.notifyListeners(route);
     
-    console.log('🚀 Rota iniciada:', route);
+    console.log('🚀 Rota iniciada com persistência garantida:', route);
     return route;
   }
 
-  // Finalizar rota
+  private persistRoute(route: ActiveRoute) {
+    try {
+      localStorage.setItem('activeRoute', JSON.stringify(route));
+      localStorage.setItem('routeLastSave', Date.now().toString());
+      console.log('💾 Rota salva com persistência no localStorage');
+    } catch (error) {
+      console.error('❌ Erro ao persistir rota:', error);
+    }
+  }
+
   endRoute() {
     const route = this.getActiveRoute();
     if (route) {
@@ -130,7 +209,7 @@ class RouteTrackingService {
       route.endTime = new Date().toISOString();
       
       // Salvar estado final
-      localStorage.setItem('activeRoute', JSON.stringify(route));
+      this.persistRoute(route);
       
       // Parar rastreamento
       this.stopLocationTracking();
@@ -138,53 +217,59 @@ class RouteTrackingService {
       // Notificar listeners que a rota acabou
       this.notifyListeners(null);
       
-      console.log('🏁 Rota finalizada:', route);
+      console.log('🏁 Rota EXPLICITAMENTE finalizada pelo motorista:', route);
       
       // Remover rota após 1 hora para limpeza
       setTimeout(() => {
         localStorage.removeItem('activeRoute');
+        localStorage.removeItem('routeLastSave');
+        console.log('🧹 Dados da rota finalizada removidos após 1 hora');
       }, 60 * 60 * 1000);
     }
   }
 
-  // Atualizar localização atual do motorista
   updateDriverLocation(location: RouteLocation) {
     const route = this.getActiveRoute();
     if (route && route.isActive) {
       route.currentLocation = location;
-      localStorage.setItem('activeRoute', JSON.stringify(route));
+      this.persistRoute(route);
       this.notifyListeners(route);
-      console.log('📍 Localização do motorista atualizada:', location);
+      console.log('📍 Localização do motorista atualizada e persistida:', location);
     }
   }
 
-  // Atualizar status de um estudante
   updateStudentStatus(studentId: string, status: 'pending' | 'picked_up' | 'dropped_off') {
     const route = this.getActiveRoute();
     if (route) {
       const student = route.studentPickups.find(s => s.studentId === studentId);
       if (student) {
         student.status = status;
-        localStorage.setItem('activeRoute', JSON.stringify(route));
+        this.persistRoute(route);
         this.notifyListeners(route);
-        console.log(`👤 Status do estudante ${student.studentName} atualizado para: ${status}`);
+        console.log(`👤 Status do estudante ${student.studentName} atualizado e persistido para: ${status}`);
       }
     }
   }
 
-  // Iniciar rastreamento automático de localização
   private startLocationTracking() {
     if (this.locationUpdateInterval) {
       clearInterval(this.locationUpdateInterval);
     }
 
-    // Atualizar localização a cada 5 segundos para demonstração
+    // Atualizar localização a cada 5 segundos, mesmo quando a aplicação não estiver ativa
     this.locationUpdateInterval = setInterval(() => {
-      this.getCurrentLocation().then(location => {
-        if (location) {
-          this.updateDriverLocation(location);
-        }
-      });
+      // Verificar se ainda há rota ativa antes de atualizar localização
+      const route = this.getActiveRoute();
+      if (route && route.isActive) {
+        this.getCurrentLocation().then(location => {
+          if (location) {
+            this.updateDriverLocation(location);
+          }
+        });
+      } else {
+        // Se não há rota ativa, parar o rastreamento
+        this.stopLocationTracking();
+      }
     }, 5000);
 
     // Primeira atualização imediata
@@ -193,17 +278,18 @@ class RouteTrackingService {
         this.updateDriverLocation(location);
       }
     });
+
+    console.log('📍 Rastreamento de localização iniciado com persistência');
   }
 
-  // Parar rastreamento de localização
   private stopLocationTracking() {
     if (this.locationUpdateInterval) {
       clearInterval(this.locationUpdateInterval);
       this.locationUpdateInterval = null;
+      console.log('📍 Rastreamento de localização interrompido');
     }
   }
 
-  // Obter localização atual (real ou simulada)
   private getCurrentLocation(): Promise<RouteLocation | null> {
     return new Promise((resolve) => {
       // Tentar localização real primeiro
@@ -261,7 +347,6 @@ class RouteTrackingService {
     });
   }
 
-  // Obter localização simulada se disponível
   private getMockLocation(): { lat: number; lng: number } | null {
     try {
       // Verificar se há movimento simulado ativo
@@ -277,7 +362,6 @@ class RouteTrackingService {
     return null;
   }
 
-  // Calcular distância entre dois pontos (em metros)
   calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
     const R = 6371e3; // Raio da Terra em metros
     const φ1 = lat1 * Math.PI/180;
@@ -293,7 +377,6 @@ class RouteTrackingService {
     return R * c;
   }
 
-  // Verificar se o motorista está próximo de um endereço
   isNearLocation(driverLat: number, driverLng: number, targetLat: number, targetLng: number, radiusMeters: number = 100): boolean {
     const distance = this.calculateDistance(driverLat, driverLng, targetLat, targetLng);
     return distance <= radiusMeters;

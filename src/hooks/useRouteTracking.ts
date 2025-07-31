@@ -6,39 +6,41 @@ export const useRouteTracking = () => {
   const [activeRoute, setActiveRoute] = useState<ActiveRoute | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Carregar rota ativa inicial
+  // Carregar rota ativa inicial com verificação de persistência
   useEffect(() => {
-    console.log('🔍 Carregando rota ativa...');
+    console.log('🔍 Inicializando useRouteTracking - carregando rota ativa...');
     const route = routeTrackingService.getActiveRoute();
     setActiveRoute(route);
     setIsLoading(false);
     
     if (route) {
-      console.log('✅ Rota ativa encontrada:', {
+      console.log('✅ Rota ativa restaurada do localStorage:', {
         id: route.id,
         driverName: route.driverName,
         studentsCount: route.studentPickups?.length || 0,
         isActive: route.isActive,
-        hasLocation: !!route.currentLocation
+        hasLocation: !!route.currentLocation,
+        startTime: route.startTime
       });
     } else {
-      console.log('❌ Nenhuma rota ativa encontrada');
+      console.log('❌ Nenhuma rota ativa encontrada no localStorage');
     }
   }, []);
 
-  // Listener para mudanças na rota
+  // Listener para mudanças na rota com garantia de persistência
   useEffect(() => {
     const handleRouteChange = (route: ActiveRoute | null) => {
-      console.log('🔄 Rota alterada:', route ? 'Ativa' : 'Inativa');
+      console.log('🔄 Rota alterada via listener:', route ? 'Ativa' : 'Inativa');
       setActiveRoute(route);
       
       if (route === null) {
-        console.log('🔴 Rota finalizada');
+        console.log('🔴 Rota finalizada explicitamente pelo motorista');
       } else {
-        console.log('🟢 Rota atualizada:', {
+        console.log('🟢 Rota atualizada/restaurada:', {
           driverName: route.driverName,
           hasLocation: !!route.currentLocation,
-          nextStudent: route.studentPickups.find(s => s.status === 'pending')?.studentName
+          nextStudent: route.studentPickups.find(s => s.status === 'pending')?.studentName,
+          isActive: route.isActive
         });
       }
     };
@@ -52,19 +54,45 @@ export const useRouteTracking = () => {
     };
   }, []);
 
-  // Log de debug periódico
+  // Verificar periodicamente se a rota persiste (para casos onde a aplicação foi reaberta)
+  useEffect(() => {
+    const persistenceCheck = setInterval(() => {
+      const currentStoredRoute = routeTrackingService.getActiveRoute();
+      
+      // Se encontrou uma rota no localStorage mas não temos uma localmente
+      if (currentStoredRoute && currentStoredRoute.isActive && !activeRoute) {
+        console.log('🔄 Rota ativa encontrada no localStorage - restaurando...');
+        setActiveRoute(currentStoredRoute);
+      }
+      
+      // Se temos uma rota local mas ela não está mais no localStorage
+      if (activeRoute && !currentStoredRoute) {
+        console.log('⚠️ Rota local não encontrada no localStorage - sincronizando...');
+        setActiveRoute(null);
+      }
+    }, 10000); // Verificar a cada 10 segundos
+
+    return () => clearInterval(persistenceCheck);
+  }, [activeRoute]);
+
+  // Log de debug periódico incluindo informações de persistência
   useEffect(() => {
     const debugInterval = setInterval(() => {
       const hasRoute = activeRoute !== null && activeRoute.isActive;
+      const storedRoute = routeTrackingService.getActiveRoute();
+      
       if (hasRoute) {
-        console.log('🐛 Debug - Estado atual:', {
-          hasRoute,
+        console.log('🐛 Debug - Estado atual da rota:', {
+          hasActiveRoute: hasRoute,
+          isStoredInLocalStorage: !!storedRoute,
           driverLocation: activeRoute?.currentLocation ? `${activeRoute.currentLocation.lat}, ${activeRoute.currentLocation.lng}` : 'Ausente',
           nextDestination: activeRoute?.studentPickups.find(s => s.status === 'pending')?.studentName || 'Nenhum',
-          progress: activeRoute ? `${((activeRoute.studentPickups.filter(s => s.status !== 'pending').length / activeRoute.studentPickups.length) * 100).toFixed(1)}%` : '0%'
+          progress: activeRoute ? `${((activeRoute.studentPickups.filter(s => s.status !== 'pending').length / activeRoute.studentPickups.length) * 100).toFixed(1)}%` : '0%',
+          routeId: activeRoute?.id,
+          startTime: activeRoute?.startTime
         });
       }
-    }, 10000); // Log a cada 10 segundos
+    }, 15000); // Log a cada 15 segundos
 
     return () => clearInterval(debugInterval);
   }, [activeRoute]);
