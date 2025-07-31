@@ -6,41 +6,54 @@ export const useRouteTracking = () => {
   const [activeRoute, setActiveRoute] = useState<ActiveRoute | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Carregar rota ativa inicial com verificação de persistência
+  // Inicialização com verificação de persistência robusta
   useEffect(() => {
-    console.log('🔍 Inicializando useRouteTracking - carregando rota ativa...');
-    const route = routeTrackingService.getActiveRoute();
-    setActiveRoute(route);
-    setIsLoading(false);
+    console.log('🔍 useRouteTracking inicializando - verificando persistência...');
     
-    if (route) {
-      console.log('✅ Rota ativa restaurada do localStorage:', {
-        id: route.id,
-        driverName: route.driverName,
-        studentsCount: route.studentPickups?.length || 0,
-        isActive: route.isActive,
-        hasLocation: !!route.currentLocation,
-        startTime: route.startTime
-      });
-    } else {
-      console.log('❌ Nenhuma rota ativa encontrada no localStorage');
-    }
+    const initializeRoute = () => {
+      const route = routeTrackingService.getActiveRoute();
+      setActiveRoute(route);
+      setIsLoading(false);
+      
+      if (route && route.isActive) {
+        console.log('✅ Rota ativa restaurada no hook:', {
+          id: route.id,
+          driverName: route.driverName,
+          studentsCount: route.studentPickups?.length || 0,
+          hasLocation: !!route.currentLocation,
+          startTime: route.startTime,
+          persistenceFlag: localStorage.getItem('routePersistenceFlag')
+        });
+      } else {
+        console.log('ℹ️ Nenhuma rota ativa encontrada no hook');
+      }
+    };
+
+    // Verificar múltiplas vezes para garantir que não perdemos a rota
+    initializeRoute();
+    
+    // Verificação adicional após pequeno delay
+    const timeoutId = setTimeout(initializeRoute, 500);
+    
+    return () => clearTimeout(timeoutId);
   }, []);
 
-  // Listener para mudanças na rota com garantia de persistência
+  // Listener para mudanças na rota com máxima confiabilidade
   useEffect(() => {
     const handleRouteChange = (route: ActiveRoute | null) => {
-      console.log('🔄 Rota alterada via listener:', route ? 'Ativa' : 'Inativa');
+      console.log('🔄 Mudança na rota detectada pelo listener:', route ? 'Rota ativa' : 'Sem rota');
+      
       setActiveRoute(route);
       
       if (route === null) {
-        console.log('🔴 Rota finalizada explicitamente pelo motorista');
-      } else {
-        console.log('🟢 Rota atualizada/restaurada:', {
+        console.log('🔴 Rota foi explicitamente finalizada');
+      } else if (route) {
+        console.log('🟢 Rota ativa confirmada pelo listener:', {
           driverName: route.driverName,
           hasLocation: !!route.currentLocation,
-          nextStudent: route.studentPickups.find(s => s.status === 'pending')?.studentName,
-          isActive: route.isActive
+          nextStudent: route.studentPickups.find(s => s.status === 'pending')?.studentName || 'Nenhum',
+          isActive: route.isActive,
+          persistenceCheck: routeTrackingService.hasPersistentRoute()
         });
       }
     };
@@ -48,72 +61,79 @@ export const useRouteTracking = () => {
     // Registrar listener
     routeTrackingService.addListener(handleRouteChange);
 
-    // Cleanup
     return () => {
       routeTrackingService.removeListener(handleRouteChange);
     };
   }, []);
 
-  // Verificar periodicamente se a rota persiste (para casos onde a aplicação foi reaberta)
+  // Verificação contínua de sincronização (mais conservadora)
   useEffect(() => {
-    const persistenceCheck = setInterval(() => {
+    const syncCheck = setInterval(() => {
       const currentStoredRoute = routeTrackingService.getActiveRoute();
       
-      // Se encontrou uma rota no localStorage mas não temos uma localmente
+      // Se há uma rota no storage mas não temos uma localmente
       if (currentStoredRoute && currentStoredRoute.isActive && !activeRoute) {
-        console.log('🔄 Rota ativa encontrada no localStorage - restaurando...');
+        console.log('🔄 Sincronizando: rota ativa encontrada no storage, restaurando...');
         setActiveRoute(currentStoredRoute);
       }
       
-      // Se temos uma rota local mas ela não está mais no localStorage
-      if (activeRoute && !currentStoredRoute) {
-        console.log('⚠️ Rota local não encontrada no localStorage - sincronizando...');
+      // Se nossa rota local não está mais no storage
+      if (activeRoute && activeRoute.isActive && !currentStoredRoute) {
+        console.log('⚠️ Rota local não encontrada no storage - pode ter sido limpa');
         setActiveRoute(null);
       }
-    }, 10000); // Verificar a cada 10 segundos
+      
+      // Verificação de consistência
+      if (activeRoute && currentStoredRoute && activeRoute.id !== currentStoredRoute.id) {
+        console.log('🔄 IDs de rota diferentes, sincronizando...');
+        setActiveRoute(currentStoredRoute);
+      }
+      
+    }, 15000); // Verificar a cada 15 segundos
 
-    return () => clearInterval(persistenceCheck);
+    return () => clearInterval(syncCheck);
   }, [activeRoute]);
 
-  // Log de debug periódico incluindo informações de persistência
+  // Log de debug periódico mais informativo
   useEffect(() => {
     const debugInterval = setInterval(() => {
-      const hasRoute = activeRoute !== null && activeRoute.isActive;
+      const hasRoute = activeRoute !== null && activeRoute?.isActive;
       const storedRoute = routeTrackingService.getActiveRoute();
+      const hasPersistentFlag = localStorage.getItem('routePersistenceFlag') === 'true';
       
-      if (hasRoute) {
-        console.log('🐛 Debug - Estado atual da rota:', {
-          hasActiveRoute: hasRoute,
-          isStoredInLocalStorage: !!storedRoute,
-          driverLocation: activeRoute?.currentLocation ? `${activeRoute.currentLocation.lat}, ${activeRoute.currentLocation.lng}` : 'Ausente',
+      if (hasRoute || storedRoute) {
+        console.log('🐛 Debug - Estado da persistência de rota:', {
+          hasActiveRouteInHook: hasRoute,
+          hasStoredRoute: !!storedRoute,
+          hasPersistenceFlag: hasPersistentFlag,
+          routeIds: {
+            hook: activeRoute?.id || 'N/A',
+            stored: storedRoute?.id || 'N/A'
+          },
+          driverLocation: activeRoute?.currentLocation ? 
+            `${activeRoute.currentLocation.lat.toFixed(4)}, ${activeRoute.currentLocation.lng.toFixed(4)}` : 
+            'Não disponível',
           nextDestination: activeRoute?.studentPickups.find(s => s.status === 'pending')?.studentName || 'Nenhum',
-          progress: activeRoute ? `${((activeRoute.studentPickups.filter(s => s.status !== 'pending').length / activeRoute.studentPickups.length) * 100).toFixed(1)}%` : '0%',
-          routeId: activeRoute?.id,
-          startTime: activeRoute?.startTime
+          progress: activeRoute ? 
+            `${((activeRoute.studentPickups.filter(s => s.status !== 'pending').length / activeRoute.studentPickups.length) * 100).toFixed(1)}%` : 
+            '0%',
+          elapsedTime: activeRoute ? 
+            `${Math.floor((Date.now() - new Date(activeRoute.startTime).getTime()) / (1000 * 60))}min` : 
+            'N/A'
         });
       }
-    }, 15000); // Log a cada 15 segundos
+    }, 20000); // Log a cada 20 segundos
 
     return () => clearInterval(debugInterval);
   }, [activeRoute]);
 
-  // Verificar se há uma rota ativa
-  const hasActiveRoute = activeRoute !== null && activeRoute.isActive;
-
-  // Obter localização atual do motorista
+  // Calculadores e utilidades (sem mudanças significativas)
+  const hasActiveRoute = activeRoute !== null && activeRoute.isActive === true;
   const driverLocation = activeRoute?.currentLocation;
-
-  // Obter próximo destino (estudante pendente)
-  const nextDestination = activeRoute?.studentPickups.find(
-    student => student.status === 'pending'
-  );
-
-  // Calcular progresso da rota (% de estudantes processados)
+  const nextDestination = activeRoute?.studentPickups.find(student => student.status === 'pending');
   const routeProgress = activeRoute ? 
-    (activeRoute.studentPickups.filter(s => s.status !== 'pending').length / 
-     activeRoute.studentPickups.length) * 100 : 0;
+    (activeRoute.studentPickups.filter(s => s.status !== 'pending').length / activeRoute.studentPickups.length) * 100 : 0;
 
-  // Obter tempo decorrido desde o início da rota
   const getElapsedTime = (): string => {
     if (!activeRoute) return '0min';
     
@@ -130,7 +150,6 @@ export const useRouteTracking = () => {
     }
   };
 
-  // Calcular distância estimada até o próximo destino
   const getDistanceToNext = (): string | null => {
     if (!driverLocation || !nextDestination || !nextDestination.lat || !nextDestination.lng) {
       return null;
@@ -158,6 +177,8 @@ export const useRouteTracking = () => {
     routeProgress,
     isLoading,
     elapsedTime: getElapsedTime(),
-    distanceToNext: getDistanceToNext()
+    distanceToNext: getDistanceToNext(),
+    // Utilitário adicional para verificar persistência
+    isPersistent: routeTrackingService.hasPersistentRoute()
   };
 };
