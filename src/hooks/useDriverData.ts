@@ -571,8 +571,8 @@ export const useDriverData = () => {
               type: 'arrived_at_location',
               title: 'Van Chegou!',
               message: direction === 'to_school' 
-                ? `A van chegou para embarcar ${studentName}` 
-                : `A van chegou para desembarcar ${studentName}`,
+                ? `A van chegou no ponto de embarque de ${studentName}` 
+                : `A van chegou na escola para buscar ${studentName}`,
               driverId: driver.id,
               driverName: driver.name,
               studentId,
@@ -585,7 +585,9 @@ export const useDriverData = () => {
             realTimeNotificationService.sendNotification({
               type: 'student_picked_up',
               title: 'Estudante Embarcou',
-              message: `${studentName} entrou na van e está a caminho da escola`,
+              message: direction === 'to_school'
+                ? `${studentName} entrou na van e está a caminho da escola`
+                : `${studentName} embarcou e está a caminho de casa`,
               driverId: driver.id,
               driverName: driver.name,
               studentId,

@@ -116,7 +116,7 @@ export const StudentsList = ({ students, schools, onBack, onAddStudent, onEditSt
                           </div>
                         ) : (
                           <div className="flex items-center text-green-600">
-                            <School className="w-3 h-3 mr-1" />
+                            <Home className="w-3 h-3 mr-1" />
                             <span>Embarque em casa</span>
                           </div>
                         )}
