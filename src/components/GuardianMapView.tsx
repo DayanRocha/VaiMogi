@@ -3,7 +3,7 @@ import React from 'react';
 import { MapPin } from 'lucide-react';
 import { Driver, Van, Student, Trip } from '@/types/driver';
 import { useRouteTracking } from '@/hooks/useRouteTracking';
-import { MapboxMap } from '@/components/MapboxMap';
+
 
 interface GuardianMapViewProps {
   driver: Driver;
@@ -21,14 +21,7 @@ export const GuardianMapView = ({ driver, van, students, activeTrip }: GuardianM
     isLoading 
   } = useRouteTracking();
 
-  // Debug logs
-  console.log('🗺️ GuardianMapView - Estado atual:', {
-    isLoading,
-    hasActiveRoute,
-    activeRoute: activeRoute ? 'Presente' : 'Ausente',
-    driverLocation: driverLocation ? 'Presente' : 'Ausente',
-    hasValidLocation: driverLocation ? `${driverLocation.lat}, ${driverLocation.lng}` : 'Não'
-  });
+
 
   if (isLoading) {
     return (
@@ -48,13 +41,18 @@ export const GuardianMapView = ({ driver, van, students, activeTrip }: GuardianM
       <div className="absolute inset-0 bg-gradient-to-br from-blue-100 to-green-100">
         {hasActiveRoute && activeRoute && driverLocation ? (
           <>
-            {/* Active Route View with Mapbox */}
-            <div className="w-full h-full">
-              <MapboxMap
-                activeRoute={activeRoute}
-                driverLocation={driverLocation}
-                nextDestination={nextDestination}
-              />
+            {/* Active Route View */}
+            <div className="w-full h-full relative">
+              {/* Mapa será implementado aqui */}
+              <div className="w-full h-full flex items-center justify-center bg-blue-50">
+                <div className="text-center text-blue-600">
+                  <MapPin className="w-16 h-16 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Mapa em Desenvolvimento</h3>
+                  <p className="text-sm">Funcionalidade de mapa será implementada em breve</p>
+                </div>
+              </div>
+              
+
             </div>
           </>
         ) : (
@@ -69,28 +67,13 @@ export const GuardianMapView = ({ driver, van, students, activeTrip }: GuardianM
               </p>
               
               <div className="bg-white/90 rounded-lg p-4 shadow-sm border border-gray-200">
-                <h3 className="text-sm font-semibold text-blue-700 mb-2 flex items-center justify-center gap-2">
-                  <span>🧪</span>
-                  Para Testar o Sistema
+                <h3 className="text-sm font-semibold text-blue-700 mb-2 text-center">
+                  Como Funciona
                 </h3>
-                <div className="text-xs text-gray-600 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-xs">1</span>
-                    <span>Abra o painel do motorista em uma nova aba</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-xs">2</span>
-                    <span>Vá em Configurações → Teste de Notificações</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-xs">3</span>
-                    <span>Clique em "🚀 Iniciar Rota + Mapa"</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-bold text-xs">✓</span>
-                    <span>Retorne aqui para ver o mapa ativo</span>
-                  </div>
-                </div>
+                <p className="text-xs text-gray-600 text-center">
+                  Quando o motorista iniciar uma rota, você receberá notificações em tempo real 
+                  e poderá acompanhar o progresso da viagem.
+                </p>
               </div>
 
               <div className="mt-4 text-xs text-gray-500">
@@ -99,6 +82,7 @@ export const GuardianMapView = ({ driver, van, students, activeTrip }: GuardianM
             </div>
           </div>
         )}
+
       </div>
     </div>
   );

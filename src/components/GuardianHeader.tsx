@@ -4,7 +4,8 @@ import { GuardianNotification } from '@/hooks/useGuardianData';
 
 interface GuardianHeaderProps {
   guardian: Guardian;
-  notifications: GuardianNotification[];
+  notifications: any[];
+  unreadCount?: number;
   onMenuClick: () => void;
   onNotificationClick: () => void;
   onLogout: () => void;
@@ -13,11 +14,12 @@ interface GuardianHeaderProps {
 export const GuardianHeader = ({ 
   guardian, 
   notifications, 
+  unreadCount: propUnreadCount,
   onMenuClick, 
   onNotificationClick,
   onLogout 
 }: GuardianHeaderProps) => {
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const unreadCount = propUnreadCount ?? notifications.filter(n => !n.isRead).length;
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 h-16 flex items-center justify-between px-4">

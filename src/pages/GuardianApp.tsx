@@ -5,8 +5,11 @@ import { GuardianHeader } from '@/components/GuardianHeader';
 import { GuardianMenuModal } from '@/components/GuardianMenuModal';
 import { NotificationPanel } from '@/components/NotificationPanel';
 import { GuardianWelcomeDialog } from '@/components/GuardianWelcomeDialog';
+
 import { useGuardianData } from '@/hooks/useGuardianData';
+import { useRealTimeNotifications } from '@/hooks/useRealTimeNotifications';
 import { audioService } from '@/services/audioService';
+import { initNotificationCleanup } from '@/utils/notificationCleanup';
 
 export const GuardianApp = () => {
   const navigate = useNavigate();
@@ -20,11 +23,34 @@ export const GuardianApp = () => {
     students, 
     schools,
     activeTrip, 
-    notifications,
+    notifications: legacyNotifications,
     markNotificationAsRead,
     deleteNotification,
     deleteNotifications
   } = useGuardianData();
+
+  // Notificações em tempo real
+  const {
+    notifications: realTimeNotifications,
+    unreadCount: realTimeUnreadCount,
+    markAsRead: markRealTimeAsRead,
+    markAllAsRead: markAllRealTimeAsRead,
+    deleteNotification: deleteRealTimeNotification
+  } = useRealTimeNotifications(guardian.id);
+
+  // Filtrar notificações legadas que podem ser duplicadas
+  const filteredLegacyNotifications = legacyNotifications.filter(legacy => {
+    // Verificar se há uma notificação em tempo real similar
+    const hasSimilarRealTime = realTimeNotifications.some(rt => 
+      rt.message.includes(legacy.studentName || '') && 
+      Math.abs(new Date(rt.timestamp).getTime() - new Date(legacy.timestamp).getTime()) < 60000 // 1 minuto
+    );
+    return !hasSimilarRealTime;
+  });
+
+  // Combinar notificações (priorizando tempo real)
+  const allNotifications = [...realTimeNotifications, ...filteredLegacyNotifications];
+  const totalUnreadCount = realTimeUnreadCount + filteredLegacyNotifications.filter(n => !n.isRead).length;
 
   // Verificar se o responsável ainda está ativo
   useEffect(() => {
@@ -68,13 +94,16 @@ export const GuardianApp = () => {
     }
   }, [guardian.id]);
 
-  // Inicializar serviço de áudio
+  // Inicializar serviço de áudio e limpeza de notificações
   useEffect(() => {
     const initAudio = async () => {
       await audioService.init();
     };
     
     initAudio();
+    
+    // Inicializar limpeza de notificações
+    initNotificationCleanup();
     
     // Tentar solicitar permissão de áudio após primeira interação
     const handleFirstInteraction = async () => {
@@ -119,7 +148,8 @@ export const GuardianApp = () => {
       {/* Header */}
       <GuardianHeader
         guardian={guardian}
-        notifications={notifications}
+        notifications={allNotifications}
+        unreadCount={totalUnreadCount}
         onMenuClick={() => setShowMenuModal(true)}
         onNotificationClick={() => setShowNotifications(true)}
         onLogout={handleLogout}
@@ -150,8 +180,12 @@ export const GuardianApp = () => {
       <NotificationPanel
         isOpen={showNotifications}
         onClose={() => setShowNotifications(false)}
-        notifications={notifications}
+        notifications={filteredLegacyNotifications}
+        realTimeNotifications={realTimeNotifications}
         onMarkAsRead={markNotificationAsRead}
+        onMarkRealTimeAsRead={markRealTimeAsRead}
+        onMarkAllRealTimeAsRead={markAllRealTimeAsRead}
+        onDeleteRealTimeNotification={deleteRealTimeNotification}
         onDeleteNotification={deleteNotification}
         onDeleteNotifications={deleteNotifications}
       />
@@ -162,6 +196,8 @@ export const GuardianApp = () => {
         onClose={handleWelcomeClose}
         guardianName={guardian.name}
       />
+
+
     </div>
   );
 };

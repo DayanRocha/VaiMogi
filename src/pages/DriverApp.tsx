@@ -25,6 +25,7 @@ import { SchoolRegistration } from '@/components/SchoolRegistration';
 import { ActiveTrip } from '@/components/ActiveTrip';
 import { BottomNavigation } from '@/components/BottomNavigation';
 import { useDriverData } from '@/hooks/useDriverData';
+import { realTimeNotificationService } from '@/services/realTimeNotificationService';
 import { Route, Student, Guardian, School as SchoolType } from '@/types/driver';
 
 export default function DriverApp() {

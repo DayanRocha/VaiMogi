@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Driver, Van, Route, Student, School, Guardian, Trip, TripStudent } from '@/types/driver';
 import { useNotificationIntegration } from '@/hooks/useNotificationIntegration';
+import { realTimeNotificationService } from '@/services/realTimeNotificationService';
 
 // Mock data - In a real app, this would come from Supabase
 const mockDriver: Driver = {
@@ -518,8 +519,25 @@ export const useDriverData = () => {
       
       console.log(`🚐 ROTA INICIADA: ${route.name}`);
       
-      // Notificar início da rota usando o serviço
-      notifyRouteStarted(trip.students);
+      // Enviar notificação em tempo real para todos os responsáveis da rota
+      const allGuardianIds = route.students
+        .map(student => guardians.find(g => g.id === student.guardianId && (g.isActive !== false)))
+        .filter(Boolean)
+        .map(guardian => guardian!.id);
+
+      if (allGuardianIds.length > 0) {
+        realTimeNotificationService.sendNotification({
+          type: 'route_started',
+          title: 'Rota Iniciada',
+          message: `${driver.name} iniciou a rota "${route.name}" com ${route.students.length} estudante(s)`,
+          driverId: driver.id,
+          driverName: driver.name,
+          guardianIds: allGuardianIds
+        });
+      }
+      
+      // Notificação legada removida para evitar duplicação
+      // Agora usando apenas notificações em tempo real
     }
   };
 
@@ -529,6 +547,8 @@ export const useDriverData = () => {
       
       const tripStudent = activeTrip.students.find(ts => ts.studentId === studentId);
       const direction = tripStudent?.direction || 'to_school';
+      const student = students.find(s => s.id === studentId);
+      const studentName = student?.name || 'Estudante';
       
       const updatedTrip = {
         ...activeTrip,
@@ -540,21 +560,87 @@ export const useDriverData = () => {
       
       console.log(`✅ Status atualizado. Estado atual da viagem:`, updatedTrip.students);
       
-      // Enviar notificações reais usando o serviço
-      switch (status) {
-        case 'van_arrived':
-          await notifyVanArrived(studentId, direction);
-          break;
-        case 'embarked':
-          await notifyEmbarked(studentId, direction);
-          break;
-        case 'at_school':
-          await notifyAtSchool(studentId);
-          break;
-        case 'disembarked':
-          await notifyDisembarked(studentId, direction);
-          break;
+      // Enviar notificações em tempo real para os responsáveis
+      const studentGuardian = guardians.find(g => g.id === student?.guardianId && (g.isActive !== false));
+      const guardianIds = studentGuardian ? [studentGuardian.id] : [];
+
+      if (guardianIds.length > 0) {
+        switch (status) {
+          case 'van_arrived':
+            realTimeNotificationService.sendNotification({
+              type: 'arrived_at_location',
+              title: 'Van Chegou!',
+              message: direction === 'to_school' 
+                ? `A van chegou para embarcar ${studentName}` 
+                : `A van chegou para desembarcar ${studentName}`,
+              driverId: driver.id,
+              driverName: driver.name,
+              studentId,
+              studentName,
+              location: student?.address,
+              guardianIds
+            });
+            break;
+          case 'embarked':
+            realTimeNotificationService.sendNotification({
+              type: 'student_picked_up',
+              title: 'Estudante Embarcou',
+              message: `${studentName} entrou na van e está a caminho da escola`,
+              driverId: driver.id,
+              driverName: driver.name,
+              studentId,
+              studentName,
+              guardianIds
+            });
+            break;
+          case 'at_school':
+            console.log(`📚 Enviando notificação de chegada na escola para ${studentName}`);
+            realTimeNotificationService.sendNotification({
+              type: 'student_dropped_off',
+              title: 'Chegou na Escola',
+              message: `${studentName} chegou na escola com segurança`,
+              driverId: driver.id,
+              driverName: driver.name,
+              studentId,
+              studentName,
+              guardianIds
+            });
+            break;
+          case 'disembarked':
+            // Verificar se é desembarque na escola ou em casa
+            if (direction === 'to_school') {
+              // Desembarque na escola (ida para escola)
+              console.log(`📚 Enviando notificação de chegada na escola para ${studentName}`);
+              realTimeNotificationService.sendNotification({
+                type: 'student_dropped_off',
+                title: 'Chegou na Escola',
+                message: `${studentName} chegou na escola com segurança`,
+                driverId: driver.id,
+                driverName: driver.name,
+                studentId,
+                studentName,
+                guardianIds
+              });
+            } else {
+              // Desembarque em casa (volta da escola)
+              console.log(`🏠 Enviando notificação de chegada em casa para ${studentName}`);
+              realTimeNotificationService.sendNotification({
+                type: 'student_dropped_off',
+                title: 'Estudante Desembarcou',
+                message: `${studentName} desembarcou da van e chegou em casa`,
+                driverId: driver.id,
+                driverName: driver.name,
+                studentId,
+                studentName,
+                guardianIds
+              });
+            }
+            break;
+        }
       }
+      
+      // Notificações legadas removidas para evitar duplicação
+      // Agora usando apenas notificações em tempo real
     }
   };
 
@@ -572,30 +658,93 @@ export const useDriverData = () => {
       
       console.log(`✅ Status atualizado EM GRUPO. Estado atual da viagem:`, updatedTrip.students);
       
-      // Enviar notificações em grupo usando o serviço
-      const tripStudent = activeTrip.students.find(ts => studentIds.includes(ts.studentId));
-      const direction = tripStudent?.direction || 'to_school';
-      
-      switch (status) {
-        case 'van_arrived':
-          for (const studentId of studentIds) {
-            await notifyVanArrived(studentId, direction);
+      // Enviar notificações em tempo real para cada estudante
+      for (const studentId of studentIds) {
+        const tripStudent = activeTrip.students.find(ts => ts.studentId === studentId);
+        const direction = tripStudent?.direction || 'to_school';
+        const student = students.find(s => s.id === studentId);
+        const studentName = student?.name || 'Estudante';
+        
+        // Encontrar responsáveis do estudante
+        const studentGuardian = guardians.find(g => g.id === student?.guardianId && (g.isActive !== false));
+        const guardianIds = studentGuardian ? [studentGuardian.id] : [];
+
+        if (guardianIds.length > 0) {
+          switch (status) {
+            case 'van_arrived':
+              realTimeNotificationService.sendNotification({
+                type: 'arrived_at_location',
+                title: 'Van Chegou!',
+                message: direction === 'to_school' 
+                  ? `A van chegou para embarcar ${studentName}` 
+                  : `A van chegou para desembarcar ${studentName}`,
+                driverId: driver.id,
+                driverName: driver.name,
+                studentId,
+                studentName,
+                location: student?.address,
+                guardianIds
+              });
+              break;
+            case 'embarked':
+              realTimeNotificationService.sendNotification({
+                type: 'student_picked_up',
+                title: 'Estudante Embarcou',
+                message: `${studentName} entrou na van e está a caminho da escola`,
+                driverId: driver.id,
+                driverName: driver.name,
+                studentId,
+                studentName,
+                guardianIds
+              });
+              break;
+            case 'at_school':
+              realTimeNotificationService.sendNotification({
+                type: 'student_dropped_off',
+                title: 'Chegou na Escola',
+                message: `${studentName} chegou na escola com segurança`,
+                driverId: driver.id,
+                driverName: driver.name,
+                studentId,
+                studentName,
+                guardianIds
+              });
+              break;
+            case 'disembarked':
+              // Verificar se é desembarque na escola ou em casa
+              if (direction === 'to_school') {
+                // Desembarque na escola (ida para escola)
+                console.log(`📚 Enviando notificação de chegada na escola para ${studentName}`);
+                realTimeNotificationService.sendNotification({
+                  type: 'student_dropped_off',
+                  title: 'Chegou na Escola',
+                  message: `${studentName} chegou na escola com segurança`,
+                  driverId: driver.id,
+                  driverName: driver.name,
+                  studentId,
+                  studentName,
+                  guardianIds
+                });
+              } else {
+                // Desembarque em casa (volta da escola)
+                console.log(`🏠 Enviando notificação de chegada em casa para ${studentName}`);
+                realTimeNotificationService.sendNotification({
+                  type: 'student_dropped_off',
+                  title: 'Estudante Desembarcou',
+                  message: `${studentName} desembarcou da van e chegou em casa`,
+                  driverId: driver.id,
+                  driverName: driver.name,
+                  studentId,
+                  studentName,
+                  guardianIds
+                });
+              }
+              break;
           }
-          break;
-        case 'embarked':
-          for (const studentId of studentIds) {
-            await notifyEmbarked(studentId, direction);
-          }
-          break;
-        case 'at_school':
-          for (const studentId of studentIds) {
-            await notifyAtSchool(studentId);
-          }
-          break;
-        case 'disembarked':
-          await notifyGroupDisembarked(studentIds, direction);
-          break;
+        }
       }
+      
+      // Notificações legadas removidas para evitar duplicação
     }
   };
 
@@ -603,9 +752,29 @@ export const useDriverData = () => {
     if (activeTrip) {
       // Determinar direção da rota baseado nos estudantes
       const direction = activeTrip.students[0]?.direction || 'to_school';
+      const route = routes.find(r => r.id === activeTrip.routeId);
       
-      // Notificar fim da rota
-      notifyRouteFinished(direction);
+      // Enviar notificação em tempo real para todos os responsáveis da rota
+      if (route) {
+        const allGuardianIds = route.students
+          .map(student => guardians.find(g => g.id === student.guardianId && (g.isActive !== false)))
+          .filter(Boolean)
+          .map(guardian => guardian!.id);
+
+        if (allGuardianIds.length > 0) {
+          realTimeNotificationService.sendNotification({
+            type: 'route_completed',
+            title: 'Rota Concluída',
+            message: `${driver.name} finalizou a rota "${route.name}" com sucesso`,
+            driverId: driver.id,
+            driverName: driver.name,
+            guardianIds: allGuardianIds
+          });
+        }
+      }
+      
+      // Notificação legada removida para evitar duplicação
+      // Agora usando apenas notificações em tempo real
       
       setActiveTrip({ ...activeTrip, status: 'completed' });
       setTimeout(() => {

@@ -12,6 +12,8 @@ export const useRouteTracking = () => {
     
     const initializeRoute = () => {
       const route = routeTrackingService.getActiveRoute();
+      console.log('🔍 Rota encontrada no serviço:', route ? 'SIM' : 'NÃO');
+      
       setActiveRoute(route);
       setIsLoading(false);
       
@@ -22,10 +24,30 @@ export const useRouteTracking = () => {
           studentsCount: route.studentPickups?.length || 0,
           hasLocation: !!route.currentLocation,
           startTime: route.startTime,
-          persistenceFlag: localStorage.getItem('routePersistenceFlag')
+          persistenceFlag: localStorage.getItem('routePersistenceFlag'),
+          currentLocation: route.currentLocation ? 
+            `${route.currentLocation.lat.toFixed(4)}, ${route.currentLocation.lng.toFixed(4)}` : 
+            'Não disponível'
         });
       } else {
         console.log('ℹ️ Nenhuma rota ativa encontrada no hook');
+        
+        // Debug adicional
+        const storedRoute = localStorage.getItem('activeRoute');
+        if (storedRoute) {
+          try {
+            const parsed = JSON.parse(storedRoute);
+            console.log('🔍 Rota no localStorage encontrada:', {
+              id: parsed.id,
+              isActive: parsed.isActive,
+              driverName: parsed.driverName
+            });
+          } catch (e) {
+            console.error('❌ Erro ao parsear rota do localStorage:', e);
+          }
+        } else {
+          console.log('ℹ️ Nenhuma rota no localStorage');
+        }
       }
     };
 
@@ -35,7 +57,13 @@ export const useRouteTracking = () => {
     // Verificação adicional após pequeno delay
     const timeoutId = setTimeout(initializeRoute, 500);
     
-    return () => clearTimeout(timeoutId);
+    // Verificação adicional após delay maior
+    const timeoutId2 = setTimeout(initializeRoute, 2000);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      clearTimeout(timeoutId2);
+    };
   }, []);
 
   // Listener para mudanças na rota com máxima confiabilidade
