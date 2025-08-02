@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GuardianMapView } from '@/components/GuardianMapView';
@@ -143,7 +144,7 @@ export const GuardianApp = () => {
     console.log(`👋 Boas-vindas mostradas para ${guardian.name}`);
   };
 
-  // Handlers para as notificações - corrigindo as assinaturas de função para receber objetos completos
+  // Handlers para as notificações - ajustados para trabalhar com os tipos corretos
   const handleMarkRealTimeAsRead = (notification: any) => {
     markRealTimeAsRead(notification);
   };
@@ -153,10 +154,18 @@ export const GuardianApp = () => {
   };
 
   const handleDeleteAllLegacyNotifications = () => {
-    // Pass the actual notification objects instead of just IDs
-    filteredLegacyNotifications.forEach(notification => {
-      deleteLegacyNotification(notification);
-    });
+    // Use the function that expects notification IDs
+    const notificationIds = filteredLegacyNotifications.map(n => n.id);
+    deleteAllLegacyNotifications(notificationIds);
+  };
+
+  // Wrapper functions to handle the type mismatch between useGuardianData and NotificationPanel
+  const handleMarkLegacyAsRead = (notification: any) => {
+    markNotificationAsRead(notification.id);
+  };
+
+  const handleDeleteLegacyNotification = (notification: any) => {
+    deleteLegacyNotification(notification.id);
   };
 
   return (
@@ -198,11 +207,11 @@ export const GuardianApp = () => {
         onClose={() => setShowNotifications(false)}
         notifications={filteredLegacyNotifications}
         realTimeNotifications={realTimeNotifications}
-        onMarkAsRead={markNotificationAsRead}
+        onMarkAsRead={handleMarkLegacyAsRead}
         onMarkRealTimeAsRead={handleMarkRealTimeAsRead}
         onMarkAllRealTimeAsRead={markAllRealTimeAsRead}
         onDeleteRealTimeNotification={handleDeleteRealTimeNotification}
-        onDeleteNotification={deleteLegacyNotification}
+        onDeleteNotification={handleDeleteLegacyNotification}
         onDeleteNotifications={handleDeleteAllLegacyNotifications}
       />
 
