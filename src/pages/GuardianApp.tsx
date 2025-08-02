@@ -143,13 +143,13 @@ export const GuardianApp = () => {
     console.log(`👋 Boas-vindas mostradas para ${guardian.name}`);
   };
 
-  // Handlers para as notificações - corrigindo as assinaturas de função
-  const handleMarkRealTimeAsRead = (notificationId: string) => {
-    markRealTimeAsRead(notificationId);
+  // Handlers para as notificações - corrigindo as assinaturas de função para receber objetos completos
+  const handleMarkRealTimeAsRead = (notification: any) => {
+    markRealTimeAsRead(notification);
   };
 
-  const handleDeleteRealTimeNotification = (notificationId: string) => {
-    deleteRealTimeNotification(notificationId);
+  const handleDeleteRealTimeNotification = (notification: any) => {
+    deleteRealTimeNotification(notification);
   };
 
   const handleDeleteAllLegacyNotifications = () => {
