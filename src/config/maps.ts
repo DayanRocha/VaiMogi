@@ -1,7 +1,6 @@
-
 // Configuração do Mapbox
 export const MAPBOX_CONFIG = {
-  accessToken: 'pk.eyJ1IjoiZGF5YW5yb2NoYSIsImEiOiJjbWRxNjIybm4wMzRuMmpvaW9hOHU4bXRxIn0.Qg9EpqZDmZSnkkac-otvOQ',
+  accessToken: '', // Token removido por segurança
   style: 'mapbox://styles/mapbox/streets-v12',
   defaultCenter: {
     lng: -46.6333,
@@ -13,8 +12,7 @@ export const MAPBOX_CONFIG = {
 
 // Verificar se o token está configurado
 export const isMapboxConfigured = (): boolean => {
-  const token = MAPBOX_CONFIG.accessToken;
-  const isValid = token && token.startsWith('pk.') && token.length > 20;
-  console.log('🔑 Verificação do token Mapbox:', isValid ? 'VÁLIDO' : 'INVÁLIDO');
-  return isValid;
+  return MAPBOX_CONFIG.accessToken.startsWith('pk.') && 
+         MAPBOX_CONFIG.accessToken.length > 20;
 };
+

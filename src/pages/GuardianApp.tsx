@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GuardianMapView } from '@/components/GuardianMapView';
@@ -26,8 +25,8 @@ export const GuardianApp = () => {
     activeTrip, 
     notifications: legacyNotifications,
     markNotificationAsRead,
-    deleteNotification: deleteLegacyNotification,
-    deleteNotifications: deleteAllLegacyNotifications
+    deleteNotification,
+    deleteNotifications
   } = useGuardianData();
 
   // Notificações em tempo real
@@ -144,30 +143,6 @@ export const GuardianApp = () => {
     console.log(`👋 Boas-vindas mostradas para ${guardian.name}`);
   };
 
-  // Handlers para as notificações - ajustados para trabalhar com os tipos corretos
-  const handleMarkRealTimeAsRead = (notification: any) => {
-    markRealTimeAsRead(notification);
-  };
-
-  const handleDeleteRealTimeNotification = (notification: any) => {
-    deleteRealTimeNotification(notification);
-  };
-
-  const handleDeleteAllLegacyNotifications = () => {
-    // Use the function that expects notification IDs
-    const notificationIds = filteredLegacyNotifications.map(n => n.id);
-    deleteAllLegacyNotifications(notificationIds);
-  };
-
-  // Wrapper functions to handle the type mismatch between useGuardianData and NotificationPanel
-  const handleMarkLegacyAsRead = (notification: any) => {
-    markNotificationAsRead(notification.id);
-  };
-
-  const handleDeleteLegacyNotification = (notification: any) => {
-    deleteLegacyNotification(notification.id);
-  };
-
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
@@ -207,12 +182,12 @@ export const GuardianApp = () => {
         onClose={() => setShowNotifications(false)}
         notifications={filteredLegacyNotifications}
         realTimeNotifications={realTimeNotifications}
-        onMarkAsRead={handleMarkLegacyAsRead}
-        onMarkRealTimeAsRead={handleMarkRealTimeAsRead}
+        onMarkAsRead={markNotificationAsRead}
+        onMarkRealTimeAsRead={markRealTimeAsRead}
         onMarkAllRealTimeAsRead={markAllRealTimeAsRead}
-        onDeleteRealTimeNotification={handleDeleteRealTimeNotification}
-        onDeleteNotification={handleDeleteLegacyNotification}
-        onDeleteNotifications={handleDeleteAllLegacyNotifications}
+        onDeleteRealTimeNotification={deleteRealTimeNotification}
+        onDeleteNotification={deleteNotification}
+        onDeleteNotifications={deleteNotifications}
       />
 
       {/* Welcome Dialog */}
@@ -221,6 +196,8 @@ export const GuardianApp = () => {
         onClose={handleWelcomeClose}
         guardianName={guardian.name}
       />
+
+
     </div>
   );
 };
