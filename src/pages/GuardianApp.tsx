@@ -144,12 +144,12 @@ export const GuardianApp = () => {
   };
 
   // Handlers para as notificações - corrigindo as assinaturas de função
-  const handleMarkRealTimeAsRead = (notification: any) => {
-    markRealTimeAsRead(notification.id);
+  const handleMarkRealTimeAsRead = (notificationId: string) => {
+    markRealTimeAsRead(notificationId);
   };
 
-  const handleDeleteRealTimeNotification = (notification: any) => {
-    deleteRealTimeNotification(notification.id);
+  const handleDeleteRealTimeNotification = (notificationId: string) => {
+    deleteRealTimeNotification(notificationId);
   };
 
   const handleDeleteAllLegacyNotifications = () => {
