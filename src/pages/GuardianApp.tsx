@@ -25,8 +25,8 @@ export const GuardianApp = () => {
     activeTrip, 
     notifications: legacyNotifications,
     markNotificationAsRead,
-    deleteNotification,
-    deleteNotifications
+    deleteNotification: deleteLegacyNotification,
+    deleteNotifications: deleteAllLegacyNotifications
   } = useGuardianData();
 
   // Notificações em tempo real
@@ -186,8 +186,8 @@ export const GuardianApp = () => {
         onMarkRealTimeAsRead={markRealTimeAsRead}
         onMarkAllRealTimeAsRead={markAllRealTimeAsRead}
         onDeleteRealTimeNotification={deleteRealTimeNotification}
-        onDeleteNotification={deleteNotification}
-        onDeleteNotifications={deleteNotifications}
+        onDeleteNotification={deleteLegacyNotification}
+        onDeleteNotifications={deleteAllLegacyNotifications}
       />
 
       {/* Welcome Dialog */}
@@ -196,8 +196,6 @@ export const GuardianApp = () => {
         onClose={handleWelcomeClose}
         guardianName={guardian.name}
       />
-
-
     </div>
   );
 };

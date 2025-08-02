@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { realTimeNotificationService, RealTimeNotification } from '@/services/realTimeNotificationService';
 
@@ -13,6 +14,7 @@ export const useRealTimeNotifications = (guardianId: string) => {
       )
     );
     setUnreadCount(prev => Math.max(0, prev - 1));
+    realTimeNotificationService.markAsRead(notification.id, guardianId);
   };
 
   // Função para marcar todas as notificações como lidas
@@ -26,6 +28,10 @@ export const useRealTimeNotifications = (guardianId: string) => {
   // Função para deletar uma notificação
   const deleteNotification = (notification: RealTimeNotification) => {
     setNotifications(prev => prev.filter(n => n.id !== notification.id));
+    if (!notification.isRead) {
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+    realTimeNotificationService.deleteNotification(notification.id, guardianId);
   };
 
   // Inicialização e listener
@@ -33,6 +39,11 @@ export const useRealTimeNotifications = (guardianId: string) => {
     if (!guardianId) return;
 
     console.log('🔔 Inicializando notificações em tempo real para:', guardianId);
+
+    // Carregar notificações existentes
+    const existingNotifications = realTimeNotificationService.getNotificationsForGuardian(guardianId);
+    setNotifications(existingNotifications);
+    setUnreadCount(existingNotifications.filter(n => !n.isRead).length);
 
     const handleNotification = (notification: RealTimeNotification) => {
       console.log('🔔 Nova notificação recebida:', {
@@ -65,15 +76,15 @@ export const useRealTimeNotifications = (guardianId: string) => {
       }
     };
 
-    // Registrar listener com guardianId
-    realTimeNotificationService.addListener(guardianId, handleNotification);
+    // Registrar listener usando o método subscribe
+    const unsubscribe = realTimeNotificationService.subscribe(guardianId, handleNotification);
 
     // Cleanup
     return () => {
-      realTimeNotificationService.removeListener(guardianId, handleNotification);
+      unsubscribe();
       console.log('🔌 Listener de notificações removido para:', guardianId);
     };
-  }, [guardianId, unreadCount]);
+  }, [guardianId]);
 
   return {
     notifications,

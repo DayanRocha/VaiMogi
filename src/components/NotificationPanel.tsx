@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Sheet,
@@ -25,6 +26,10 @@ interface RealTimeNotification {
   timestamp: string;
   guardianIds: string[];
   title?: string;
+  isRead: boolean;
+}
+
+interface CombinedNotification extends RealTimeNotification {
   isRealTime?: boolean;
 }
 
@@ -71,22 +76,24 @@ export const NotificationPanel = ({
     setIsMounted(true);
   }, []);
 
-  const combinedNotifications = [...realTimeNotifications.map(rt => ({ ...rt, isRealTime: true })), ...notifications]
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  const combinedNotifications: CombinedNotification[] = [
+    ...realTimeNotifications.map(rt => ({ ...rt, isRealTime: true })), 
+    ...notifications.map(n => ({ ...n, guardianIds: [], isRealTime: false }))
+  ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-  const handleMarkAsRead = (notification: any) => {
+  const handleMarkAsRead = (notification: CombinedNotification) => {
     if (notification.isRealTime) {
       onMarkRealTimeAsRead(notification);
     } else {
-      onMarkAsRead(notification);
+      onMarkAsRead(notification as Notification);
     }
   };
 
-  const handleDelete = (notification: any) => {
+  const handleDelete = (notification: CombinedNotification) => {
     if (notification.isRealTime) {
       onDeleteRealTimeNotification(notification);
     } else {
-      onDeleteNotification(notification);
+      onDeleteNotification(notification as Notification);
     }
   };
 
@@ -124,7 +131,7 @@ export const NotificationPanel = ({
     }
   };
 
-  const getNotificationTitle = (notification: any): string => {
+  const getNotificationTitle = (notification: CombinedNotification): string => {
     // Para notificações em tempo real que têm propriedade title
     if (notification.title) {
       return notification.title;
