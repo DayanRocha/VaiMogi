@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -34,6 +33,8 @@ export const GuardianMapbox: React.FC<GuardianMapboxProps> = ({
   useEffect(() => {
     if (!mapContainer.current) return;
 
+    console.log('🗺️ Inicializando mapa Mapbox com token:', MAPBOX_CONFIG.accessToken.substring(0, 20) + '...');
+
     try {
       // Configurar token do Mapbox
       mapboxgl.accessToken = MAPBOX_CONFIG.accessToken;
@@ -54,7 +55,8 @@ export const GuardianMapbox: React.FC<GuardianMapboxProps> = ({
       // Quando o mapa carregar
       map.current.on('load', () => {
         setIsLoading(false);
-        console.log('🗺️ Mapa Mapbox carregado para responsável');
+        setError(null);
+        console.log('🗺️ Mapa Mapbox carregado com sucesso para responsável');
       });
 
       // Tratar erros
@@ -63,6 +65,9 @@ export const GuardianMapbox: React.FC<GuardianMapboxProps> = ({
         setError('Erro ao carregar o mapa');
         setIsLoading(false);
       });
+
+      // Log adicional para debug
+      console.log('🗺️ Mapa Mapbox inicializado, aguardando carregamento...');
 
     } catch (error) {
       console.error('❌ Erro ao inicializar mapa Mapbox:', error);
@@ -177,6 +182,7 @@ export const GuardianMapbox: React.FC<GuardianMapboxProps> = ({
         <div className="text-center text-red-500">
           <p className="text-sm">{error}</p>
           <p className="text-xs mt-2 text-gray-400">Verifique sua conexão</p>
+          <p className="text-xs mt-1 text-gray-400">Token: {MAPBOX_CONFIG.accessToken.substring(0, 20)}...</p>
         </div>
       </div>
     );

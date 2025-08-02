@@ -143,6 +143,20 @@ export const GuardianApp = () => {
     console.log(`👋 Boas-vindas mostradas para ${guardian.name}`);
   };
 
+  // Handlers para as notificações - corrigindo as assinaturas de função
+  const handleMarkRealTimeAsRead = (notification: any) => {
+    markRealTimeAsRead(notification.id);
+  };
+
+  const handleDeleteRealTimeNotification = (notification: any) => {
+    deleteRealTimeNotification(notification.id);
+  };
+
+  const handleDeleteAllLegacyNotifications = () => {
+    const notificationIds = filteredLegacyNotifications.map(n => n.id);
+    deleteAllLegacyNotifications(notificationIds);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
@@ -183,11 +197,11 @@ export const GuardianApp = () => {
         notifications={filteredLegacyNotifications}
         realTimeNotifications={realTimeNotifications}
         onMarkAsRead={markNotificationAsRead}
-        onMarkRealTimeAsRead={markRealTimeAsRead}
+        onMarkRealTimeAsRead={handleMarkRealTimeAsRead}
         onMarkAllRealTimeAsRead={markAllRealTimeAsRead}
-        onDeleteRealTimeNotification={deleteRealTimeNotification}
+        onDeleteRealTimeNotification={handleDeleteRealTimeNotification}
         onDeleteNotification={deleteLegacyNotification}
-        onDeleteNotifications={deleteAllLegacyNotifications}
+        onDeleteNotifications={handleDeleteAllLegacyNotifications}
       />
 
       {/* Welcome Dialog */}

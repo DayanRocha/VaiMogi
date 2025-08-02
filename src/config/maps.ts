@@ -13,6 +13,8 @@ export const MAPBOX_CONFIG = {
 
 // Verificar se o token está configurado
 export const isMapboxConfigured = (): boolean => {
-  return MAPBOX_CONFIG.accessToken.startsWith('pk.') && 
-         MAPBOX_CONFIG.accessToken.length > 20;
+  const token = MAPBOX_CONFIG.accessToken;
+  const isValid = token && token.startsWith('pk.') && token.length > 20;
+  console.log('🔑 Verificação do token Mapbox:', isValid ? 'VÁLIDO' : 'INVÁLIDO');
+  return isValid;
 };
