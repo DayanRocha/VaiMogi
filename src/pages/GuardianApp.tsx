@@ -153,8 +153,10 @@ export const GuardianApp = () => {
   };
 
   const handleDeleteAllLegacyNotifications = () => {
-    const notificationIds = filteredLegacyNotifications.map(n => n.id);
-    deleteAllLegacyNotifications(notificationIds);
+    // Pass the actual notification objects instead of just IDs
+    filteredLegacyNotifications.forEach(notification => {
+      deleteLegacyNotification(notification);
+    });
   };
 
   return (
