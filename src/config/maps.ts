@@ -1,6 +1,7 @@
+
 // Configuração do Mapbox
 export const MAPBOX_CONFIG = {
-  accessToken: '', // Token removido por segurança
+  accessToken: 'pk.eyJ1IjoiZGF5YW5yb2NoYSIsImEiOiJjbWRxNjIybm4wMzRuMmpvaW9hOHU4bXRxIn0.Qg9EpqZDmZSnkkac-otvOQ',
   style: 'mapbox://styles/mapbox/streets-v12',
   defaultCenter: {
     lng: -46.6333,
@@ -15,4 +16,3 @@ export const isMapboxConfigured = (): boolean => {
   return MAPBOX_CONFIG.accessToken.startsWith('pk.') && 
          MAPBOX_CONFIG.accessToken.length > 20;
 };
-
