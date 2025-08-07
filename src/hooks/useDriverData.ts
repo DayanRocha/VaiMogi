@@ -209,7 +209,24 @@ export const useDriverData = () => {
   const [students, setStudents] = useState<Student[]>(getInitialStudents());
   const [schools, setSchools] = useState<School[]>(getInitialSchools());
   const [guardians, setGuardians] = useState<Guardian[]>(getInitialGuardians());
-  const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
+  
+  // Carregar activeTrip do localStorage se existir
+  const getInitialActiveTrip = (): Trip | null => {
+    const savedActiveTrip = localStorage.getItem('activeTrip');
+    if (savedActiveTrip) {
+      try {
+        const parsedTrip = JSON.parse(savedActiveTrip);
+        console.log('🚐 Viagem ativa carregada do localStorage:', parsedTrip);
+        return parsedTrip;
+      } catch (error) {
+        console.error('Erro ao carregar viagem ativa:', error);
+      }
+    }
+    console.log('🚐 Nenhuma viagem ativa no localStorage');
+    return null;
+  };
+
+  const [activeTrip, setActiveTrip] = useState<Trip | null>(getInitialActiveTrip());
   const [notifiedGuardians, setNotifiedGuardians] = useState<Set<string>>(new Set());
 
   // Hook para integração com notificações
@@ -240,6 +257,18 @@ export const useDriverData = () => {
     localStorage.setItem('schools', JSON.stringify(schools));
     console.log('💾 Escolas salvas no localStorage:', schools);
   }, [schools]);
+
+  // Salvar activeTrip no localStorage sempre que mudar
+  useEffect(() => {
+    if (activeTrip) {
+      localStorage.setItem('activeTrip', JSON.stringify(activeTrip));
+      console.log('💾 Viagem ativa salva no localStorage:', activeTrip);
+    } else {
+      localStorage.removeItem('activeTrip');
+      console.log('🗑️ Viagem ativa removida do localStorage');
+    }
+  }, [activeTrip]);
+
 
   const updateDriver = (updatedDriver: Partial<Driver>) => {
     const newDriverData = { ...driver, ...updatedDriver };
@@ -800,15 +829,23 @@ export const useDriverData = () => {
         console.log('⚠️ Nenhuma rota ativa encontrada para finalizar');
       }
       
+      // Marcar como completed e finalizar completamente após um delay
       setActiveTrip({ ...activeTrip, status: 'completed' });
+      console.log('✅ Rota marcada como concluída');
+      
+      // Finalizar completamente a viagem após 2 segundos
       setTimeout(() => {
         setActiveTrip(null);
-        // Limpar notificações quando a viagem é finalizada para permitir novas notificações na próxima viagem
-        setNotifiedGuardians(new Set());
-        console.log('🔄 Histórico de notificações limpo - próxima viagem poderá enviar notificações novamente');
+        console.log('🏁 Viagem finalizada completamente');
       }, 2000);
+      
+      // Limpar notificações para permitir novas notificações na próxima viagem
+      setNotifiedGuardians(new Set());
+      console.log('🔄 Histórico de notificações limpo - próxima viagem poderá enviar notificações novamente');
     }
   };
+
+
 
   return {
     driver,
