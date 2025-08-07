@@ -178,14 +178,14 @@ class RouteTrackingService {
       clearInterval(this.locationUpdateInterval);
     }
 
-    // Atualizar localização a cada 5 segundos para demonstração
+    // Atualizar localização a cada 1 segundo para tempo real
     this.locationUpdateInterval = setInterval(() => {
       this.getCurrentLocation().then(location => {
         if (location) {
           this.updateDriverLocation(location);
         }
       });
-    }, 5000);
+    }, 1000);
 
     // Primeira atualização imediata
     this.getCurrentLocation().then(location => {

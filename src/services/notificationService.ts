@@ -3,6 +3,7 @@ import { TripStudent, Student, School } from '@/types/driver';
 import { audioService, NotificationSoundType } from '@/services/audioService';
 import { routeTrackingService } from '@/services/routeTrackingService';
 import { mockDriverMovement } from '@/services/mockLocationService';
+import { realTimeNotificationService } from '@/services/realTimeNotificationService';
 
 export interface NotificationEvent {
   type: 'route_started' | 'van_arrived' | 'embarked' | 'at_school' | 'disembarked' | 'route_finished';
@@ -21,6 +22,8 @@ export interface NotificationEvent {
 class NotificationService {
   private static instance: NotificationService;
   private listeners: ((notification: GuardianNotification) => void)[] = [];
+  private realTimePollingInterval: NodeJS.Timeout | null = null;
+  private isRealTimeEnabled = false;
 
   static getInstance(): NotificationService {
     if (!NotificationService.instance) {
@@ -51,11 +54,75 @@ class NotificationService {
   // Adicionar listener para receber notificações
   addListener(callback: (notification: GuardianNotification) => void) {
     this.listeners.push(callback);
+    // Iniciar polling em tempo real quando há listeners
+    this.startRealTimePolling();
   }
 
   // Remover listener
   removeListener(callback: (notification: GuardianNotification) => void) {
     this.listeners = this.listeners.filter(listener => listener !== callback);
+    // Parar polling se não há mais listeners
+    if (this.listeners.length === 0) {
+      this.stopRealTimePolling();
+    }
+  }
+
+  // Iniciar polling em tempo real para verificar mudanças
+  private startRealTimePolling() {
+    if (this.isRealTimeEnabled || this.realTimePollingInterval) return;
+    
+    this.isRealTimeEnabled = true;
+    console.log('🔄 Iniciando polling em tempo real para notificações');
+    
+    // Verificar mudanças a cada 1 segundo para máxima responsividade
+    this.realTimePollingInterval = setInterval(() => {
+      this.checkForNewNotifications();
+    }, 1000);
+  }
+
+  // Parar polling em tempo real
+  private stopRealTimePolling() {
+    if (this.realTimePollingInterval) {
+      clearInterval(this.realTimePollingInterval);
+      this.realTimePollingInterval = null;
+    }
+    this.isRealTimeEnabled = false;
+    console.log('⏹️ Polling em tempo real parado');
+  }
+
+  // Verificar se há novas notificações no localStorage
+  private checkForNewNotifications() {
+    try {
+      const guardianId = this.getCurrentGuardianId();
+      const notificationKey = this.getNotificationKey(guardianId);
+      const stored = localStorage.getItem(notificationKey);
+      
+      if (stored) {
+        const notifications = JSON.parse(stored);
+        const lastCheckKey = `lastNotificationCheck_${guardianId}`;
+        const lastCheck = localStorage.getItem(lastCheckKey);
+        const lastCheckTime = lastCheck ? parseInt(lastCheck) : 0;
+        
+        // Verificar se há notificações mais recentes que a última verificação
+        const newNotifications = notifications.filter((notification: GuardianNotification) => {
+          const notificationTime = new Date(notification.timestamp).getTime();
+          return notificationTime > lastCheckTime;
+        });
+        
+        if (newNotifications.length > 0) {
+          // Atualizar timestamp da última verificação
+          localStorage.setItem(lastCheckKey, Date.now().toString());
+          
+          // Notificar sobre as novas notificações (mais recente primeiro)
+          newNotifications.reverse().forEach((notification: GuardianNotification) => {
+            console.log('📱 Nova notificação detectada em tempo real:', notification.message);
+            this.notifyListeners(notification);
+          });
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erro ao verificar novas notificações:', error);
+    }
   }
 
   // Enviar notificação para todos os listeners
@@ -142,6 +209,9 @@ class NotificationService {
     // Notificar todos os listeners (componentes que estão escutando)
     // O som será reproduzido apenas do lado do responsável
     this.notifyListeners(notification);
+    
+    // Enviar via serviço de tempo real para máxima responsividade
+    realTimeNotificationService.sendRealTimeNotification(notification);
     
     console.log('✅ Notificação enviada:', notification);
   }

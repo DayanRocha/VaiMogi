@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Driver, Van, Student, Trip, Guardian } from '@/types/driver';
 import { notificationService } from '@/services/notificationService';
+import { realTimeNotificationService } from '@/services/realTimeNotificationService';
 import { audioService, NotificationSoundType } from '@/services/audioService';
 import { routeTrackingService } from '@/services/routeTrackingService';
 
@@ -371,8 +372,8 @@ export const useGuardianData = () => {
 
     window.addEventListener('storage', handleStorageChange);
     
-    // Também verificar periodicamente para mudanças na mesma aba
-    const interval = setInterval(updateData, 5000);
+    // Também verificar periodicamente para mudanças na mesma aba (mais frequente para tempo real)
+    const interval = setInterval(updateData, 2000);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
@@ -380,29 +381,55 @@ export const useGuardianData = () => {
     };
   }, [guardian.id]);
 
-  // Escutar notificações reais do serviço
+  // Escutar notificações reais do serviço (apenas tempo real para evitar duplicatas)
   useEffect(() => {
-    const handleNewNotification = async (notification: GuardianNotification) => {
-      console.log('📱 Nova notificação recebida:', notification);
-      setNotifications(prev => [notification, ...prev]);
+    // Set para rastrear IDs de notificações já processadas
+    const processedNotifications = new Set<string>();
+    
+    const handleNewNotification = async (notification: GuardianNotification, source: string = 'unknown') => {
+      console.log(`📱 Nova notificação recebida de ${source}:`, notification);
+      
+      // Verificar se já foi processada
+      if (processedNotifications.has(notification.id)) {
+        console.log(`⚠️ Notificação duplicada ignorada de ${source}:`, notification.id);
+        return;
+      }
+      
+      // Marcar como processada
+      processedNotifications.add(notification.id);
+      
+      // Verificar se a notificação já existe no estado
+      setNotifications(prev => {
+        const exists = prev.some(n => n.id === notification.id);
+        if (exists) {
+          console.log('⚠️ Notificação já existe no estado:', notification.id);
+          return prev;
+        }
+        console.log(`✅ Adicionando nova notificação de ${source}:`, notification.id);
+        return [notification, ...prev];
+      });
       
       // Reproduzir som da buzina ao receber notificação
       try {
         const soundType: NotificationSoundType = notification.type as NotificationSoundType;
-        console.log('🔊 Tentando reproduzir som para tipo:', soundType); // Adicione este log
+        console.log('🔊 Tentando reproduzir som para tipo:', soundType);
         await audioService.playNotificationSound(soundType);
-        console.log('✅ Som reproduzido com sucesso'); // Adicione este log
+        console.log('✅ Som reproduzido com sucesso');
       } catch (error) {
         console.error('❌ Erro ao reproduzir som:', error);
       }
     };
   
-    // Registrar listener para novas notificações
-    notificationService.addListener(handleNewNotification);
+    // Registrar apenas no serviço de tempo real (que já inclui o tradicional)
+    const realTimeHandler = (notification: GuardianNotification) => 
+      handleNewNotification(notification, 'realTime');
+    
+    realTimeNotificationService.addListener(realTimeHandler);
   
     // Cleanup: remover listener quando componente for desmontado
     return () => {
-      notificationService.removeListener(handleNewNotification);
+      realTimeNotificationService.removeListener(realTimeHandler);
+      processedNotifications.clear();
     };
   }, []);
 

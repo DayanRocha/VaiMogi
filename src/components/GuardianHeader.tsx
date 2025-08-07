@@ -1,6 +1,7 @@
 import { Menu, Bell, LogOut } from 'lucide-react';
 import { Guardian } from '@/types/driver';
 import { GuardianNotification } from '@/hooks/useGuardianData';
+import { RealTimeIndicator } from '@/components/RealTimeIndicator';
 
 interface GuardianHeaderProps {
   guardian: Guardian;
@@ -37,6 +38,11 @@ export const GuardianHeader = ({
           </h1>
           <p className="text-xs text-gray-500">Acompanhe a rota escolar</p>
         </div>
+      </div>
+
+      {/* Center - Real Time Indicator */}
+      <div className="hidden sm:block">
+        <RealTimeIndicator />
       </div>
 
       {/* Right side - Notifications and Logout */}

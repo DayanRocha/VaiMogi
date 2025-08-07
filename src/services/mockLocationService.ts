@@ -73,7 +73,7 @@ export class MockDriverMovement {
     this.isMoving = true;
     this.intervalId = setInterval(() => {
       this.updatePosition();
-    }, 2000); // Atualizar a cada 2 segundos
+    }, 500); // Atualizar a cada 500ms para movimento mais fluido
 
     console.log('🚗 Movimento simulado do motorista iniciado');
   }
