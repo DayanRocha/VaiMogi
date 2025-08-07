@@ -1,29 +1,46 @@
-import { X, Bell, MapPin, User, School, Home, Truck, Trash2, CheckSquare, Square, Clock, Navigation, CheckCircle } from 'lucide-react';
+
+import React, { useState } from 'react';
+import { X, Bell, Trash2, Check, CheckCheck, Clock, MapPin } from 'lucide-react';
 import { GuardianNotification } from '@/hooks/useGuardianData';
-import { RealTimeNotification } from '@/services/realTimeNotificationService';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { useState } from 'react';
+
+interface RealTimeNotification {
+  id: string;
+  type: 'route_started' | 'student_picked_up' | 'student_dropped_off' | 'arriving_soon' | 'arrived_at_location' | 'route_completed' | 'route_delayed';
+  message: string;
+  timestamp: string;
+  isRead: boolean;
+  studentName?: string;
+  location?: {
+    lat: number;
+    lng: number;
+  };
+  routeId?: string;
+  guardianIds: string[];
+}
+
+interface CombinedNotification extends GuardianNotification {
+  isRealTime: boolean;
+  title?: string;
+}
 
 interface NotificationPanelProps {
   isOpen: boolean;
   onClose: () => void;
   notifications: GuardianNotification[];
-  realTimeNotifications?: RealTimeNotification[];
+  realTimeNotifications: RealTimeNotification[];
   onMarkAsRead: (notificationId: string) => void;
-  onMarkRealTimeAsRead?: (notificationId: string) => void;
-  onMarkAllRealTimeAsRead?: () => void;
-  onDeleteRealTimeNotification?: (notificationId: string) => void;
-  onDeleteNotification?: (notificationId: string) => void;
-  onDeleteNotifications?: (notificationIds: string[]) => void;
+  onMarkRealTimeAsRead: (notification: RealTimeNotification) => void;
+  onMarkAllRealTimeAsRead: () => void;
+  onDeleteRealTimeNotification: (notification: RealTimeNotification) => void;
+  onDeleteNotification: (notificationId: string) => void;
+  onDeleteNotifications: (notificationIds: string[]) => void;
 }
 
-export const NotificationPanel = ({ 
-  isOpen, 
-  onClose, 
-  notifications, 
-  realTimeNotifications = [],
+export const NotificationPanel = ({
+  isOpen,
+  onClose,
+  notifications,
+  realTimeNotifications,
   onMarkAsRead,
   onMarkRealTimeAsRead,
   onMarkAllRealTimeAsRead,
@@ -32,377 +49,310 @@ export const NotificationPanel = ({
   onDeleteNotifications
 }: NotificationPanelProps) => {
   const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const getNotificationIcon = (type: GuardianNotification['type'] | RealTimeNotification['type']) => {
+  const [showSelectionMode, setShowSelectionMode] = useState(false);
+
+  // Combinar e organizar notificações
+  const combinedNotifications: CombinedNotification[] = [
+    ...realTimeNotifications.map(n => ({ 
+      ...n, 
+      isRealTime: true,
+      title: getNotificationTitle(n.type)
+    })),
+    ...notifications.map(n => ({ 
+      ...n, 
+      isRealTime: false,
+      title: getNotificationTitle(n.type)
+    }))
+  ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  const unreadCount = combinedNotifications.filter(n => !n.isRead).length;
+
+  if (!isOpen) return null;
+
+  const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'van_arrived':
+      case 'arriving_soon':
       case 'arrived_at_location':
-        return <Truck className="w-5 h-5 text-orange-500" />;
+        return <MapPin className="w-5 h-5 text-blue-600" />;
       case 'embarked':
       case 'student_picked_up':
-        return <User className="w-5 h-5 text-blue-500" />;
+        return <Check className="w-5 h-5 text-green-600" />;
       case 'at_school':
-        return <School className="w-5 h-5 text-green-500" />;
-      case 'disembarked':
       case 'student_dropped_off':
-        return <Home className="w-5 h-5 text-purple-500" />;
+        return <CheckCheck className="w-5 h-5 text-purple-600" />;
+      case 'disembarked':
+        return <Clock className="w-5 h-5 text-orange-600" />;
       case 'route_started':
-        return <Navigation className="w-5 h-5 text-blue-600" />;
-      case 'arriving_soon':
-        return <Clock className="w-5 h-5 text-yellow-600" />;
+        return <Bell className="w-5 h-5 text-blue-600" />;
       case 'route_completed':
-        return <CheckCircle className="w-5 h-5 text-green-600" />;
+        return <CheckCheck className="w-5 h-5 text-green-600" />;
       case 'route_delayed':
-        return <Clock className="w-5 h-5 text-red-600" />;
+        return <Clock className="w-5 h-5 text-yellow-600" />;
       default:
-        return <Bell className="w-5 h-5 text-gray-500" />;
+        return <Bell className="w-5 h-5 text-gray-600" />;
     }
   };
 
-  const getNotificationColor = (type: GuardianNotification['type'] | RealTimeNotification['type']) => {
+  function getNotificationTitle(type: string): string {
     switch (type) {
       case 'van_arrived':
-      case 'arrived_at_location':
-        return 'border-l-orange-500 bg-orange-50';
+        return 'Van Chegou';
       case 'embarked':
-      case 'student_picked_up':
-        return 'border-l-blue-500 bg-blue-50';
+        return 'Embarque Realizado';
       case 'at_school':
-        return 'border-l-green-500 bg-green-50';
+        return 'Chegou na Escola';
       case 'disembarked':
-      case 'student_dropped_off':
-        return 'border-l-purple-500 bg-purple-50';
+        return 'Desembarque Realizado';
       case 'route_started':
-        return 'border-l-blue-600 bg-blue-50';
+        return 'Rota Iniciada';
+      case 'student_picked_up':
+        return 'Estudante Embarcou';
+      case 'student_dropped_off':
+        return 'Estudante Desembarcou';
       case 'arriving_soon':
-        return 'border-l-yellow-500 bg-yellow-50';
+        return 'Chegando em Breve';
+      case 'arrived_at_location':
+        return 'Chegou ao Local';
       case 'route_completed':
-        return 'border-l-green-600 bg-green-50';
+        return 'Rota Concluída';
       case 'route_delayed':
-        return 'border-l-red-500 bg-red-50';
+        return 'Rota Atrasada';
       default:
-        return 'border-l-gray-500 bg-gray-50';
+        return 'Notificação';
     }
-  };
+  }
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
-    if (isNaN(date.getTime())) return 'Data inválida';
-    
     const now = new Date();
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    const diffMs = now.getTime() - date.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
 
-    if (diffInMinutes < 1) return 'Agora';
-    if (diffInMinutes < 60) return `${diffInMinutes}min atrás`;
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h atrás`;
-    return date.toLocaleDateString('pt-BR');
+    if (diffMinutes < 1) return 'Agora';
+    if (diffMinutes < 60) return `${diffMinutes}min atrás`;
+    
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `${diffHours}h atrás`;
+    
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d atrás`;
+    
+    return date.toLocaleDateString('pt-BR', { 
+      day: '2-digit', 
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
-  const handleNotificationClick = (notification: any) => {
-    if (isSelectionMode) {
-      const isSelected = selectedNotifications.includes(notification.id);
-      if (isSelected) {
-        setSelectedNotifications(prev => prev.filter(id => id !== notification.id));
-      } else {
-        setSelectedNotifications(prev => [...prev, notification.id]);
-      }
+  const handleNotificationClick = (notification: CombinedNotification) => {
+    if (showSelectionMode) {
+      toggleNotificationSelection(notification.id);
       return;
     }
 
     if (!notification.isRead) {
-      if (notification.isRealTime && onMarkRealTimeAsRead) {
-        const originalId = notification.id.replace(/^rt_(.+)_\d+$/, '$1');
-        onMarkRealTimeAsRead(originalId);
+      if (notification.isRealTime) {
+        onMarkRealTimeAsRead(notification as RealTimeNotification);
       } else {
-        const originalId = notification.id.replace(/^legacy_(.+)_\d+$/, '$1');
-        onMarkAsRead(originalId);
+        onMarkAsRead(notification.id);
       }
     }
-    
-    // Se tem localização, abrir no Google Maps
-    if (notification.location) {
-      const url = `https://www.google.com/maps?q=${notification.location.lat},${notification.location.lng}`;
-      window.open(url, '_blank');
-    }
   };
 
-  const handleDeleteSingle = (notificationId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    // Encontrar a notificação original
-    const notification = allNotifications.find(n => n.id === notificationId);
-    if (!notification) return;
-
-    if (notification.isRealTime && onDeleteRealTimeNotification) {
-      // Para notificações em tempo real, extrair o ID original
-      const originalId = notificationId.replace(/^rt_(.+)_\d+$/, '$1');
-      console.log('🗑️ Excluindo notificação RT:', originalId);
-      onDeleteRealTimeNotification(originalId);
-    } else if (onDeleteNotification) {
-      // Para notificações legadas
-      const originalId = notificationId.replace(/^legacy_(.+)_\d+$/, '$1');
-      console.log('🗑️ Excluindo notificação legada:', originalId);
-      onDeleteNotification(originalId);
-    }
-  };
-
-  const handleSelectAll = () => {
-    if (selectedNotifications.length === allNotifications.length) {
-      setSelectedNotifications([]);
-    } else {
-      setSelectedNotifications(allNotifications.map(n => n.id));
-    }
+  const toggleNotificationSelection = (id: string) => {
+    setSelectedNotifications(prev => 
+      prev.includes(id) 
+        ? prev.filter(nId => nId !== id)
+        : [...prev, id]
+    );
   };
 
   const handleDeleteSelected = () => {
-    if (selectedNotifications.length > 0) {
-      selectedNotifications.forEach(notificationId => {
-        const notification = allNotifications.find(n => n.id === notificationId);
-        if (!notification) return;
+    const legacyIds = selectedNotifications.filter(id => 
+      !combinedNotifications.find(n => n.id === id)?.isRealTime
+    );
+    const realTimeNotifications = selectedNotifications
+      .map(id => combinedNotifications.find(n => n.id === id && n.isRealTime))
+      .filter(Boolean) as RealTimeNotification[];
 
-        if (notification.isRealTime && onDeleteRealTimeNotification) {
-          // Para notificações em tempo real, excluir
-          const originalId = notificationId.replace(/^rt_(.+)_\d+$/, '$1');
-          onDeleteRealTimeNotification(originalId);
-        } else if (onDeleteNotification) {
-          // Para notificações legadas, excluir
-          const originalId = notificationId.replace(/^legacy_(.+)_\d+$/, '$1');
-          onDeleteNotification(originalId);
-        }
-      });
-      
-      setSelectedNotifications([]);
-      setIsSelectionMode(false);
+    if (legacyIds.length > 0) {
+      onDeleteNotifications(legacyIds);
     }
-  };
+    
+    realTimeNotifications.forEach(notification => {
+      onDeleteRealTimeNotification(notification);
+    });
 
-  const handleToggleSelectionMode = () => {
-    setIsSelectionMode(!isSelectionMode);
     setSelectedNotifications([]);
+    setShowSelectionMode(false);
   };
 
-  // Combinar notificações legadas e em tempo real
-  const allNotifications = [
-    ...realTimeNotifications.map((n, index) => ({ ...n, id: `rt_${n.id}_${index}`, isRealTime: true })),
-    ...notifications.map((n, index) => ({ ...n, id: `legacy_${n.id}_${index}`, isRealTime: false }))
-  ].sort((a, b) => {
-    const dateA = new Date(a.timestamp);
-    const dateB = new Date(b.timestamp);
-    if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) return 0;
-    return dateB.getTime() - dateA.getTime();
-  });
-
-  const unreadNotifications = allNotifications.filter(n => !n.isRead);
-  const readNotifications = allNotifications.filter(n => n.isRead);
+  const handleMarkAllAsRead = () => {
+    // Marcar todas as notificações em tempo real como lidas
+    onMarkAllRealTimeAsRead();
+    
+    // Marcar todas as notificações legacy como lidas
+    const unreadLegacy = notifications.filter(n => !n.isRead);
+    unreadLegacy.forEach(notification => {
+      onMarkAsRead(notification.id);
+    });
+  };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Bell className="w-5 h-5 text-blue-500" />
-              Notificações
-              {unreadNotifications.length > 0 && (
-                <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                  {unreadNotifications.length}
-                </span>
-              )}
-            </div>
-            {allNotifications.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleToggleSelectionMode}
-                className="text-sm"
-              >
-                {isSelectionMode ? 'Cancelar' : 'Selecionar'}
-              </Button>
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
+      <div className="bg-white w-full max-w-md h-[80vh] sm:h-[600px] rounded-t-2xl sm:rounded-2xl flex flex-col">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bell className="w-5 h-5 text-blue-600" />
+            <h2 className="text-lg font-semibold text-gray-800">Notificações</h2>
+            {unreadCount > 0 && (
+              <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                {unreadCount}
+              </span>
             )}
-          </DialogTitle>
-          {isSelectionMode && allNotifications.length > 0 && (
-            <div className="flex items-center justify-between pt-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSelectAll}
-                className="flex items-center gap-2"
-              >
-                {selectedNotifications.length === allNotifications.length ? (
-                  <CheckSquare className="w-4 h-4" />
+          </div>
+          <div className="flex items-center gap-2">
+            {combinedNotifications.length > 0 && (
+              <>
+                {showSelectionMode ? (
+                  <div className="flex gap-2">
+                    {selectedNotifications.length > 0 && (
+                      <button
+                        onClick={handleDeleteSelected}
+                        className="p-1 text-red-600 hover:bg-red-50 rounded"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        setShowSelectionMode(false);
+                        setSelectedNotifications([]);
+                      }}
+                      className="text-sm text-gray-600 hover:text-gray-800"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
                 ) : (
-                  <Square className="w-4 h-4" />
+                  <div className="flex gap-2">
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={handleMarkAllAsRead}
+                        className="text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        Marcar todas
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setShowSelectionMode(true)}
+                      className="text-sm text-gray-600 hover:text-gray-800"
+                    >
+                      Selecionar
+                    </button>
+                  </div>
                 )}
-                {selectedNotifications.length === allNotifications.length ? 'Desmarcar todas' : 'Selecionar todas'}
-              </Button>
-              {selectedNotifications.length > 0 && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleDeleteSelected}
-                  className="flex items-center gap-2"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Excluir ({selectedNotifications.length})
-                </Button>
-              )}
-            </div>
-          )}
-        </DialogHeader>
+              </>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
 
-        <div className="flex-1 overflow-y-auto space-y-4 py-4">
-          {allNotifications.length === 0 ? (
-            <div className="text-center py-8">
-              <Bell className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">Nenhuma notificação</p>
+        {/* Notifications List */}
+        <div className="flex-1 overflow-y-auto">
+          {combinedNotifications.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center p-6">
+              <Bell className="w-12 h-12 text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium text-gray-500 mb-2">
+                Nenhuma notificação
+              </h3>
+              <p className="text-sm text-gray-400">
+                Você receberá notificações sobre a van e seus filhos aqui
+              </p>
             </div>
           ) : (
-            <>
-              {/* Unread Notifications */}
-              {unreadNotifications.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-800 mb-3">Não lidas</h3>
-                  <div className="space-y-2">
-                    {unreadNotifications.map(notification => (
-                      <div
-                        key={notification.id}
-                        onClick={() => handleNotificationClick(notification)}
-                        className={`border-l-4 p-3 rounded-r-lg cursor-pointer hover:shadow-md transition-shadow ${getNotificationColor(notification.type)} ${isSelectionMode ? 'bg-gray-50' : ''}`}
-                      >
-                        <div className="flex items-start gap-3">
-                          {isSelectionMode && (
-                            <Checkbox
-                              checked={selectedNotifications.includes(notification.id)}
-                              onCheckedChange={() => handleNotificationClick(notification)}
-                              onClick={(e) => e.stopPropagation()}
-                            />
+            <div className="p-2">
+              {combinedNotifications.map((notification) => (
+                <div
+                  key={`${notification.isRealTime ? 'rt' : 'legacy'}-${notification.id}`}
+                  className={`p-3 rounded-lg mb-2 cursor-pointer transition-colors ${
+                    notification.isRead 
+                      ? 'bg-gray-50 hover:bg-gray-100' 
+                      : 'bg-blue-50 hover:bg-blue-100 border border-blue-200'
+                  } ${
+                    showSelectionMode && selectedNotifications.includes(notification.id)
+                      ? 'ring-2 ring-blue-500'
+                      : ''
+                  }`}
+                  onClick={() => handleNotificationClick(notification)}
+                >
+                  <div className="flex items-start gap-3">
+                    {showSelectionMode && (
+                      <input
+                        type="checkbox"
+                        checked={selectedNotifications.includes(notification.id)}
+                        onChange={() => toggleNotificationSelection(notification.id)}
+                        className="mt-1"
+                      />
+                    )}
+                    
+                    <div className="flex-shrink-0 mt-1">
+                      {getNotificationIcon(notification.type)}
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="text-sm font-medium text-gray-900 mb-1">
+                            {notification.title || getNotificationTitle(notification.type)}
+                          </h4>
+                          <p className="text-sm text-gray-700 leading-relaxed">
+                            {notification.message}
+                          </p>
+                          {notification.studentName && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              👤 {notification.studentName}
+                            </p>
                           )}
-                          {getNotificationIcon(notification.type)}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-800">
-                              {notification.isRealTime ? notification.title : notification.studentName}
-                            </p>
-                            <p className="text-sm text-gray-600 mt-1">
-                              {notification.message}
-                            </p>
-                            <div className="flex items-center gap-2 mt-2">
-                              <span className="text-xs text-gray-500">
-                                {formatTime(notification.timestamp)}
-                              </span>
-                              {notification.location && (
-                                <div className="flex items-center gap-1 text-xs text-blue-600">
-                                  <MapPin className="w-3 h-3" />
-                                  Ver localização
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          {!isSelectionMode ? (
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => handleDeleteSingle(notification.id, e)}
-                                className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                            </div>
-                          ) : null}
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Read Notifications */}
-              {readNotifications.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-800 mb-3">Anteriores</h3>
-                  <div className="space-y-2">
-                    {readNotifications.slice(0, 10).map(notification => (
-                      <div
-                        key={notification.id}
-                        onClick={() => handleNotificationClick(notification)}
-                        className={`border-l-4 p-3 rounded-r-lg cursor-pointer hover:shadow-md transition-shadow opacity-75 ${getNotificationColor(notification.type)} ${isSelectionMode ? 'bg-gray-50' : ''}`}
-                      >
-                        <div className="flex items-start gap-3">
-                          {isSelectionMode && (
-                            <Checkbox
-                              checked={selectedNotifications.includes(notification.id)}
-                              onCheckedChange={() => handleNotificationClick(notification)}
-                              onClick={(e) => e.stopPropagation()}
-                            />
+                        
+                        <div className="flex flex-col items-end ml-2">
+                          <span className="text-xs text-gray-500">
+                            {formatTime(notification.timestamp)}
+                          </span>
+                          {!notification.isRead && (
+                            <div className="w-2 h-2 bg-blue-600 rounded-full mt-1"></div>
                           )}
-                          {getNotificationIcon(notification.type)}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-700">
-                              {notification.isRealTime ? notification.title : notification.studentName}
-                            </p>
-                            <p className="text-sm text-gray-600 mt-1">
-                              {notification.message}
-                            </p>
-                            <div className="flex items-center gap-2 mt-2">
-                              <span className="text-xs text-gray-500">
-                                {formatTime(notification.timestamp)}
-                              </span>
-                              {notification.location && (
-                                <div className="flex items-center gap-1 text-xs text-blue-600">
-                                  <MapPin className="w-3 h-3" />
-                                  Ver localização
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          {!isSelectionMode && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => handleDeleteSingle(notification.id, e)}
-                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                          {notification.isRealTime && (
+                            <span className="text-xs bg-green-100 text-green-800 px-1 rounded mt-1">
+                              Tempo real
+                            </span>
                           )}
                         </div>
                       </div>
-                    ))}
+                      
+                      {notification.location && (
+                        <div className="flex items-center gap-1 mt-2 text-xs text-gray-500">
+                          <MapPin className="w-3 h-3" />
+                          <span>Localização disponível</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              )}
-            </>
+              ))}
+            </div>
           )}
         </div>
-
-        <div className="flex justify-between items-center pt-4 border-t">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              unreadNotifications.forEach(n => {
-                if (n.isRealTime && onMarkRealTimeAsRead) {
-                  const originalId = n.id.replace(/^rt_(.+)_\d+$/, '$1');
-                  onMarkRealTimeAsRead(originalId);
-                } else {
-                  const originalId = n.id.replace(/^legacy_(.+)_\d+$/, '$1');
-                  onMarkAsRead(originalId);
-                }
-              });
-              if (onMarkAllRealTimeAsRead) {
-                onMarkAllRealTimeAsRead();
-              }
-            }}
-            disabled={unreadNotifications.length === 0}
-          >
-            Marcar todas como lidas
-          </Button>
-          <Button onClick={onClose}>
-            Fechar
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 };
