@@ -3,28 +3,17 @@ import * as React from "react"
 const MOBILE_BREAKPOINT = 768
 
 export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean>(() => {
-    // Inicialização imediata para evitar undefined
-    if (typeof window !== 'undefined') {
-      return window.innerWidth < MOBILE_BREAKPOINT;
-    }
-    return false; // Fallback para SSR
-  });
+  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
 
   React.useEffect(() => {
     const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
     const onChange = () => {
-      const newIsMobile = window.innerWidth < MOBILE_BREAKPOINT;
-      console.log('📱 Mobile detection changed:', newIsMobile);
-      setIsMobile(newIsMobile);
+      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
     }
     mql.addEventListener("change", onChange)
-    // Garantir que o estado inicial está correto
-    const initialIsMobile = window.innerWidth < MOBILE_BREAKPOINT;
-    setIsMobile(initialIsMobile);
-    console.log('📱 Initial mobile detection:', initialIsMobile);
+    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
     return () => mql.removeEventListener("change", onChange)
   }, [])
 
-  return isMobile
+  return !!isMobile
 }

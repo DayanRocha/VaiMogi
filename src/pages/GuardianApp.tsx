@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GuardianMapView } from '@/components/GuardianMapView';
-import { MobileGuardianMapView } from '@/components/MobileGuardianMapView';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { GuardianHeader } from '@/components/GuardianHeader';
 import { GuardianMenuModal } from '@/components/GuardianMenuModal';
 import { NotificationPanel } from '@/components/NotificationPanel';
@@ -16,13 +14,7 @@ import { initNotificationCleanup } from '@/utils/notificationCleanup';
 
 export const GuardianApp = () => {
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
   const [showMenuModal, setShowMenuModal] = useState(false);
-  
-  // Debug para renderização condicional
-  useEffect(() => {
-    console.log('🖥️ GuardianApp render - isMobile:', isMobile, 'window.innerWidth:', window.innerWidth);
-  }, [isMobile]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [autoFocusMap, setAutoFocusMap] = useState(false);
@@ -198,21 +190,12 @@ export const GuardianApp = () => {
 
       {/* Main Map View */}
       <div className="h-[calc(100vh-64px)] relative">
-        {isMobile ? (
-          <MobileGuardianMapView
-            driver={driver}
-            van={van}
-            students={students}
-            activeTrip={activeTrip}
-          />
-        ) : (
-          <GuardianMapView
-            driver={driver}
-            van={van}
-            students={students}
-            activeTrip={activeTrip}
-          />
-        )}
+        <GuardianMapView
+          driver={driver}
+          van={van}
+          students={students}
+          activeTrip={activeTrip}
+        />
         
         {/* Indicador de Auto Focus do Mapa */}
         {autoFocusMap && (
