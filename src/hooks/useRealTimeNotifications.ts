@@ -1,21 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { realTimeNotificationService } from '@/services/realTimeNotificationService';
-
-export interface RealTimeNotification {
-  id: string;
-  type: 'route_started' | 'student_picked_up' | 'student_dropped_off' | 'arriving_soon' | 'arrived_at_location' | 'route_completed' | 'route_delayed';
-  message: string;
-  timestamp: string;
-  isRead: boolean;
-  studentName?: string;
-  location?: {
-    lat: number;
-    lng: number;
-  };
-  routeId?: string;
-  guardianIds: string[];
-}
+import { realTimeNotificationService, RealTimeNotification } from '@/services/realTimeNotificationService';
 
 export const useRealTimeNotifications = (guardianId: string) => {
   const [notifications, setNotifications] = useState<RealTimeNotification[]>([]);

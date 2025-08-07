@@ -1,22 +1,7 @@
-
 import React, { useState } from 'react';
 import { X, Bell, Trash2, Check, CheckCheck, Clock, MapPin } from 'lucide-react';
 import { GuardianNotification } from '@/hooks/useGuardianData';
-
-interface RealTimeNotification {
-  id: string;
-  type: 'route_started' | 'student_picked_up' | 'student_dropped_off' | 'arriving_soon' | 'arrived_at_location' | 'route_completed' | 'route_delayed';
-  message: string;
-  timestamp: string;
-  isRead: boolean;
-  studentName?: string;
-  location?: {
-    lat: number;
-    lng: number;
-  };
-  routeId?: string;
-  guardianIds: string[];
-}
+import { RealTimeNotification } from '@/services/realTimeNotificationService';
 
 // Union type for combined notifications
 type CombinedNotification = (GuardianNotification & { isRealTime: false; title?: string }) | (RealTimeNotification & { isRealTime: true; title?: string });
@@ -342,7 +327,7 @@ export const NotificationPanel = ({
                       {'location' in notification && notification.location && (
                         <div className="flex items-center gap-1 mt-2 text-xs text-gray-500">
                           <MapPin className="w-3 h-3" />
-                          <span>Localização disponível</span>
+                          <span>Localização: {notification.location}</span>
                         </div>
                       )}
                     </div>
