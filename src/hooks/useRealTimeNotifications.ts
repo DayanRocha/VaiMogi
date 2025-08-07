@@ -1,63 +1,113 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { realTimeNotificationService, RealTimeNotification } from '@/services/realTimeNotificationService';
+import { audioService } from '@/services/audioService';
 
 export const useRealTimeNotifications = (guardianId: string) => {
   const [notifications, setNotifications] = useState<RealTimeNotification[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  // Carregar notificações na inicialização
+  // Carregar notificações existentes
   useEffect(() => {
-    const loadNotifications = () => {
-      const stored = realTimeNotificationService.getNotificationsForGuardian(guardianId);
-      setNotifications(stored);
-      setIsLoading(false);
-    };
-
-    loadNotifications();
+    const existingNotifications = realTimeNotificationService.getNotificationsForGuardian(guardianId);
+    setNotifications(existingNotifications);
+    setUnreadCount(existingNotifications.filter(n => !n.isRead).length);
   }, [guardianId]);
 
-  // Escutar novas notificações
-  useEffect(() => {
-    const handleNewNotification = (notification: RealTimeNotification) => {
-      if (notification.guardianIds.includes(guardianId)) {
-        setNotifications(prev => [notification, ...prev]);
+  // Callback para processar nova notificação
+  const handleNewNotification = useCallback(async (notification: RealTimeNotification) => {
+    console.log('🔔 Nova notificação recebida:', notification.title);
+
+    // Verificar se já existe para evitar duplicação
+    setNotifications(prev => {
+      const exists = prev.some(n => n.id === notification.id);
+      if (exists) {
+        console.log('⚠️ Notificação duplicada ignorada:', notification.id);
+        return prev;
       }
-    };
+      
+      // Adicionar nova notificação
+      setUnreadCount(prevCount => prevCount + 1);
+      return [notification, ...prev];
+    });
 
-    const cleanup = realTimeNotificationService.subscribe(guardianId, handleNewNotification);
+    // Tocar som de notificação
+    try {
+      await audioService.playNotificationSound();
+    } catch (error) {
+      console.warn('Não foi possível tocar som de notificação:', error);
+    }
 
-    return cleanup;
-  }, [guardianId]);
+    // Mostrar notificação do browser (se permitido)
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(notification.title, {
+        body: notification.message,
+        icon: '/favicon.ico',
+        tag: notification.id
+      });
+    }
 
-  const markAsRead = useCallback((notification: RealTimeNotification) => {
-    realTimeNotificationService.markAsRead(notification.id, guardianId);
-    setNotifications(prev =>
-      prev.map(n => n.id === notification.id ? { ...n, isRead: true } : n)
+    // Vibrar dispositivo (se suportado)
+    if ('vibrate' in navigator) {
+      navigator.vibrate([200, 100, 200]);
+    }
+  }, []);
+
+  // Inscrever-se para notificações em tempo real
+  useEffect(() => {
+    const unsubscribe = realTimeNotificationService.subscribe(guardianId, handleNewNotification);
+    
+    // Solicitar permissão para notificações do browser
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then(permission => {
+        console.log('Permissão de notificação:', permission);
+      });
+    }
+
+    // Limpeza automática de notificações antigas
+    realTimeNotificationService.cleanupOldNotifications();
+
+    return unsubscribe;
+  }, [guardianId, handleNewNotification]);
+
+  // Marcar notificação como lida
+  const markAsRead = useCallback((notificationId: string) => {
+    realTimeNotificationService.markAsRead(notificationId, guardianId);
+    
+    setNotifications(prev => 
+      prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
     );
+    
+    setUnreadCount(prev => Math.max(0, prev - 1));
   }, [guardianId]);
 
+  // Marcar todas como lidas
   const markAllAsRead = useCallback(() => {
-    const unreadIds = notifications.filter(n => !n.isRead).map(n => n.id);
-    unreadIds.forEach(id => realTimeNotificationService.markAsRead(id, guardianId));
-    setNotifications(prev =>
-      prev.map(n => ({ ...n, isRead: true }))
-    );
+    notifications.forEach(n => {
+      if (!n.isRead) {
+        realTimeNotificationService.markAsRead(n.id, guardianId);
+      }
+    });
+    
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    setUnreadCount(0);
   }, [notifications, guardianId]);
 
-  const deleteNotification = useCallback((notification: RealTimeNotification) => {
-    realTimeNotificationService.deleteNotification(notification.id, guardianId);
-    setNotifications(prev => prev.filter(n => n.id !== notification.id));
-  }, [guardianId]);
-
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  // Excluir notificação
+  const deleteNotification = useCallback((notificationId: string) => {
+    realTimeNotificationService.deleteNotification(notificationId, guardianId);
+    
+    setNotifications(prev => prev.filter(n => n.id !== notificationId));
+    setUnreadCount(prev => {
+      const notification = notifications.find(n => n.id === notificationId);
+      return notification && !notification.isRead ? Math.max(0, prev - 1) : prev;
+    });
+  }, [guardianId, notifications]);
 
   return {
     notifications,
     unreadCount,
     markAsRead,
     markAllAsRead,
-    deleteNotification,
-    isLoading
+    deleteNotification
   };
 };
