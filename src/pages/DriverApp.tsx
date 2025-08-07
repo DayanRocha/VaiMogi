@@ -14,6 +14,7 @@ import { RouteExecutionPage } from '@/components/RouteExecutionPage';
 import { RouteMountingPage } from '@/components/RouteMountingPage';
 import { SavedRoutesList } from '@/components/SavedRoutesList';
 import { RouteExecutionScreen } from '@/components/RouteExecutionScreen';
+import { RouteHistoryPage } from '@/components/RouteHistoryPage';
 import { StudentsList } from '@/components/StudentsList';
 import { StudentRegistration } from '@/components/StudentRegistration';
 import { GuardiansList } from '@/components/GuardiansList';
@@ -25,33 +26,60 @@ import { SchoolRegistration } from '@/components/SchoolRegistration';
 import { ActiveTrip } from '@/components/ActiveTrip';
 import { BottomNavigation } from '@/components/BottomNavigation';
 import { useDriverData } from '@/hooks/useDriverData';
+import { realTimeNotificationService } from '@/services/realTimeNotificationService';
 import { Route, Student, Guardian, School as SchoolType } from '@/types/driver';
 
 export default function DriverApp() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('home');
-  const [navigationStack, setNavigationStack] = useState<string[]>(['home']);
-  const [showRouteForm, setShowRouteForm] = useState(false);
-  const [showStudentForm, setShowStudentForm] = useState(false);
-  const [showGuardianForm, setShowGuardianForm] = useState(false);
-  const [showGuardianCodes, setShowGuardianCodes] = useState(false);
-  const [showSchoolForm, setShowSchoolForm] = useState(false);
+  
+  // Função para recuperar estado persistido
+  const getPersistedState = () => {
+    try {
+      const savedActiveTab = localStorage.getItem('driverApp_activeTab');
+      const savedNavigationStack = localStorage.getItem('driverApp_navigationStack');
+      const savedShowStates = localStorage.getItem('driverApp_showStates');
+      
+      return {
+        activeTab: savedActiveTab || 'home',
+        navigationStack: savedNavigationStack ? JSON.parse(savedNavigationStack) : ['home'],
+        showStates: savedShowStates ? JSON.parse(savedShowStates) : {}
+      };
+    } catch (error) {
+      console.error('Erro ao recuperar estado persistido:', error);
+      return {
+        activeTab: 'home',
+        navigationStack: ['home'],
+        showStates: {}
+      };
+    }
+  };
+  
+  const persistedState = getPersistedState();
+  
+  const [activeTab, setActiveTab] = useState(persistedState.activeTab);
+  const [navigationStack, setNavigationStack] = useState<string[]>(persistedState.navigationStack);
+  const [showRouteForm, setShowRouteForm] = useState(persistedState.showStates.showRouteForm || false);
+  const [showStudentForm, setShowStudentForm] = useState(persistedState.showStates.showStudentForm || false);
+  const [showGuardianForm, setShowGuardianForm] = useState(persistedState.showStates.showGuardianForm || false);
+  const [showGuardianCodes, setShowGuardianCodes] = useState(persistedState.showStates.showGuardianCodes || false);
+  const [showSchoolForm, setShowSchoolForm] = useState(persistedState.showStates.showSchoolForm || false);
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [editingGuardian, setEditingGuardian] = useState<Guardian | null>(null);
   const [editingSchool, setEditingSchool] = useState<SchoolType | null>(null);
-  const [showClients, setShowClients] = useState(false);
-  const [showDrivers, setShowDrivers] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [activeTopButton, setActiveTopButton] = useState<'clients' | 'drivers' | 'settings' | 'trip' | null>(null);
+  const [showClients, setShowClients] = useState(persistedState.showStates.showClients || false);
+  const [showDrivers, setShowDrivers] = useState(persistedState.showStates.showDrivers || false);
+  const [showSettings, setShowSettings] = useState(persistedState.showStates.showSettings || false);
+  const [activeTopButton, setActiveTopButton] = useState<'clients' | 'drivers' | 'settings' | 'trip' | null>(persistedState.showStates.activeTopButton || null);
 
-  const [showRoutesListPage, setShowRoutesListPage] = useState(false);
-  const [showRouteFormPage, setShowRouteFormPage] = useState(false);
-  const [showRouteSetupPage, setShowRouteSetupPage] = useState(false);
-  const [showRouteExecutionPage, setShowRouteExecutionPage] = useState(false);
-  const [showRouteMountingPage, setShowRouteMountingPage] = useState(false);
-  const [showSavedRoutesList, setShowSavedRoutesList] = useState(false);
-  const [showRouteExecutionScreen, setShowRouteExecutionScreen] = useState(false);
+  const [showRoutesListPage, setShowRoutesListPage] = useState(persistedState.showStates.showRoutesListPage || false);
+  const [showRouteFormPage, setShowRouteFormPage] = useState(persistedState.showStates.showRouteFormPage || false);
+  const [showRouteSetupPage, setShowRouteSetupPage] = useState(persistedState.showStates.showRouteSetupPage || false);
+  const [showRouteExecutionPage, setShowRouteExecutionPage] = useState(persistedState.showStates.showRouteExecutionPage || false);
+  const [showRouteMountingPage, setShowRouteMountingPage] = useState(persistedState.showStates.showRouteMountingPage || false);
+  const [showSavedRoutesList, setShowSavedRoutesList] = useState(persistedState.showStates.showSavedRoutesList || false);
+  const [showRouteExecutionScreen, setShowRouteExecutionScreen] = useState(persistedState.showStates.showRouteExecutionScreen || false);
+  const [showRouteHistoryPage, setShowRouteHistoryPage] = useState(persistedState.showStates.showRouteHistoryPage || false);
   const [executingRoute, setExecutingRoute] = useState<Route | null>(null);
   const [newRouteData, setNewRouteData] = useState<{ name: string; time: string; selectedDays: string[] } | null>(null);
 
@@ -79,6 +107,7 @@ export default function DriverApp() {
       setShowRouteSetupPage(false);
       setShowRouteExecutionPage(false);
       setShowRouteMountingPage(false);
+      setShowRouteHistoryPage(false);
       setEditingStudent(null);
       setEditingGuardian(null);
       setEditingSchool(null);
@@ -111,18 +140,63 @@ export default function DriverApp() {
     }
   };
 
-  // Handle browser back button
+  // Persistir estado no localStorage sempre que mudar
   useEffect(() => {
-    const handlePopState = () => {
-      handleBackNavigation();
+    localStorage.setItem('driverApp_activeTab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem('driverApp_navigationStack', JSON.stringify(navigationStack));
+  }, [navigationStack]);
+
+  useEffect(() => {
+    const showStates = {
+      showRouteForm,
+      showStudentForm,
+      showGuardianForm,
+      showGuardianCodes,
+      showSchoolForm,
+      showClients,
+      showDrivers,
+      showSettings,
+      activeTopButton,
+      showRoutesListPage,
+      showRouteFormPage,
+      showRouteSetupPage,
+      showRouteExecutionPage,
+      showRouteMountingPage,
+      showSavedRoutesList,
+      showRouteExecutionScreen,
+      showRouteHistoryPage
+    };
+    localStorage.setItem('driverApp_showStates', JSON.stringify(showStates));
+  }, [showRouteForm, showStudentForm, showGuardianForm, showGuardianCodes, showSchoolForm, showClients, showDrivers, showSettings, activeTopButton, showRoutesListPage, showRouteFormPage, showRouteSetupPage, showRouteExecutionPage, showRouteMountingPage, showSavedRoutesList, showRouteExecutionScreen, showRouteHistoryPage]);
+
+  // Handle browser back button (mas não durante refresh)
+  useEffect(() => {
+    let isRefresh = false;
+    
+    // Detectar se é um refresh da página
+    const handleBeforeUnload = () => {
+      isRefresh = true;
+    };
+    
+    const handlePopState = (event: PopStateEvent) => {
+      // Se não é um refresh, então é navegação do botão voltar
+      if (!isRefresh) {
+        handleBackNavigation();
+      }
+      isRefresh = false; // Reset flag
     };
 
+    window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('popstate', handlePopState);
 
     return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('popstate', handlePopState);
     };
-  }, []);
+  }, [navigationStack]);
 
   const {
     driver,
@@ -494,7 +568,11 @@ export default function DriverApp() {
               alert('Nenhuma viagem ativa no momento. Inicie uma rota para começar.');
             }
           }}
-          onRouteHistory={() => { }}
+          onRouteHistory={() => {
+            setShowRoutesListPage(false);
+            setShowRouteHistoryPage(true);
+            addToNavigationStack('routeHistory');
+          }}
           onRouteCreated={(routeData) => {
             setNewRouteData(routeData);
             setShowRoutesListPage(false);
@@ -524,6 +602,18 @@ export default function DriverApp() {
           students={students}
           schools={schools}
           onUpdateStudent={updateStudent}
+        />
+      );
+    }
+
+    if (showRouteHistoryPage) {
+      return (
+        <RouteHistoryPage
+          onBack={() => {
+            setShowRouteHistoryPage(false);
+            setShowRoutesListPage(true);
+            handleBackNavigation();
+          }}
         />
       );
     }

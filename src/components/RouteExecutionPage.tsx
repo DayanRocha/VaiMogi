@@ -138,7 +138,7 @@ export const RouteExecutionPage = ({
                         : 'bg-green-100 text-green-700 hover:bg-green-200'
                     }`}
                   >
-                    {student.dropoffLocation === 'home' ? '🏠 Desembarque' : '🎒 Embarque'}
+                    {student.dropoffLocation === 'home' ? '🏠 Embarque' : '🎒 Desembarque'}
                   </button>
                   <button 
                     onClick={() => handleRemoveStudent(student.id)}

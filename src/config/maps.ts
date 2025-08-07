@@ -1,6 +1,6 @@
 // Configuração do Mapbox
 export const MAPBOX_CONFIG = {
-  accessToken: 'pk.eyJ1IjoiZGF5YW5yb2NoYSIsImEiOiJjbWRxNjIybm4wMzRuMmpvaW9hOHU4bXRxIn0.Qg9EpqZDmZSnkkac-otvOQ',
+  accessToken: import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '',
   style: 'mapbox://styles/mapbox/streets-v12',
   defaultCenter: {
     lng: -46.6333,
@@ -16,9 +16,3 @@ export const isMapboxConfigured = (): boolean => {
          MAPBOX_CONFIG.accessToken.length > 20;
 };
 
-// Log de configuração
-console.log('🗺️ Mapbox Config:', {
-  configured: isMapboxConfigured(),
-  token: MAPBOX_CONFIG.accessToken ? 'Presente' : 'Ausente',
-  tokenValid: MAPBOX_CONFIG.accessToken.startsWith('pk.')
-});

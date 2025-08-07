@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import L from 'leaflet';
 import { Navigation, MapPin, AlertCircle } from 'lucide-react';
 import { ActiveRoute, RouteLocation } from '@/services/routeTrackingService';
-
-// Importar CSS do Leaflet
-import 'leaflet/dist/leaflet.css';
+import { MapboxMap } from './maps/MapboxMap';
+import { useMapbox } from '../hooks/useMapbox';
+import mapboxgl from 'mapbox-gl';
 
 interface LeafletMapProps {
   activeRoute: ActiveRoute;
@@ -24,203 +23,104 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
   driverLocation,
   nextDestination
 }) => {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const [map, setMap] = useState<L.Map | null>(null);
-  const [driverMarker, setDriverMarker] = useState<L.Marker | null>(null);
-  const [destinationMarkers, setDestinationMarkers] = useState<L.Marker[]>([]);
-  const [routeLine, setRouteLine] = useState<L.Polyline | null>(null);
+  const { getRoute, isLoading: mapboxLoading, error: mapboxError } = useMapbox();
+  const [map, setMap] = useState<mapboxgl.Map | null>(null);
+  const [markers, setMarkers] = useState<Array<{
+    id: string;
+    coordinates: [number, number];
+    popup?: string;
+    color?: string;
+  }>>([]);
+  const [route, setRoute] = useState<Array<[number, number]>>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Criar ícones personalizados
-  const createDriverIcon = () => {
-    return L.divIcon({
-      html: `
-        <div style="
-          width: 40px; 
-          height: 40px; 
-          background: #3B82F6; 
-          border: 3px solid white; 
-          border-radius: 50%; 
-          display: flex; 
-          align-items: center; 
-          justify-content: center;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-          font-size: 20px;
-        ">🚐</div>
-      `,
-      className: 'custom-driver-icon',
-      iconSize: [40, 40],
-      iconAnchor: [20, 20]
-    });
-  };
-
-  const createStudentIcon = (index: number, status: string, isNext: boolean) => {
-    const color = status === 'pending' ? (isNext ? '#F59E0B' : '#EF4444') :
-                 status === 'picked_up' ? '#3B82F6' : '#10B981';
-    
-    return L.divIcon({
-      html: `
-        <div style="
-          width: 32px; 
-          height: 32px; 
-          background: ${color}; 
-          border: 2px solid white; 
-          border-radius: 50%; 
-          display: flex; 
-          align-items: center; 
-          justify-content: center;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-          color: white;
-          font-weight: bold;
-          font-size: 14px;
-        ">${index + 1}</div>
-      `,
-      className: 'custom-student-icon',
-      iconSize: [32, 32],
-      iconAnchor: [16, 16]
-    });
-  };
-
-  // Inicializar mapa
+  // Atualizar marcadores baseado nos dados da rota
   useEffect(() => {
-    if (!mapRef.current) return;
+    const newMarkers = [];
 
-    try {
-      // Criar mapa centrado no Brasil (São Paulo)
-      const mapInstance = L.map(mapRef.current).setView([-23.5505, -46.6333], 12);
-
-      // Adicionar camada do OpenStreetMap
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        maxZoom: 19
-      }).addTo(mapInstance);
-
-      setMap(mapInstance);
-      setIsLoading(false);
-
-      console.log('🗺️ Leaflet Map inicializado com sucesso');
-
-      return () => {
-        mapInstance.remove();
-      };
-    } catch (error) {
-      console.error('❌ Erro ao inicializar mapa:', error);
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Atualizar localização do motorista
-  useEffect(() => {
-    if (!map || !driverLocation) return;
-
-    // Remover marcador anterior
-    if (driverMarker) {
-      map.removeLayer(driverMarker);
+    // Adicionar marcador do motorista
+    if (driverLocation) {
+      newMarkers.push({
+        id: 'driver',
+        coordinates: [driverLocation.lng, driverLocation.lat] as [number, number],
+        popup: `
+          <div class="p-3">
+            <h3 class="font-bold text-sm mb-1">🚐 ${activeRoute.driverName}</h3>
+            <p class="text-xs text-gray-600">Motorista da Van</p>
+            <p class="text-xs mt-1">Última atualização: ${new Date(driverLocation.timestamp).toLocaleTimeString()}</p>
+          </div>
+        `,
+        color: '#3b82f6'
+      });
     }
 
-    // Criar novo marcador do motorista
-    const marker = L.marker([driverLocation.lat, driverLocation.lng], {
-      icon: createDriverIcon()
-    }).addTo(map);
+    // Adicionar marcadores dos estudantes
+    if (activeRoute.studentPickups) {
+      activeRoute.studentPickups.forEach((student, index) => {
+        if (student.lat && student.lng) {
+          const isNext = nextDestination?.studentId === student.studentId;
+          const statusColors = {
+            pending: isNext ? '#f59e0b' : '#ef4444',
+            picked_up: '#3b82f6',
+            dropped_off: '#10b981'
+          };
 
-    // Popup com informações do motorista
-    marker.bindPopup(`
-      <div style="padding: 8px;">
-        <h3 style="margin: 0 0 8px 0; color: #1f2937;">${activeRoute.driverName}</h3>
-        <p style="margin: 0; font-size: 12px; color: #6b7280;">
-          Última atualização: ${new Date(driverLocation.timestamp).toLocaleTimeString()}
-        </p>
-        <p style="margin: 4px 0 0 0; font-size: 12px; color: #6b7280;">
-          Precisão: ${driverLocation.accuracy ? Math.round(driverLocation.accuracy) + 'm' : 'N/A'}
-        </p>
-      </div>
-    `);
+          const statusText = {
+            pending: 'Aguardando',
+            picked_up: 'Na Van',
+            dropped_off: 'Entregue'
+          };
 
-    setDriverMarker(marker);
+          newMarkers.push({
+            id: student.studentId,
+            coordinates: [student.lng, student.lat] as [number, number],
+            popup: `
+              <div class="p-3 min-w-[200px]">
+                <h3 class="font-bold text-sm mb-1">${student.studentName}</h3>
+                <p class="text-xs text-gray-600 mb-1">${student.address}</p>
+                <p class="text-xs">
+                  <span class="inline-block w-2 h-2 rounded-full mr-1" style="background-color: ${statusColors[student.status]}"></span>
+                  ${statusText[student.status]}
+                </p>
+                ${isNext ? '<p class="text-xs mt-1 font-bold text-yellow-600">⭐ Próximo destino</p>' : ''}
+              </div>
+            `,
+            color: statusColors[student.status]
+          });
+        }
+      });
+    }
 
-    // Centralizar mapa na localização do motorista
-    map.setView([driverLocation.lat, driverLocation.lng], 14);
+    setMarkers(newMarkers);
+    setIsLoading(false);
+  }, [activeRoute, driverLocation, nextDestination]);
 
-    console.log('📍 Localização do motorista atualizada:', driverLocation);
-  }, [map, driverLocation, activeRoute.driverName]);
-
-  // Atualizar marcadores dos destinos
+  // Calcular rota quando necessário
   useEffect(() => {
-    if (!map || !activeRoute.studentPickups) return;
+    if (!driverLocation || !activeRoute.studentPickups) return;
 
-    // Remover marcadores anteriores
-    destinationMarkers.forEach(marker => map.removeLayer(marker));
-
-    const newMarkers: L.Marker[] = [];
-
-    activeRoute.studentPickups.forEach((student, index) => {
-      if (!student.lat || !student.lng) return;
-
-      const isNext = nextDestination?.studentId === student.studentId;
+    const calculateRoute = async () => {
+      const pendingStudents = activeRoute.studentPickups
+        .filter(student => student.status === 'pending' && student.lat && student.lng);
       
-      const marker = L.marker([student.lat, student.lng], {
-        icon: createStudentIcon(index, student.status, isNext)
-      }).addTo(map);
+      if (pendingStudents.length === 0) return;
 
-      // Popup com informações do estudante
-      const statusText = student.status === 'pending' ? 'Aguardando' :
-                        student.status === 'picked_up' ? 'Na Van' : 'Entregue';
-      
-      marker.bindPopup(`
-        <div style="padding: 8px;">
-          <h3 style="margin: 0 0 8px 0; color: #1f2937;">${student.studentName}</h3>
-          <p style="margin: 0; font-size: 12px; color: #6b7280;">${student.address}</p>
-          <p style="margin: 4px 0 0 0; font-size: 12px;">
-            Status: <span style="font-weight: bold;">${statusText}</span>
-          </p>
-          ${isNext ? '<p style="margin: 4px 0 0 0; font-size: 12px; color: #F59E0B; font-weight: bold;">📍 Próximo destino</p>' : ''}
-        </div>
-      `);
+      // Rota simples: conectar pontos em sequência
+      const routePoints: Array<[number, number]> = [
+        [driverLocation.lng, driverLocation.lat]
+      ];
 
-      newMarkers.push(marker);
-    });
+      pendingStudents.forEach(student => {
+        routePoints.push([student.lng, student.lat!]);
+      });
 
-    setDestinationMarkers(newMarkers);
-  }, [map, activeRoute.studentPickups, nextDestination]);
+      // Para uma implementação mais avançada, você pode usar a API de rotas do MapBox
+      // Por enquanto, vamos apenas conectar os pontos
+      setRoute(routePoints);
+    };
 
-  // Desenhar linha da rota até o próximo destino
-  useEffect(() => {
-    if (!map || !driverLocation || !nextDestination || !nextDestination.lat || !nextDestination.lng) {
-      // Remover linha se não há destino
-      if (routeLine) {
-        map.removeLayer(routeLine);
-        setRouteLine(null);
-      }
-      return;
-    }
-
-    // Remover linha anterior
-    if (routeLine) {
-      map.removeLayer(routeLine);
-    }
-
-    // Criar linha direta entre motorista e próximo destino
-    const line = L.polyline([
-      [driverLocation.lat, driverLocation.lng],
-      [nextDestination.lat, nextDestination.lng]
-    ], {
-      color: '#3B82F6',
-      weight: 4,
-      opacity: 0.8,
-      dashArray: '10, 5'
-    }).addTo(map);
-
-    setRouteLine(line);
-
-    // Ajustar zoom para mostrar ambos os pontos
-    const bounds = L.latLngBounds([
-      [driverLocation.lat, driverLocation.lng],
-      [nextDestination.lat, nextDestination.lng]
-    ]);
-    map.fitBounds(bounds, { padding: [50, 50] });
-
-    console.log('🛣️ Linha da rota desenhada para:', nextDestination.studentName);
-  }, [map, driverLocation, nextDestination]);
+    calculateRoute();
+  }, [driverLocation, activeRoute.studentPickups, getRoute]);
 
   if (isLoading) {
     return (
@@ -235,7 +135,13 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
 
   return (
     <div className="relative w-full h-full">
-      <div ref={mapRef} className="w-full h-full" />
+      <MapboxMap
+        center={driverLocation ? [driverLocation.lng, driverLocation.lat] : undefined}
+        markers={markers}
+        route={route}
+        onMapLoad={setMap}
+        className="w-full h-full"
+      />
       
       {/* Legenda */}
       <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm rounded-lg p-3 shadow-lg max-w-xs z-[1000]">
@@ -246,7 +152,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
             <span>Motorista (Van)</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-yellow-500 rounded-full text-white text-xs flex items-center justify-center font-bold">N</div>
+            <div className="w-4 h-4 bg-yellow-500 rounded-full text-white text-xs flex items-center justify-center font-bold">⭐</div>
             <span>Próximo destino</span>
           </div>
           <div className="flex items-center gap-2">
@@ -275,23 +181,23 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
         </div>
       )}
 
-      {/* Controles do mapa */}
-      <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm rounded-lg p-2 shadow-lg z-[1000]">
-        <div className="flex flex-col gap-1">
-          <button
-            onClick={() => map?.zoomIn()}
-            className="w-8 h-8 bg-white border border-gray-300 rounded flex items-center justify-center hover:bg-gray-50 text-lg font-bold"
-          >
-            +
-          </button>
-          <button
-            onClick={() => map?.zoomOut()}
-            className="w-8 h-8 bg-white border border-gray-300 rounded flex items-center justify-center hover:bg-gray-50 text-lg font-bold"
-          >
-            −
-          </button>
+      {/* Indicador de carregamento */}
+      {(isLoading || mapboxLoading) && (
+        <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-md p-2">
+          <div className="flex items-center gap-2 text-sm">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            <span>Carregando mapa...</span>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Indicador de erro */}
+      {mapboxError && (
+        <div className="absolute bottom-4 left-4 bg-red-50 border border-red-200 rounded-lg shadow-md p-3 max-w-xs">
+          <p className="text-red-800 text-sm font-medium">Erro no Mapa</p>
+          <p className="text-red-600 text-xs mt-1">{mapboxError}</p>
+        </div>
+      )}
     </div>
   );
 };
