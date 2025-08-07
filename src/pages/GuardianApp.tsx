@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GuardianMapView } from '@/components/GuardianMapView';
+import { MobileGuardianMapView } from '@/components/MobileGuardianMapView';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { GuardianHeader } from '@/components/GuardianHeader';
 import { GuardianMenuModal } from '@/components/GuardianMenuModal';
 import { NotificationPanel } from '@/components/NotificationPanel';
@@ -14,6 +16,7 @@ import { initNotificationCleanup } from '@/utils/notificationCleanup';
 
 export const GuardianApp = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
@@ -190,12 +193,21 @@ export const GuardianApp = () => {
 
       {/* Main Map View */}
       <div className="h-[calc(100vh-64px)] relative">
-        <GuardianMapView
-          driver={driver}
-          van={van}
-          students={students}
-          activeTrip={activeTrip}
-        />
+        {isMobile ? (
+          <MobileGuardianMapView
+            driver={driver}
+            van={van}
+            students={students}
+            activeTrip={activeTrip}
+          />
+        ) : (
+          <GuardianMapView
+            driver={driver}
+            van={van}
+            students={students}
+            activeTrip={activeTrip}
+          />
+        )}
         
         {/* Indicador de Auto Focus do Mapa */}
         {autoFocusMap && (
