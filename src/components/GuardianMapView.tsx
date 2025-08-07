@@ -3,6 +3,7 @@ import React from 'react';
 import { MapPin } from 'lucide-react';
 import { Driver, Van, Student, Trip } from '@/types/driver';
 import { useRouteTracking } from '@/hooks/useRouteTracking';
+import { RouteTrackingMap } from './maps/RouteTrackingMap';
 
 
 interface GuardianMapViewProps {
@@ -41,18 +42,41 @@ export const GuardianMapView = ({ driver, van, students, activeTrip }: GuardianM
       <div className="absolute inset-0 bg-gradient-to-br from-blue-100 to-green-100">
         {hasActiveRoute && activeRoute && driverLocation ? (
           <>
-            {/* Active Route View */}
+            {/* Active Route View - Mapa Limpo */}
             <div className="w-full h-full relative">
-              {/* Mapa será implementado aqui */}
-              <div className="w-full h-full flex items-center justify-center bg-blue-50">
-                <div className="text-center text-blue-600">
-                  <MapPin className="w-16 h-16 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Mapa em Desenvolvimento</h3>
-                  <p className="text-sm">Funcionalidade de mapa será implementada em breve</p>
-                </div>
-              </div>
+              <RouteTrackingMap
+                students={activeRoute.studentPickups.map(pickup => ({
+                  id: pickup.studentId,
+                  name: pickup.studentName,
+                  pickupPoint: {
+                    address: pickup.address,
+                    coordinates: pickup.coordinates
+                  },
+                  dropoffLocation: 'school' as const,
+                  status: pickup.status === 'completed' ? 'picked_up' : 
+                          pickup.status === 'pending' ? 'waiting' : 'dropped_off'
+                }))}
+                driverLocation={driverLocation ? [driverLocation.lng, driverLocation.lat] : undefined}
+                schoolLocation={[-46.6333, -23.5505]} // Coordenadas padrão de São Paulo
+                className="w-full h-full"
+              />
               
-
+              {/* Overlay com informações da rota */}
+              <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm rounded-lg p-3 shadow-lg border border-gray-200 max-w-xs">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-semibold text-gray-800">Rota Ativa</span>
+                </div>
+                <p className="text-xs text-gray-600 mb-1">
+                  <strong>Motorista:</strong> {activeRoute.driverName}
+                </p>
+                <p className="text-xs text-gray-600 mb-1">
+                  <strong>Estudantes:</strong> {activeRoute.studentPickups.length}
+                </p>
+                <p className="text-xs text-gray-600">
+                  <strong>Próximo:</strong> {nextDestination?.address || 'Calculando...'}
+                </p>
+              </div>
             </div>
           </>
         ) : (

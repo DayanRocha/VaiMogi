@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Driver, Van, Route, Student, School, Guardian, Trip, TripStudent } from '@/types/driver';
 import { useNotificationIntegration } from '@/hooks/useNotificationIntegration';
 import { realTimeNotificationService } from '@/services/realTimeNotificationService';
+import { routeTrackingService } from '@/services/routeTrackingService';
 
 // Mock data - In a real app, this would come from Supabase
 const mockDriver: Driver = {
@@ -519,6 +520,24 @@ export const useDriverData = () => {
       
       console.log(`🚐 ROTA INICIADA: ${route.name}`);
       
+      // Iniciar rastreamento da rota no routeTrackingService
+      const direction = trip.students[0]?.direction || 'to_school';
+      const studentPickups = route.students.map(student => ({
+        studentId: student.id,
+        studentName: student.name,
+        pickupLocation: student.address,
+        status: 'pending' as const
+      }));
+      
+      console.log('🗺️ Iniciando rastreamento da rota...');
+      routeTrackingService.startRoute(
+        driver.id,
+        driver.name,
+        direction,
+        studentPickups
+      );
+      console.log('✅ Rastreamento da rota iniciado com sucesso');
+      
       // Enviar notificação em tempo real para todos os responsáveis da rota
       const allGuardianIds = route.students
         .map(student => guardians.find(g => g.id === student.guardianId && (g.isActive !== false)))
@@ -535,9 +554,6 @@ export const useDriverData = () => {
           guardianIds: allGuardianIds
         });
       }
-      
-      // Notificação legada removida para evitar duplicação
-      // Agora usando apenas notificações em tempo real
     }
   };
 
@@ -775,8 +791,14 @@ export const useDriverData = () => {
         }
       }
       
-      // Notificação legada removida para evitar duplicação
-      // Agora usando apenas notificações em tempo real
+      // Finalizar rota no routeTrackingService para salvar no histórico
+      console.log('🏁 Finalizando rota e salvando no histórico...');
+      const routeEnded = routeTrackingService.endRoute();
+      if (routeEnded) {
+        console.log('✅ Rota finalizada e salva no histórico com sucesso');
+      } else {
+        console.log('⚠️ Nenhuma rota ativa encontrada para finalizar');
+      }
       
       setActiveTrip({ ...activeTrip, status: 'completed' });
       setTimeout(() => {

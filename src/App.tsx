@@ -9,6 +9,7 @@ import { GuardianApp } from "./pages/GuardianApp";
 import NotFound from "./pages/NotFound";
 import { AuthFlow } from "./components/AuthFlow";
 
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -21,6 +22,7 @@ const App = () => (
           <Route path="/" element={<DriverApp />} />
           <Route path="/guardian" element={<GuardianApp />} />
           <Route path="/auth" element={<AuthFlow />} />
+
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

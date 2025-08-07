@@ -1,4 +1,5 @@
 import { GuardianNotification } from '@/hooks/useGuardianData';
+import { routeHistoryService } from './routeHistoryService';
 
 export interface RouteLocation {
   lat: number;
@@ -245,6 +246,13 @@ class RouteTrackingService {
       
       // Salvar estado final
       this.persistRoute(route);
+      
+      // Adicionar rota ao histórico
+      try {
+        routeHistoryService.addCompletedRoute(route);
+      } catch (error) {
+        console.error('❌ Erro ao salvar rota no histórico:', error);
+      }
       
       // Parar rastreamento
       this.stopLocationTracking();

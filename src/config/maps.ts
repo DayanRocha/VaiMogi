@@ -1,6 +1,6 @@
 // Configuração do Mapbox
 export const MAPBOX_CONFIG = {
-  accessToken: '', // Token removido por segurança
+  accessToken: import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '',
   style: 'mapbox://styles/mapbox/streets-v12',
   defaultCenter: {
     lng: -46.6333,

@@ -14,6 +14,7 @@ import { RouteExecutionPage } from '@/components/RouteExecutionPage';
 import { RouteMountingPage } from '@/components/RouteMountingPage';
 import { SavedRoutesList } from '@/components/SavedRoutesList';
 import { RouteExecutionScreen } from '@/components/RouteExecutionScreen';
+import { RouteHistoryPage } from '@/components/RouteHistoryPage';
 import { StudentsList } from '@/components/StudentsList';
 import { StudentRegistration } from '@/components/StudentRegistration';
 import { GuardiansList } from '@/components/GuardiansList';
@@ -53,6 +54,7 @@ export default function DriverApp() {
   const [showRouteMountingPage, setShowRouteMountingPage] = useState(false);
   const [showSavedRoutesList, setShowSavedRoutesList] = useState(false);
   const [showRouteExecutionScreen, setShowRouteExecutionScreen] = useState(false);
+  const [showRouteHistoryPage, setShowRouteHistoryPage] = useState(false);
   const [executingRoute, setExecutingRoute] = useState<Route | null>(null);
   const [newRouteData, setNewRouteData] = useState<{ name: string; time: string; selectedDays: string[] } | null>(null);
 
@@ -80,6 +82,7 @@ export default function DriverApp() {
       setShowRouteSetupPage(false);
       setShowRouteExecutionPage(false);
       setShowRouteMountingPage(false);
+      setShowRouteHistoryPage(false);
       setEditingStudent(null);
       setEditingGuardian(null);
       setEditingSchool(null);
@@ -495,7 +498,11 @@ export default function DriverApp() {
               alert('Nenhuma viagem ativa no momento. Inicie uma rota para começar.');
             }
           }}
-          onRouteHistory={() => { }}
+          onRouteHistory={() => {
+            setShowRoutesListPage(false);
+            setShowRouteHistoryPage(true);
+            addToNavigationStack('routeHistory');
+          }}
           onRouteCreated={(routeData) => {
             setNewRouteData(routeData);
             setShowRoutesListPage(false);
@@ -525,6 +532,18 @@ export default function DriverApp() {
           students={students}
           schools={schools}
           onUpdateStudent={updateStudent}
+        />
+      );
+    }
+
+    if (showRouteHistoryPage) {
+      return (
+        <RouteHistoryPage
+          onBack={() => {
+            setShowRouteHistoryPage(false);
+            setShowRoutesListPage(true);
+            handleBackNavigation();
+          }}
         />
       );
     }
