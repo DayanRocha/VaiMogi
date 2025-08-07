@@ -3,6 +3,7 @@ import { MapPin, AlertCircle, RefreshCw } from 'lucide-react';
 import { Driver, Van, Student, Trip } from '@/types/driver';
 import { useRouteTracking } from '@/hooks/useRouteTracking';
 import { Button } from '@/components/ui/button';
+import { MobileDebugPanel } from './MobileDebugPanel';
 
 interface MobileGuardianMapViewProps {
   driver: Driver;
@@ -22,23 +23,91 @@ export const MobileGuardianMapView = ({ driver, van, students, activeTrip }: Mob
   
   const [renderError, setRenderError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [debugInfo, setDebugInfo] = useState<string>('');
 
-  // Detectar erros de renderização
+  // Debug específico para mobile
+  useEffect(() => {
+    const info = `Mobile Debug - hasActiveRoute: ${hasActiveRoute}, activeRoute: ${!!activeRoute}, isLoading: ${isLoading}, driverLocation: ${!!driverLocation}`;
+    setDebugInfo(info);
+    console.log('📱 MobileGuardianMapView:', info);
+    
+    if (hasActiveRoute && activeRoute) {
+      console.log('📱 Rota ativa detectada no mobile:', {
+        routeId: activeRoute.id,
+        driverName: activeRoute.driverName,
+        studentsCount: activeRoute.studentPickups?.length || 0,
+        hasLocation: !!driverLocation
+      });
+    }
+  }, [hasActiveRoute, activeRoute, isLoading, driverLocation]);
+
+  // Detectar erros de renderização e problemas de estado
   useEffect(() => {
     const errorHandler = (error: ErrorEvent) => {
-      console.error('Erro de renderização detectado:', error);
+      console.error('📱 Erro de renderização detectado no mobile:', error);
       setRenderError(true);
     };
 
+    const unhandledRejectionHandler = (event: PromiseRejectionEvent) => {
+      console.error('📱 Promise rejeitada no mobile:', event.reason);
+      if (event.reason?.message?.includes('map') || event.reason?.message?.includes('route')) {
+        setRenderError(true);
+      }
+    };
+
     window.addEventListener('error', errorHandler);
-    return () => window.removeEventListener('error', errorHandler);
+    window.addEventListener('unhandledrejection', unhandledRejectionHandler);
+    
+    return () => {
+      window.removeEventListener('error', errorHandler);
+      window.removeEventListener('unhandledrejection', unhandledRejectionHandler);
+    };
   }, []);
+
+  // Monitorar mudanças críticas de estado
+  useEffect(() => {
+    if (hasActiveRoute && !activeRoute) {
+      console.warn('📱 Estado inconsistente: hasActiveRoute=true mas activeRoute=null');
+    }
+    if (activeRoute && !hasActiveRoute) {
+      console.warn('📱 Estado inconsistente: activeRoute existe mas hasActiveRoute=false');
+    }
+  }, [hasActiveRoute, activeRoute]);
 
   const handleRetry = () => {
     setRenderError(false);
     setRetryCount(prev => prev + 1);
     // Forçar re-render
     window.location.reload();
+  };
+
+  // Funções para simular início/parada de rota (apenas para debug)
+  const simulateRouteStart = () => {
+    console.log('🚌 Simulando início de rota...');
+    // Simular dados de rota para teste
+    const mockRoute = {
+      id: 'test-route-123',
+      name: 'Rota Teste Mobile',
+      students: [
+        { id: '1', name: 'João Silva', status: 'pending', address: 'Rua A, 123' },
+        { id: '2', name: 'Maria Santos', status: 'picked_up', address: 'Rua B, 456' }
+      ],
+      nextDestination: 'Rua A, 123'
+    };
+    
+    // Simular localização do motorista
+    const mockDriverLocation = {
+      lat: -23.5505,
+      lng: -46.6333,
+      timestamp: Date.now()
+    };
+    
+    console.log('📍 Mock route data:', mockRoute);
+    console.log('📍 Mock driver location:', mockDriverLocation);
+  };
+
+  const simulateRouteStop = () => {
+    console.log('⏹️ Simulando parada de rota...');
   };
 
   // Fallback para erro de renderização
@@ -73,13 +142,27 @@ export const MobileGuardianMapView = ({ driver, van, students, activeTrip }: Mob
             <p className="text-sm">Verificando rota ativa...</p>
             <p className="text-xs mt-2 text-gray-400">Modo Mobile Otimizado</p>
           </div>
-        </div>
       </div>
-    );
+      
+      {/* Painel de Debug - Remover em produção */}
+      <MobileDebugPanel
+        onSimulateRouteStart={simulateRouteStart}
+        onSimulateRouteStop={simulateRouteStop}
+        isRouteActive={hasActiveRoute}
+      />
+    </div>
+  );
   }
 
   return (
     <div className="relative w-full h-full bg-gray-200">
+      {/* Debug Info - Remover em produção */}
+      <div className="absolute top-2 left-2 bg-black/80 text-white text-xs p-2 rounded z-50 max-w-xs">
+        <div>📱 Mobile Mode</div>
+        <div className="truncate">{debugInfo}</div>
+        <div>Retry: {retryCount}</div>
+      </div>
+      
       <div className="absolute inset-0 bg-gradient-to-br from-blue-100 to-green-100">
         {hasActiveRoute && activeRoute && driverLocation ? (
           // Rota Ativa - Interface Simplificada para Mobile

@@ -18,6 +18,11 @@ export const GuardianApp = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [showMenuModal, setShowMenuModal] = useState(false);
+  
+  // Debug para renderização condicional
+  useEffect(() => {
+    console.log('🖥️ GuardianApp render - isMobile:', isMobile, 'window.innerWidth:', window.innerWidth);
+  }, [isMobile]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [autoFocusMap, setAutoFocusMap] = useState(false);
