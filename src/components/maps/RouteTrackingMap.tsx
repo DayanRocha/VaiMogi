@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { MAPBOX_CONFIG, isMapboxConfigured } from '../../config/maps';

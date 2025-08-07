@@ -18,10 +18,8 @@ interface RealTimeNotification {
   guardianIds: string[];
 }
 
-interface CombinedNotification extends GuardianNotification {
-  isRealTime: boolean;
-  title?: string;
-}
+// Union type for combined notifications
+type CombinedNotification = (GuardianNotification & { isRealTime: false; title?: string }) | (RealTimeNotification & { isRealTime: true; title?: string });
 
 interface NotificationPanelProps {
   isOpen: boolean;
@@ -55,12 +53,12 @@ export const NotificationPanel = ({
   const combinedNotifications: CombinedNotification[] = [
     ...realTimeNotifications.map(n => ({ 
       ...n, 
-      isRealTime: true,
+      isRealTime: true as const,
       title: getNotificationTitle(n.type)
     })),
     ...notifications.map(n => ({ 
       ...n, 
-      isRealTime: false,
+      isRealTime: false as const,
       title: getNotificationTitle(n.type)
     }))
   ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -170,12 +168,14 @@ export const NotificationPanel = ({
   };
 
   const handleDeleteSelected = () => {
-    const legacyIds = selectedNotifications.filter(id => 
-      !combinedNotifications.find(n => n.id === id)?.isRealTime
-    );
+    const legacyIds = selectedNotifications.filter(id => {
+      const notification = combinedNotifications.find(n => n.id === id);
+      return notification && !notification.isRealTime;
+    });
+    
     const realTimeNotifications = selectedNotifications
       .map(id => combinedNotifications.find(n => n.id === id && n.isRealTime))
-      .filter(Boolean) as RealTimeNotification[];
+      .filter((n): n is RealTimeNotification & { isRealTime: true } => Boolean(n)) as RealTimeNotification[];
 
     if (legacyIds.length > 0) {
       onDeleteNotifications(legacyIds);
@@ -339,7 +339,7 @@ export const NotificationPanel = ({
                         </div>
                       </div>
                       
-                      {notification.location && (
+                      {'location' in notification && notification.location && (
                         <div className="flex items-center gap-1 mt-2 text-xs text-gray-500">
                           <MapPin className="w-3 h-3" />
                           <span>Localização disponível</span>
