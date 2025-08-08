@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Trip, Student, School as SchoolType, TripStudent, Driver } from '@/types/driver';
+import { routeTrackingService } from '@/services/routeTrackingService';
 
 interface ActiveTripProps {
   trip: Trip | null;
@@ -738,7 +739,37 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
 
 
 
-  const allStudentsCompleted = trip.students.every(s => s.status === 'disembarked');
+  // Status que indicam que um estudante foi desembarcado (em casa ou na escola)
+  const completedStatuses = ['disembarked', 'at_school', 'dropped_off'];
+  
+  // Função para verificar se a rota está completa de forma robusta
+  const checkRouteCompletion = () => {
+    // Verificação 1: Trip students
+    const tripCompleted = trip.students.every(s => completedStatuses.includes(s.status));
+    
+    // Verificação 2: Route tracking service
+    const activeRoute = routeTrackingService.getActiveRoute();
+    const routeCompleted = activeRoute ? 
+      activeRoute.studentPickups.every(s => s.status === 'dropped_off') : 
+      false;
+    
+    // Verificação 3: Contagem manual (fallback)
+    const completedCount = trip.students.filter(s => completedStatuses.includes(s.status)).length;
+    const totalCount = trip.students.length;
+    const countCompleted = completedCount === totalCount && totalCount > 0;
+    
+    return {
+      tripCompleted,
+      routeCompleted,
+      countCompleted,
+      isComplete: tripCompleted || routeCompleted || countCompleted
+    };
+  };
+  
+  const routeCompletion = checkRouteCompletion();
+  const isRouteComplete = routeCompletion.isComplete;
+  
+
   
   // Agrupar estudantes por endereço para desembarque em casa
   const groupStudentsByAddress = () => {
@@ -960,17 +991,37 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
 
 
 
-        {/* Finish Trip */}
-        {allStudentsCompleted && (
+
+
+        {/* Status da Rota Completa */}
+        {isRouteComplete && (
+          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center gap-2 text-green-700">
+              <CheckCircle className="w-5 h-5" />
+              <span className="font-semibold">Rota Pronta para Encerramento</span>
+            </div>
+            <p className="text-sm text-green-600 mt-1">
+              ✅ Todos os estudantes foram desembarcados. Você pode encerrar a rota agora.
+            </p>
+          </div>
+        )}
+
+        {/* Botão Finalizar Rota - APENAS quando todos foram desembarcados */}
+        {isRouteComplete && (
           <div className="mt-6 mb-4">
             <Button
               onClick={() => setConfirmFinish(true)}
-              className="w-full bg-orange-600 hover:bg-orange-700 text-white py-4 text-lg font-semibold"
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-4 text-lg font-semibold animate-pulse"
             >
-              Encerrar Rota
+              ✅ Encerrar Rota Completa
             </Button>
+            <p className="text-xs text-green-600 text-center font-medium mt-2">
+              Todos os estudantes foram desembarcados
+            </p>
           </div>
         )}
+
+
       </div>
 
       {/* Location Message */}

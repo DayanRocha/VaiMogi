@@ -413,31 +413,8 @@ class NotificationService {
   async notifyRouteStarted(studentId: string, studentName: string, direction: 'to_school' | 'to_home') {
     const guardianId = this.findGuardianForStudent(studentId);
     
-    // Iniciar rastreamento de rota
-    try {
-      const savedStudents = localStorage.getItem('students');
-      const savedDriverData = localStorage.getItem('driverData');
-      
-      if (savedStudents && savedDriverData) {
-        const students = JSON.parse(savedStudents);
-        const driverData = JSON.parse(savedDriverData);
-        
-        // Filtrar estudantes relacionados ao responsável
-        const relatedStudents = students.filter((s: any) => s.guardianId === guardianId);
-        
-        if (relatedStudents.length > 0) {
-          routeTrackingService.startRoute(
-            driverData.id,
-            driverData.name,
-            direction,
-            relatedStudents
-          );
-          console.log(`🗺️ Rastreamento de rota iniciado para ${relatedStudents.length} estudantes`);
-        }
-      }
-    } catch (error) {
-      console.error('❌ Erro ao iniciar rastreamento de rota:', error);
-    }
+    // Nota: O rastreamento de rota é iniciado no useDriverData.ts
+    // Não iniciamos aqui para evitar duplicação
     
     await this.sendNotification({
       type: 'route_started',

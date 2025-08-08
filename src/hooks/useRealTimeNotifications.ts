@@ -39,10 +39,30 @@ export const useRealTimeNotifications = (guardianId: string) => {
 
     // Mostrar notificação do browser (se permitido)
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(notification.title, {
+      const browserNotification = new Notification(notification.title, {
         body: notification.message,
-        icon: '/favicon.ico',
-        tag: notification.id
+        icon: '/vai-mogi.png',
+        tag: notification.id,
+        requireInteraction: true, // Manter visível até interação
+        silent: false
+      });
+      
+      // Auto-fechar após 10 segundos
+      setTimeout(() => {
+        browserNotification.close();
+      }, 10000);
+      
+      console.log('🔔 Notificação do browser exibida:', notification.title);
+    } else if ('Notification' in window && Notification.permission === 'default') {
+      // Tentar solicitar permissão novamente
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          new Notification(notification.title, {
+            body: notification.message,
+            icon: '/vai-mogi.png',
+            tag: notification.id
+          });
+        }
       });
     }
 
@@ -54,20 +74,50 @@ export const useRealTimeNotifications = (guardianId: string) => {
 
   // Inscrever-se para notificações em tempo real
   useEffect(() => {
+    console.log('🔔 Configurando listeners de notificação para:', guardianId);
+    
+    // Método 1: Serviço de notificações
     const unsubscribe = realTimeNotificationService.subscribe(guardianId, handleNewNotification);
+    
+    // Método 2: Listener direto para eventos customizados
+    const handleCustomEvent = (event: any) => {
+      const notification = event.detail;
+      if (notification.guardianId === guardianId) {
+        console.log('🔔 Notificação recebida via evento customizado:', notification.title);
+        handleNewNotification(notification);
+      }
+    };
+    
+    window.addEventListener('realTimeNotification', handleCustomEvent);
+    
+    // Método 3: Polling para garantir sincronização
+    const pollingInterval = setInterval(() => {
+      const currentNotifications = realTimeNotificationService.getNotificationsForGuardian(guardianId);
+      const latestNotification = currentNotifications[0];
+      
+      if (latestNotification && !notifications.some(n => n.id === latestNotification.id)) {
+        console.log('🔄 Nova notificação detectada via polling:', latestNotification.title);
+        handleNewNotification(latestNotification);
+      }
+    }, 2000); // Verificar a cada 2 segundos
     
     // Solicitar permissão para notificações do browser
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission().then(permission => {
-        console.log('Permissão de notificação:', permission);
+        console.log('🔔 Permissão de notificação:', permission);
       });
     }
 
     // Limpeza automática de notificações antigas
     realTimeNotificationService.cleanupOldNotifications();
 
-    return unsubscribe;
-  }, [guardianId, handleNewNotification]);
+    return () => {
+      unsubscribe();
+      window.removeEventListener('realTimeNotification', handleCustomEvent);
+      clearInterval(pollingInterval);
+      console.log('🧹 Listeners de notificação removidos para:', guardianId);
+    };
+  }, [guardianId, handleNewNotification, notifications]);
 
   // Marcar notificação como lida
   const markAsRead = useCallback((notificationId: string) => {

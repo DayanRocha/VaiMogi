@@ -273,7 +273,27 @@ export const GuardianMenuModal = ({
           </div>
         </Tabs>
 
-        <div className="flex justify-end pt-4 border-t">
+        <div className="flex justify-between pt-4 border-t">
+          <Button 
+            onClick={() => {
+              // Importar o serviço dinamicamente para evitar problemas de dependência
+              import('@/services/realTimeNotificationService').then(({ realTimeNotificationService }) => {
+                realTimeNotificationService.sendNotification({
+                  guardianId: guardian.id,
+                  type: 'route_started',
+                  title: '🧪 Teste de Notificação',
+                  message: `Teste enviado às ${new Date().toLocaleTimeString()} - Se você está vendo isso, as notificações em tempo real estão funcionando!`
+                });
+                console.log('🧪 Notificação de teste enviada para:', guardian.id);
+              });
+            }}
+            variant="ghost"
+            size="sm"
+            className="text-blue-600 hover:text-blue-800"
+          >
+            🧪 Testar Notificações
+          </Button>
+          
           <Button onClick={onClose} variant="outline">
             Fechar
           </Button>

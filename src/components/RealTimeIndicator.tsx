@@ -10,6 +10,7 @@ export const RealTimeIndicator = ({ className = '' }: RealTimeIndicatorProps) =>
   const [isConnected, setIsConnected] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [pulseAnimation, setPulseAnimation] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
 
   useEffect(() => {
     // Simular verificação de conectividade
@@ -26,18 +27,29 @@ export const RealTimeIndicator = ({ className = '' }: RealTimeIndicatorProps) =>
     window.addEventListener('offline', checkConnection);
 
     // Escutar notificações para mostrar atividade
-    const handleNotification = () => {
+    const handleNotification = (notification: any) => {
+      console.log('📊 RealTimeIndicator: Nova notificação recebida:', notification.type);
       setLastUpdate(new Date());
+      setNotificationCount(prev => prev + 1);
       setPulseAnimation(true);
       setTimeout(() => setPulseAnimation(false), 1000);
     };
 
     realTimeNotificationService.addListener(handleNotification);
 
+    // Escutar eventos customizados também
+    const handleCustomEvent = (event: any) => {
+      console.log('📊 RealTimeIndicator: Evento customizado recebido');
+      handleNotification(event.detail);
+    };
+
+    window.addEventListener('realTimeNotification', handleCustomEvent);
+
     return () => {
       clearInterval(interval);
       window.removeEventListener('online', checkConnection);
       window.removeEventListener('offline', checkConnection);
+      window.removeEventListener('realTimeNotification', handleCustomEvent);
       realTimeNotificationService.removeListener(handleNotification);
     };
   }, []);
@@ -90,6 +102,13 @@ export const RealTimeIndicator = ({ className = '' }: RealTimeIndicatorProps) =>
       }`}>
         {isConnected ? 'Tempo Real' : 'Desconectado'}
       </span>
+
+      {/* Notification count */}
+      {notificationCount > 0 && (
+        <span className="text-blue-600 font-medium">
+          • {notificationCount}
+        </span>
+      )}
 
       {/* Última atualização */}
       <span className="text-gray-500">

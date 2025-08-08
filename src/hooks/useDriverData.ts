@@ -574,14 +574,27 @@ export const useDriverData = () => {
         .map(guardian => guardian!.id);
 
       if (allGuardianIds.length > 0) {
-        realTimeNotificationService.sendNotification({
-          type: 'route_started',
-          title: 'Rota Iniciada',
-          message: `${driver.name} iniciou a rota "${route.name}" com ${route.students.length} estudante(s)`,
-          driverId: driver.id,
-          driverName: driver.name,
-          guardianIds: allGuardianIds
+        console.log('📨 Enviando notificações de início de rota para:', allGuardianIds.length, 'responsáveis');
+        
+        allGuardianIds.forEach((guardianId, index) => {
+          console.log(`📨 Enviando para responsável ${index + 1}/${allGuardianIds.length}:`, guardianId);
+          
+          realTimeNotificationService.sendNotification({
+            guardianId,
+            type: 'route_started',
+            title: 'Rota Iniciada',
+            message: `${driver.name} iniciou a rota "${route.name}" com ${route.students.length} estudante(s)`
+          });
+          
+          // Pequeno delay para garantir processamento
+          setTimeout(() => {
+            console.log('✅ Notificação processada para:', guardianId);
+          }, 100 * index);
         });
+        
+        console.log('✅ Todas as notificações de início de rota foram enviadas');
+      } else {
+        console.log('⚠️ Nenhum responsável ativo encontrado para notificar');
       }
     }
   };
@@ -610,47 +623,50 @@ export const useDriverData = () => {
       const guardianIds = studentGuardian ? [studentGuardian.id] : [];
 
       if (guardianIds.length > 0) {
+        console.log(`📨 Enviando notificação de status "${status}" para ${studentName}:`, guardianIds);
+        
         switch (status) {
           case 'van_arrived':
-            realTimeNotificationService.sendNotification({
-              type: 'arrived_at_location',
-              title: 'Van Chegou!',
-              message: direction === 'to_school' 
-                ? `A van chegou no ponto de embarque de ${studentName}` 
-                : `A van chegou na escola para buscar ${studentName}`,
-              driverId: driver.id,
-              driverName: driver.name,
-              studentId,
-              studentName,
-              location: student?.address,
-              guardianIds
+            guardianIds.forEach(guardianId => {
+              console.log('🚐 Enviando notificação: Van chegou para', studentName);
+              realTimeNotificationService.sendNotification({
+                guardianId,
+                type: 'arrived_at_location',
+                title: 'Van Chegou!',
+                message: direction === 'to_school' 
+                  ? `A van chegou no ponto de embarque de ${studentName}` 
+                  : `A van chegou na escola para buscar ${studentName}`,
+                studentId,
+                studentName
+              });
             });
             break;
           case 'embarked':
-            realTimeNotificationService.sendNotification({
-              type: 'student_picked_up',
-              title: 'Estudante Embarcou',
-              message: direction === 'to_school'
-                ? `${studentName} entrou na van e está a caminho da escola`
-                : `${studentName} embarcou e está a caminho de casa`,
-              driverId: driver.id,
-              driverName: driver.name,
-              studentId,
-              studentName,
-              guardianIds
+            guardianIds.forEach(guardianId => {
+              console.log('👤 Enviando notificação: Estudante embarcou -', studentName);
+              realTimeNotificationService.sendNotification({
+                guardianId,
+                type: 'student_picked_up',
+                title: 'Estudante Embarcou',
+                message: direction === 'to_school'
+                  ? `${studentName} entrou na van e está a caminho da escola`
+                  : `${studentName} embarcou e está a caminho de casa`,
+                studentId,
+                studentName
+              });
             });
             break;
           case 'at_school':
             console.log(`📚 Enviando notificação de chegada na escola para ${studentName}`);
-            realTimeNotificationService.sendNotification({
-              type: 'student_dropped_off',
-              title: 'Chegou na Escola',
-              message: `${studentName} chegou na escola com segurança`,
-              driverId: driver.id,
-              driverName: driver.name,
-              studentId,
-              studentName,
-              guardianIds
+            guardianIds.forEach(guardianId => {
+              realTimeNotificationService.sendNotification({
+                guardianId,
+                type: 'student_dropped_off',
+                title: 'Chegou na Escola',
+                message: `${studentName} chegou na escola com segurança`,
+                studentId,
+                studentName
+              });
             });
             break;
           case 'disembarked':
@@ -658,28 +674,28 @@ export const useDriverData = () => {
             if (direction === 'to_school') {
               // Desembarque na escola (ida para escola)
               console.log(`📚 Enviando notificação de chegada na escola para ${studentName}`);
-              realTimeNotificationService.sendNotification({
-                type: 'student_dropped_off',
-                title: 'Chegou na Escola',
-                message: `${studentName} chegou na escola com segurança`,
-                driverId: driver.id,
-                driverName: driver.name,
-                studentId,
-                studentName,
-                guardianIds
+              guardianIds.forEach(guardianId => {
+                realTimeNotificationService.sendNotification({
+                  guardianId,
+                  type: 'student_dropped_off',
+                  title: 'Chegou na Escola',
+                  message: `${studentName} chegou na escola com segurança`,
+                  studentId,
+                  studentName
+                });
               });
             } else {
               // Desembarque em casa (volta da escola)
               console.log(`🏠 Enviando notificação de chegada em casa para ${studentName}`);
-              realTimeNotificationService.sendNotification({
-                type: 'student_dropped_off',
-                title: 'Estudante Desembarcou',
-                message: `${studentName} desembarcou da van e chegou em casa`,
-                driverId: driver.id,
-                driverName: driver.name,
-                studentId,
-                studentName,
-                guardianIds
+              guardianIds.forEach(guardianId => {
+                realTimeNotificationService.sendNotification({
+                  guardianId,
+                  type: 'student_dropped_off',
+                  title: 'Estudante Desembarcou',
+                  message: `${studentName} desembarcou da van e chegou em casa`,
+                  studentId,
+                  studentName
+                });
               });
             }
             break;
@@ -719,42 +735,41 @@ export const useDriverData = () => {
         if (guardianIds.length > 0) {
           switch (status) {
             case 'van_arrived':
-              realTimeNotificationService.sendNotification({
-                type: 'arrived_at_location',
-                title: 'Van Chegou!',
-                message: direction === 'to_school' 
-                  ? `A van chegou para embarcar ${studentName}` 
-                  : `A van chegou para desembarcar ${studentName}`,
-                driverId: driver.id,
-                driverName: driver.name,
-                studentId,
-                studentName,
-                location: student?.address,
-                guardianIds
+              guardianIds.forEach(guardianId => {
+                realTimeNotificationService.sendNotification({
+                  guardianId,
+                  type: 'arrived_at_location',
+                  title: 'Van Chegou!',
+                  message: direction === 'to_school' 
+                    ? `A van chegou para embarcar ${studentName}` 
+                    : `A van chegou para desembarcar ${studentName}`,
+                  studentId,
+                  studentName
+                });
               });
               break;
             case 'embarked':
-              realTimeNotificationService.sendNotification({
-                type: 'student_picked_up',
-                title: 'Estudante Embarcou',
-                message: `${studentName} entrou na van e está a caminho da escola`,
-                driverId: driver.id,
-                driverName: driver.name,
-                studentId,
-                studentName,
-                guardianIds
+              guardianIds.forEach(guardianId => {
+                realTimeNotificationService.sendNotification({
+                  guardianId,
+                  type: 'student_picked_up',
+                  title: 'Estudante Embarcou',
+                  message: `${studentName} entrou na van e está a caminho da escola`,
+                  studentId,
+                  studentName
+                });
               });
               break;
             case 'at_school':
-              realTimeNotificationService.sendNotification({
-                type: 'student_dropped_off',
-                title: 'Chegou na Escola',
-                message: `${studentName} chegou na escola com segurança`,
-                driverId: driver.id,
-                driverName: driver.name,
-                studentId,
-                studentName,
-                guardianIds
+              guardianIds.forEach(guardianId => {
+                realTimeNotificationService.sendNotification({
+                  guardianId,
+                  type: 'student_dropped_off',
+                  title: 'Chegou na Escola',
+                  message: `${studentName} chegou na escola com segurança`,
+                  studentId,
+                  studentName
+                });
               });
               break;
             case 'disembarked':
@@ -762,28 +777,28 @@ export const useDriverData = () => {
               if (direction === 'to_school') {
                 // Desembarque na escola (ida para escola)
                 console.log(`📚 Enviando notificação de chegada na escola para ${studentName}`);
-                realTimeNotificationService.sendNotification({
-                  type: 'student_dropped_off',
-                  title: 'Chegou na Escola',
-                  message: `${studentName} chegou na escola com segurança`,
-                  driverId: driver.id,
-                  driverName: driver.name,
-                  studentId,
-                  studentName,
-                  guardianIds
+                guardianIds.forEach(guardianId => {
+                  realTimeNotificationService.sendNotification({
+                    guardianId,
+                    type: 'student_dropped_off',
+                    title: 'Chegou na Escola',
+                    message: `${studentName} chegou na escola com segurança`,
+                    studentId,
+                    studentName
+                  });
                 });
               } else {
                 // Desembarque em casa (volta da escola)
                 console.log(`🏠 Enviando notificação de chegada em casa para ${studentName}`);
-                realTimeNotificationService.sendNotification({
-                  type: 'student_dropped_off',
-                  title: 'Estudante Desembarcou',
-                  message: `${studentName} desembarcou da van e chegou em casa`,
-                  driverId: driver.id,
-                  driverName: driver.name,
-                  studentId,
-                  studentName,
-                  guardianIds
+                guardianIds.forEach(guardianId => {
+                  realTimeNotificationService.sendNotification({
+                    guardianId,
+                    type: 'student_dropped_off',
+                    title: 'Estudante Desembarcou',
+                    message: `${studentName} desembarcou da van e chegou em casa`,
+                    studentId,
+                    studentName
+                  });
                 });
               }
               break;
@@ -809,13 +824,13 @@ export const useDriverData = () => {
           .map(guardian => guardian!.id);
 
         if (allGuardianIds.length > 0) {
-          realTimeNotificationService.sendNotification({
-            type: 'route_completed',
-            title: 'Rota Concluída',
-            message: `${driver.name} finalizou a rota "${route.name}" com sucesso`,
-            driverId: driver.id,
-            driverName: driver.name,
-            guardianIds: allGuardianIds
+          allGuardianIds.forEach(guardianId => {
+            realTimeNotificationService.sendNotification({
+              guardianId,
+              type: 'route_completed',
+              title: 'Rota Concluída',
+              message: `${driver.name} finalizou a rota "${route.name}" com sucesso`
+            });
           });
         }
       }

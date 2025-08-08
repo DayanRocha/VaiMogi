@@ -44,7 +44,15 @@ export const ActiveTripExecution = () => {
   const handleEndRoute = () => {
     if (activeRoute) {
       console.log('🛑 Finalizando rota explicitamente:', activeRoute.id);
-      routeTrackingService.endRoute();
+      
+      // Tentar encerramento normal primeiro
+      const normalEnd = routeTrackingService.endRoute();
+      
+      if (!normalEnd) {
+        // Se o encerramento normal falhou, forçar encerramento
+        console.log('⚠️ Encerramento normal falhou, forçando encerramento...');
+        routeTrackingService.forceEndRoute();
+      }
       
       toast({
         title: "Rota Finalizada",
@@ -216,12 +224,30 @@ export const ActiveTripExecution = () => {
           <Button 
             onClick={handleEndRoute}
             variant="destructive" 
-            className="w-full"
+            className="w-full mb-3"
           >
             Finalizar Rota
           </Button>
+          
+          <Button 
+            onClick={() => {
+              console.log('🚨 Encerramento forçado solicitado pelo motorista');
+              routeTrackingService.forceEndRoute();
+              toast({
+                title: "Rota Encerrada Forçadamente",
+                description: "A rota foi encerrada e todos os dados foram limpos.",
+                duration: 3000
+              });
+            }}
+            variant="outline" 
+            size="sm"
+            className="w-full"
+          >
+            Forçar Encerramento
+          </Button>
+          
           <p className="text-xs text-gray-500 mt-2 text-center">
-            A rota será mantida ativa mesmo se você sair da aplicação
+            Use "Forçar Encerramento" se a rota não finalizar normalmente
           </p>
         </CardContent>
       </Card>
