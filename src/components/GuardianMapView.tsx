@@ -5,6 +5,7 @@ import { Driver, Van, Student, Trip } from '@/types/driver';
 import { useRouteTracking } from '@/hooks/useRouteTracking';
 import { RouteTrackingMap } from './maps/RouteTrackingMap';
 
+
 interface GuardianMapViewProps {
   driver: Driver;
   van: Van;
@@ -20,6 +21,8 @@ export const GuardianMapView = ({ driver, van, students, activeTrip }: GuardianM
     nextDestination, 
     isLoading 
   } = useRouteTracking();
+
+
 
   if (isLoading) {
     return (
@@ -47,11 +50,11 @@ export const GuardianMapView = ({ driver, van, students, activeTrip }: GuardianM
                   name: pickup.studentName,
                   pickupPoint: {
                     address: pickup.address,
-                    coordinates: pickup.lat && pickup.lng ? [pickup.lng, pickup.lat] : [0, 0]
+                    coordinates: pickup.coordinates
                   },
                   dropoffLocation: 'school' as const,
-                  status: pickup.status === 'pending' ? 'waiting' : 
-                          pickup.status === 'picked_up' ? 'picked_up' : 'dropped_off'
+                  status: pickup.status === 'completed' ? 'picked_up' : 
+                          pickup.status === 'pending' ? 'waiting' : 'dropped_off'
                 }))}
                 driverLocation={driverLocation ? [driverLocation.lng, driverLocation.lat] : undefined}
                 schoolLocation={[-46.6333, -23.5505]} // Coordenadas padrão de São Paulo
@@ -103,6 +106,7 @@ export const GuardianMapView = ({ driver, van, students, activeTrip }: GuardianM
             </div>
           </div>
         )}
+
       </div>
     </div>
   );
