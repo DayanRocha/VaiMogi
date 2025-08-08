@@ -50,8 +50,7 @@ export const GuardianMapView = ({ driver, van, students, activeTrip }: GuardianM
                     coordinates: pickup.lat && pickup.lng ? [pickup.lng, pickup.lat] : [0, 0]
                   },
                   dropoffLocation: 'school' as const,
-                  status: pickup.status === 'completed' ? 'picked_up' : 
-                          pickup.status === 'pending' ? 'waiting' : 
+                  status: pickup.status === 'pending' ? 'waiting' : 
                           pickup.status === 'picked_up' ? 'picked_up' : 'dropped_off'
                 }))}
                 driverLocation={driverLocation ? [driverLocation.lng, driverLocation.lat] : undefined}

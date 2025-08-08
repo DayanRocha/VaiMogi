@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { MapboxMap } from './MapboxMap';
 import { Navigation, Clock, Users, MapPin } from 'lucide-react';
@@ -92,7 +91,6 @@ export const RouteTrackingMap: React.FC<RouteTrackingMapProps> = ({
     return calculateRouteStats(memoizedDriverLocation, memoizedStudents, memoizedSchoolLocation);
   }, [memoizedDriverLocation, memoizedStudents, memoizedSchoolLocation]);
 
-  // Atualizar marcadores apenas quando dados mudarem
   useEffect(() => {
     const newMarkers = [];
     const routePoints: Array<[number, number]> = [];
