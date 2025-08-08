@@ -51,7 +51,8 @@ export const GuardianMapView = ({ driver, van, students, activeTrip }: GuardianM
                   },
                   dropoffLocation: 'school' as const,
                   status: pickup.status === 'completed' ? 'picked_up' : 
-                          pickup.status === 'pending' ? 'waiting' : 'dropped_off'
+                          pickup.status === 'pending' ? 'waiting' : 
+                          pickup.status === 'picked_up' ? 'picked_up' : 'dropped_off'
                 }))}
                 driverLocation={driverLocation ? [driverLocation.lng, driverLocation.lat] : undefined}
                 schoolLocation={[-46.6333, -23.5505]} // Coordenadas padrão de São Paulo
