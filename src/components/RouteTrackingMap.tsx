@@ -327,172 +327,178 @@ export const RouteTrackingMap: React.FC<RouteTrackingMapProps> = ({
     );
 
     const navigationStats = getNavigationStats();
-     const estimatedSpeed = navigationStats?.averageSpeed || 30; // 30 km/h como padrão
-     const estimatedTimeMinutes = (distance / 1000) / (estimatedSpeed / 60);
+    const estimatedSpeed = navigationStats?.avgSpeed || 30; // 30 km/h como padrão
+    const estimatedTimeMinutes = (distance / 1000) / (estimatedSpeed / 60);
 
-     return {
-       destinationName,
-       destinationType,
-       distance,
-       estimatedTimeMinutes
-     };
-   };
+    return {
+      destinationName,
+      destinationType,
+      distance,
+      estimatedTimeMinutes
+    };
+  };
 
-    const navigationStats = getNavigationStats();
-    const nextDestinationInfo = getNextDestinationInfo();
+  const navigationStats = getNavigationStats();
+  const nextDestinationInfo = getNextDestinationInfo();
 
   return (
     <div className="w-full h-full relative">
       {/* Painel de Informações da Rota Automática */}
-       <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg p-3 space-y-3 max-w-xs">
-         {/* Status da Rota Atual */}
-         <div className="bg-blue-50 p-2 rounded border-l-4 border-blue-400">
-           <div className="text-sm font-semibold text-blue-800">
-             {currentPhase === 'to_student' ? '🏠 Indo buscar estudante' : '🏫 Indo para escola'}
-           </div>
-           <div className="text-xs text-blue-600 mt-1">
-             {currentPhase === 'to_student' 
-               ? `Destino: ${activeRoute.studentPickups.find(s => s.status === 'pending')?.studentName || 'Estudante'}`
-               : `${activeRoute.studentPickups.filter(s => s.status === 'picked_up').length} estudante(s) embarcado(s)`
-             }
-           </div>
-         </div>
-
-         {/* Controles de Navegação */}
-         <div className="flex items-center space-x-2">
-           <button
-             onClick={() => setIsRealTimeEnabled(!isRealTimeEnabled)}
-             className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-               isRealTimeEnabled 
-                 ? 'bg-green-500 text-white hover:bg-green-600' 
-                 : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
-             }`}
-           >
-             {isRealTimeEnabled ? '🟢 Rastro ON' : '⚫ Rastro OFF'}
-           </button>
-           {locationHistory.length > 0 && (
-             <button
-               onClick={clearNavigationHistory}
-               className="px-3 py-1 bg-red-500 text-white rounded text-sm font-medium hover:bg-red-600 transition-colors"
-               title="Limpar histórico de navegação"
-             >
-               🧹
-             </button>
-           )}
-         </div>
-        
-        {/* Próxima Parada e ETA */}
-         {nextDestinationInfo && (
-           <div className="bg-blue-50 p-2 rounded border-l-4 border-blue-400">
-             <div className="text-sm font-semibold text-blue-800">
-               🎯 Próxima Parada: {nextDestinationInfo.destinationName}
-             </div>
-             <div className="text-xs text-blue-600 mt-1 space-y-1">
-               <div className="flex items-center space-x-1">
-                 <span>📏</span>
-                 <span>
-                   {nextDestinationInfo.distance >= 1000 
-                     ? `${(nextDestinationInfo.distance / 1000).toFixed(1)}km de distância`
-                     : `${Math.round(nextDestinationInfo.distance)}m de distância`
-                   }
-                 </span>
-               </div>
-               <div className="flex items-center space-x-1">
-                 <span>⏰</span>
-                 <span>ETA: ~{Math.round(nextDestinationInfo.estimatedTimeMinutes)}min</span>
-               </div>
-             </div>
-           </div>
-         )}
-
-         {/* Informações do Rastro */}
-         {isRealTimeEnabled && locationHistory.length > 0 && (
-           <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded space-y-1">
-             <div className="flex items-center space-x-1">
-               <span>📍</span>
-               <span>{locationHistory.length} pontos no rastro</span>
-             </div>
-             
-             {navigationStats && (
-               <>
-                 <div className="flex items-center space-x-1">
-                   <span>⏱️</span>
-                   <span>{Math.round(navigationStats.timeMinutes)}min de navegação</span>
-                 </div>
-                 
-                 <div className="flex items-center space-x-1">
-                   <span>📏</span>
-                   <span>
-                     {navigationStats.distance >= 1000 
-                       ? `${(navigationStats.distance / 1000).toFixed(1)}km percorridos`
-                       : `${Math.round(navigationStats.distance)}m percorridos`
-                     }
-                   </span>
-                 </div>
-                 
-                 {navigationStats.averageSpeed > 0 && (
-                    <div className="flex items-center space-x-1">
-                      <span>🚗</span>
-                      <span>{navigationStats.averageSpeed.toFixed(1)}km/h média</span>
-                    </div>
-                  )}
-               </>
-             )}
-           </div>
-         )}
-      </div>
-
-      {/* Indicador de Status da Navegação e Progresso */}
-        <div className="absolute bottom-4 left-4 z-10 space-y-2">
-          {/* Status da Navegação */}
-          {isRealTimeEnabled && (
-            <div className="bg-green-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center space-x-2">
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium">Van em Movimento</span>
-            </div>
-          )}
-          
-          {/* Progresso da Rota */}
-          <div className="bg-white rounded-lg shadow-lg p-3">
-            <div className="text-sm font-semibold text-gray-800 mb-2">
-              🚐 Progresso da Rota
-            </div>
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs">
-                <span>Estudantes coletados:</span>
-                <span className="font-medium">
-                  {activeRoute.studentPickups.filter(s => s.status === 'picked_up').length} / {activeRoute.studentPickups.length}
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                  style={{
-                    width: `${(activeRoute.studentPickups.filter(s => s.status === 'picked_up').length / activeRoute.studentPickups.length) * 100}%`
-                  }}
-                ></div>
-              </div>
-              {navigationStats && (
-                <div className="text-xs text-gray-600 mt-2">
-                  <div>⏱️ {Math.round(navigationStats.timeMinutes)}min em rota</div>
-                  <div>📏 {navigationStats.distance >= 1000 ? `${(navigationStats.distance / 1000).toFixed(1)}km` : `${Math.round(navigationStats.distance)}m`} percorridos</div>
-                </div>
-              )}
-            </div>
+      <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg p-3 space-y-3 max-w-xs">
+        {/* Status da Rota Atual */}
+        <div className="bg-blue-50 p-2 rounded border-l-4 border-blue-400">
+          <div className="text-sm font-semibold text-blue-800">
+            {currentPhase === 'to_student' ? '🏠 Indo buscar estudante' : '🏫 Indo para escola'}
+          </div>
+          <div className="text-xs text-blue-600 mt-1">
+            {currentPhase === 'to_student' 
+              ? `Destino: ${activeRoute.studentPickups.find(s => s.status === 'pending')?.studentName || 'Estudante'}`
+              : `${activeRoute.studentPickups.filter(s => s.status === 'picked_up').length} estudante(s) embarcado(s)`
+            }
           </div>
         </div>
 
-       {/* Mapa com trajeto dinâmico */}
-       <iframe
-         src={mapUrl}
-         className="w-full h-full border-0"
-         title={`Navegação em Tempo Real: ${currentPhase === 'to_student' ? 'Buscando Aluno' : 'Indo para Escola'}${isRealTimeEnabled && locationHistory.length > 0 ? ` (${locationHistory.length} pontos)` : ''}`}
-         loading="lazy"
-         style={{ 
-           border: 'none',
-           outline: 'none'
-         }}
-       />
+        {/* Controles de Navegação */}
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setIsRealTimeEnabled(!isRealTimeEnabled)}
+            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+              isRealTimeEnabled 
+                ? 'bg-green-500 text-white hover:bg-green-600' 
+                : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+            }`}
+          >
+            {isRealTimeEnabled ? '🟢 Rastro ON' : '⚫ Rastro OFF'}
+          </button>
+          {locationHistory.length > 0 && (
+            <button
+              onClick={clearNavigationHistory}
+              className="px-3 py-1 bg-red-500 text-white rounded text-sm font-medium hover:bg-red-600 transition-colors"
+              title="Limpar histórico de navegação"
+            >
+              🧹
+            </button>
+          )}
+        </div>
+        
+        {/* Próxima Parada e ETA */}
+        {nextDestinationInfo && (
+          <div className="bg-blue-50 p-2 rounded border-l-4 border-blue-400">
+            <div className="text-sm font-semibold text-blue-800">
+              🎯 Próxima Parada: {nextDestinationInfo.destinationName}
+            </div>
+            <div className="text-xs text-blue-600 mt-1 space-y-1">
+              <div className="flex items-center space-x-1">
+                <span>📏</span>
+                <span>
+                  {nextDestinationInfo.distance >= 1000 
+                    ? `${(nextDestinationInfo.distance / 1000).toFixed(1)}km de distância`
+                    : `${Math.round(nextDestinationInfo.distance)}m de distância`
+                  }
+                </span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <span>⏰</span>
+                <span>ETA: ~{Math.round(nextDestinationInfo.estimatedTimeMinutes)}min</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Informações do Rastro */}
+        {isRealTimeEnabled && locationHistory.length > 0 && (
+          <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded space-y-1">
+            <div className="flex items-center space-x-1">
+              <span>📍</span>
+              <span>{locationHistory.length} pontos no rastro</span>
+            </div>
+            
+            {navigationStats && (
+              <>
+                <div className="flex items-center space-x-1">
+                  <span>⏱️</span>
+                  <span>{Math.round(navigationStats.timeMinutes)}min de navegação</span>
+                </div>
+                
+                <div className="flex items-center space-x-1">
+                  <span>📏</span>
+                  <span>
+                    {navigationStats.distance >= 1000 
+                      ? `${(navigationStats.distance / 1000).toFixed(1)}km percorridos`
+                      : `${Math.round(navigationStats.distance)}m percorridos`
+                    }
+                  </span>
+                </div>
+                
+                {navigationStats.avgSpeed > 0 && (
+                  <div className="flex items-center space-x-1">
+                    <span>🚗</span>
+                    <span>{navigationStats.avgSpeed.toFixed(1)}km/h média</span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Indicador de Status da Navegação e Progresso */}
+      <div className="absolute bottom-4 left-4 z-10 space-y-2">
+        {/* Status da Navegação */}
+        {isRealTimeEnabled && (
+          <div className="bg-green-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center space-x-2">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+            <span className="text-sm font-medium">Van em Movimento</span>
+          </div>
+        )}
+        
+        {/* Progresso da Rota */}
+        <div className="bg-white rounded-lg shadow-lg p-3">
+          <div className="text-sm font-semibold text-gray-800 mb-2">
+            🚐 Progresso da Rota
+          </div>
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs">
+              <span>Estudantes coletados:</span>
+              <span className="font-medium">
+                {activeRoute.studentPickups.filter(s => s.status === 'picked_up').length} / {activeRoute.studentPickups.length}
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                style={{
+                  width: `${(activeRoute.studentPickups.filter(s => s.status === 'picked_up').length / activeRoute.studentPickups.length) * 100}%`
+                }}
+              ></div>
+            </div>
+            {navigationStats && (
+              <div className="text-xs text-gray-600 mt-2">
+                <div>⏱️ {Math.round(navigationStats.timeMinutes)}min em rota</div>
+                <div>📏 {navigationStats.distance >= 1000 ? `${(navigationStats.distance / 1000).toFixed(1)}km` : `${Math.round(navigationStats.distance)}m`} percorridos</div>
+                {navigationStats.avgSpeed > 0 && (
+                  <div className="flex items-center space-x-1">
+                    <span>🚗</span>
+                    <span>{navigationStats.avgSpeed.toFixed(1)}km/h média</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Mapa com trajeto dinâmico */}
+      <iframe
+        src={mapUrl}
+        className="w-full h-full border-0"
+        title={`Navegação em Tempo Real: ${currentPhase === 'to_student' ? 'Buscando Aluno' : 'Indo para Escola'}${isRealTimeEnabled && locationHistory.length > 0 ? ` (${locationHistory.length} pontos)` : ''}`}
+        loading="lazy"
+        style={{ 
+          border: 'none',
+          outline: 'none'
+        }}
+      />
     </div>
   );
 };
