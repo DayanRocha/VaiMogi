@@ -1,5 +1,5 @@
+
 import React, { useEffect, useState } from 'react';
-import { MapPin } from 'lucide-react';
 import { ActiveRoute, RouteLocation } from '@/services/routeTrackingService';
 
 interface CleanMapProps {
@@ -34,12 +34,11 @@ export const CleanMap: React.FC<CleanMapProps> = ({
     const offset = 0.008; // Aproximadamente 1km de raio
     const bbox = `${lng - offset},${lat - offset},${lng + offset},${lat + offset}`;
 
-    // URL do OpenStreetMap com marcador personalizado (ícone de veículo)
-    // Usando parâmetros para customizar o marcador
-    const url = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lng}`;
+    // URL do OpenStreetMap sem marcador, usando hash para centralizar no motorista
+    const url = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik#map=${zoom}/${lat}/${lng}`;
     
     setMapUrl(url);
-    console.log('🗺️ Mapa limpo atualizado com ícone de veículo:', { lat, lng });
+    console.log('🗺️ Mapa limpo atualizado centralizado no motorista:', { lat, lng });
   }, [driverLocation]);
 
   if (!driverLocation) {
@@ -66,9 +65,9 @@ export const CleanMap: React.FC<CleanMapProps> = ({
 
   return (
     <div className="relative w-full h-full">
-      {/* Mapa base sem marcador */}
+      {/* Mapa centrado na localização do motorista */}
       <iframe
-        src={mapUrl.replace(/&marker=[^&]*/, '')} // Remove o marcador padrão
+        src={mapUrl}
         className="w-full h-full border-0"
         title="Localização do Motorista"
         loading="lazy"
@@ -77,18 +76,6 @@ export const CleanMap: React.FC<CleanMapProps> = ({
           outline: 'none'
         }}
       />
-      
-      {/* Ícone de veículo sobreposto no centro do mapa */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="relative">
-          {/* Ícone de veículo */}
-          <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-lg border-4 border-white">
-            <span className="text-white text-xl">🚐</span>
-          </div>
-          {/* Pulso animado para indicar movimento */}
-          <div className="absolute inset-0 w-12 h-12 bg-blue-400 rounded-full animate-ping opacity-30"></div>
-        </div>
-      </div>
       
       {/* Indicador de status ao vivo */}
       <div className="absolute top-4 right-4 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-semibold shadow-lg opacity-90">
