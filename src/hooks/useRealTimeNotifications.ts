@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { realTimeNotificationService, RealTimeNotification } from '@/services/realTimeNotificationService';
 import { audioService } from '@/services/audioService';
@@ -32,32 +33,30 @@ export const useRealTimeNotifications = (guardianId: string) => {
 
     // Tocar som de notificação
     try {
-      await audioService.playNotificationSound();
+      await audioService.playNotificationSound('van_arrived');
     } catch (error) {
       console.warn('Não foi possível tocar som de notificação:', error);
     }
 
     // Mostrar notificação do browser (se permitido)
     if ('Notification' in window && Notification.permission === 'granted') {
-      const browserNotification = new Notification(notification.title, {
+      const browserNotification = new Notification(notification.title || 'Nova notificação', {
         body: notification.message,
         icon: '/vai-mogi.png',
         tag: notification.id,
-        requireInteraction: true, // Manter visível até interação
+        requireInteraction: true,
         silent: false
       });
       
-      // Auto-fechar após 10 segundos
       setTimeout(() => {
         browserNotification.close();
       }, 10000);
       
-      console.log('🔔 Notificação do browser exibida:', notification.title);
+      console.log('🔔 Notificação do browser exibida');
     } else if ('Notification' in window && Notification.permission === 'default') {
-      // Tentar solicitar permissão novamente
       Notification.requestPermission().then(permission => {
         if (permission === 'granted') {
-          new Notification(notification.title, {
+          new Notification(notification.title || 'Nova notificação', {
             body: notification.message,
             icon: '/vai-mogi.png',
             tag: notification.id
@@ -90,7 +89,7 @@ export const useRealTimeNotifications = (guardianId: string) => {
     
     window.addEventListener('realTimeNotification', handleCustomEvent);
     
-    // Método 3: Polling para garantir sincronização
+    // Método 3: Polling para garantir sincronização (menos frequente)
     const pollingInterval = setInterval(() => {
       const currentNotifications = realTimeNotificationService.getNotificationsForGuardian(guardianId);
       const latestNotification = currentNotifications[0];
@@ -99,7 +98,7 @@ export const useRealTimeNotifications = (guardianId: string) => {
         console.log('🔄 Nova notificação detectada via polling:', latestNotification.title);
         handleNewNotification(latestNotification);
       }
-    }, 2000); // Verificar a cada 2 segundos
+    }, 5000); // Verificar a cada 5 segundos (reduzido de 2 segundos)
     
     // Solicitar permissão para notificações do browser
     if ('Notification' in window && Notification.permission === 'default') {
@@ -117,7 +116,7 @@ export const useRealTimeNotifications = (guardianId: string) => {
       clearInterval(pollingInterval);
       console.log('🧹 Listeners de notificação removidos para:', guardianId);
     };
-  }, [guardianId, handleNewNotification, notifications]);
+  }, [guardianId, handleNewNotification]);
 
   // Marcar notificação como lida
   const markAsRead = useCallback((notificationId: string) => {

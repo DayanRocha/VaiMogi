@@ -5,7 +5,6 @@ import { Driver, Van, Student, Trip } from '@/types/driver';
 import { useRouteTracking } from '@/hooks/useRouteTracking';
 import { RouteTrackingMap } from './maps/RouteTrackingMap';
 
-
 interface GuardianMapViewProps {
   driver: Driver;
   van: Van;
@@ -21,8 +20,6 @@ export const GuardianMapView = ({ driver, van, students, activeTrip }: GuardianM
     nextDestination, 
     isLoading 
   } = useRouteTracking();
-
-
 
   if (isLoading) {
     return (
@@ -50,7 +47,7 @@ export const GuardianMapView = ({ driver, van, students, activeTrip }: GuardianM
                   name: pickup.studentName,
                   pickupPoint: {
                     address: pickup.address,
-                    coordinates: pickup.coordinates
+                    coordinates: pickup.lat && pickup.lng ? [pickup.lng, pickup.lat] : [0, 0]
                   },
                   dropoffLocation: 'school' as const,
                   status: pickup.status === 'completed' ? 'picked_up' : 
@@ -106,7 +103,6 @@ export const GuardianMapView = ({ driver, van, students, activeTrip }: GuardianM
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
