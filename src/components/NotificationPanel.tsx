@@ -34,8 +34,6 @@ export const NotificationPanel = ({
   const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
 
-
-
   // Componente de checkbox customizado
   const CustomCheckbox = ({ notification }: { notification: any }) => {
     const isSelected = selectedNotifications.includes(notification.id);
@@ -77,6 +75,7 @@ export const NotificationPanel = ({
       </div>
     );
   };
+  
   const getNotificationIcon = (type: GuardianNotification['type'] | RealTimeNotification['type']) => {
     switch (type) {
       case 'van_arrived':
@@ -140,6 +139,15 @@ export const NotificationPanel = ({
     if (diffInMinutes < 60) return `${diffInMinutes}min atrás`;
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h atrás`;
     return date.toLocaleDateString('pt-BR');
+  };
+
+  const getNotificationTitle = (notification: any) => {
+    // Para notificações em tempo real que têm title
+    if (notification.isRealTime && 'title' in notification) {
+      return notification.title;
+    }
+    // Para notificações legadas que usam studentName
+    return notification.studentName || 'Notificação';
   };
 
   const handleNotificationClick = (notification: any) => {
@@ -399,7 +407,7 @@ export const NotificationPanel = ({
                           {getNotificationIcon(notification.type)}
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-gray-800">
-                              {notification.isRealTime ? notification.title : notification.studentName}
+                              {getNotificationTitle(notification)}
                             </p>
                             <p className="text-sm text-gray-600 mt-1">
                               {notification.message}
@@ -456,7 +464,7 @@ export const NotificationPanel = ({
                           {getNotificationIcon(notification.type)}
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-gray-700">
-                              {notification.isRealTime ? notification.title : notification.studentName}
+                              {getNotificationTitle(notification)}
                             </p>
                             <p className="text-sm text-gray-600 mt-1">
                               {notification.message}
