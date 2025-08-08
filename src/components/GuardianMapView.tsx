@@ -3,6 +3,7 @@ import React from 'react';
 import { MapPin } from 'lucide-react';
 import { Driver, Van, Student, Trip } from '@/types/driver';
 import { useRouteTracking } from '@/hooks/useRouteTracking';
+import { CleanMap } from '@/components/CleanMap';
 
 interface GuardianMapViewProps {
   driver: Driver;
@@ -33,10 +34,21 @@ export const GuardianMapView = ({ driver, van, students, activeTrip }: GuardianM
     );
   }
 
+  // Se há rota ativa, mostrar o mapa limpo
+  if (hasActiveRoute && activeRoute) {
+    return (
+      <CleanMap
+        activeRoute={activeRoute}
+        driverLocation={driverLocation}
+        nextDestination={nextDestination}
+      />
+    );
+  }
+
+  // Se não há rota ativa, mostrar tela de aguardo
   return (
     <div className="relative w-full h-full bg-gray-200">
       <div className="absolute inset-0 bg-gradient-to-br from-blue-100 to-green-100">
-        {/* Always show No Active Route - Clean Interface */}
         <div className="w-full h-full flex items-center justify-center">
           <div className="text-center text-gray-500 max-w-md mx-auto p-6">
             <MapPin className="w-20 h-20 mx-auto mb-6 text-gray-400" />

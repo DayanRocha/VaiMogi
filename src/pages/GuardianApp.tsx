@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GuardianMapView } from '@/components/GuardianMapView';
@@ -17,7 +18,6 @@ export const GuardianApp = () => {
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
-  const [autoFocusMap, setAutoFocusMap] = useState(false);
   const { 
     guardian, 
     driver, 
@@ -56,34 +56,6 @@ export const GuardianApp = () => {
   // Combinar notificações (priorizando tempo real)
   const allNotifications = [...realTimeNotifications, ...filteredLegacyNotifications];
   const totalUnreadCount = realTimeUnreadCount + filteredLegacyNotifications.filter(n => !n.isRead).length;
-
-  // Detectar quando uma rota é iniciada e focar automaticamente no mapa
-  useEffect(() => {
-    if (hasActiveRoute && activeRoute) {
-      console.log('🗺️ Rota detectada - focando automaticamente no mapa:', {
-        driverName: activeRoute.driverName,
-        studentsCount: activeRoute.studentPickups?.length || 0
-      });
-      
-      // Fechar todos os modais para focar no mapa
-      setShowMenuModal(false);
-      setShowNotifications(false);
-      setAutoFocusMap(true);
-      
-      // Mostrar notificação visual de que o mapa foi ativado
-      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-        new Notification('🗺️ Mapa Ativado', {
-          body: `Rota iniciada por ${activeRoute.driverName}. Acompanhe a localização da van em tempo real.`,
-          icon: '/vai-mogi.png'
-        });
-      }
-      
-      // Reset do auto focus após 3 segundos
-      setTimeout(() => {
-        setAutoFocusMap(false);
-      }, 3000);
-    }
-  }, [hasActiveRoute, activeRoute]);
 
   // Verificar se o responsável ainda está ativo
   useEffect(() => {
@@ -196,19 +168,6 @@ export const GuardianApp = () => {
           students={students}
           activeTrip={activeTrip}
         />
-        
-        {/* Indicador de Auto Focus do Mapa */}
-        {autoFocusMap && (
-          <div className="absolute top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg border border-blue-700 animate-pulse z-50">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-white rounded-full animate-ping"></div>
-              <span className="text-sm font-semibold">🗺️ Mapa Ativado Automaticamente</span>
-            </div>
-            <p className="text-xs mt-1 opacity-90">
-              Rota iniciada - Acompanhe a localização em tempo real
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Guardian Menu Modal */}
@@ -242,8 +201,6 @@ export const GuardianApp = () => {
         onClose={handleWelcomeClose}
         guardianName={guardian.name}
       />
-
-
     </div>
   );
 };
