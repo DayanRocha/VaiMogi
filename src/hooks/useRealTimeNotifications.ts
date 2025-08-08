@@ -33,7 +33,7 @@ export const useRealTimeNotifications = (guardianId: string) => {
 
     // Tocar som de notificação
     try {
-      await audioService.playNotificationSound('notification');
+      await audioService.playNotificationSound('default');
     } catch (error) {
       console.warn('Não foi possível tocar som de notificação:', error);
     }
