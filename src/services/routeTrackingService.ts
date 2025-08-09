@@ -159,12 +159,10 @@ class RouteTrackingService {
         const persistenceFlag = localStorage.getItem('routePersistenceFlag');
         if (persistenceFlag === 'true') {
           // Atualizar timestamp para manter a rota "viva"
-          route.currentLocation = route.currentLocation || {
-            lat: -23.5505,
-            lng: -46.6333,
-            timestamp: new Date().toISOString(),
-            accuracy: 10
-          };
+          // Manter a rota viva sem introduzir localização fictícia
+          if (!route.currentLocation) {
+            console.log('ℹ️ Rota ativa sem localização atual — não definindo coordenadas padrão.');
+          }
           
           // Re-persistir para manter fresca
           this.persistRoute(route);
@@ -563,19 +561,9 @@ class RouteTrackingService {
             resolve(location);
           },
           (error) => {
-            console.warn('⚠️ Erro na geolocalização, usando fallback:', error.message);
-            // Fallback para localização simulada
-            const mockLocation = this.getMockLocation();
-            if (mockLocation) {
-              resolve({
-                lat: mockLocation.lat,
-                lng: mockLocation.lng,
-                timestamp: new Date().toISOString(),
-                accuracy: 10
-              });
-            } else {
-              resolve(null);
-            }
+            console.warn('⚠️ Erro na geolocalização:', error.message);
+            // Não usar fallback para mocks, retornar null
+            resolve(null);
           },
           {
             enableHighAccuracy: true,
@@ -584,34 +572,13 @@ class RouteTrackingService {
           }
         );
       } else {
-        const mockLocation = this.getMockLocation();
-        if (mockLocation) {
-          resolve({
-            lat: mockLocation.lat,
-            lng: mockLocation.lng,
-            timestamp: new Date().toISOString(),
-            accuracy: 10
-          });
-        } else {
-          resolve(null);
-        }
+        console.warn('⚠️ Geolocalização não suportada pelo navegador');
+        resolve(null);
       }
     });
   }
 
-  private getMockLocation(): { lat: number; lng: number } | null {
-    try {
-      const activeRoute = this.getActiveRoute();
-      if (activeRoute && activeRoute.isActive) {
-        const { mockDriverMovement } = require('@/services/mockLocationService');
-        return mockDriverMovement.getCurrentLocation();
-      }
-    } catch (error) {
-      console.warn('⚠️ Erro ao obter localização simulada:', error);
-    }
-    return null;
-  }
-
+  // Removido: getMockLocation (dependência de mock removida)
   // Método para verificar se há uma rota persistida (útil para debugging)
   hasPersistentRoute(): boolean {
     const route = this.getActiveRoute();

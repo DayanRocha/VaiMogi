@@ -135,13 +135,7 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
     // Verificar se geolocalização está disponível
     if (!navigator.geolocation) {
       console.error('❌ Geolocalização não suportada neste navegador');
-      onShowLocationMessage('Geolocalização não suportada. Usando endereço cadastrado.');
-      
-      // Fallback para endereço cadastrado
-      const origin = encodeURIComponent(originAddress);
-      const destination = encodeURIComponent(destinationAddress);
-      const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
-      window.open(url, '_blank');
+      onShowLocationMessage('Geolocalização não suportada neste dispositivo. Não foi possível iniciar a navegação.');
       onSetIsGettingLocation(false);
       return;
     }
@@ -185,12 +179,6 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
         }
         
         onShowLocationMessage(errorMessage, 4000);
-        
-        // Fallback para endereço cadastrado
-        const origin = encodeURIComponent(originAddress);
-        const destination = encodeURIComponent(destinationAddress);
-        const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
-        window.open(url, '_blank');
         onSetIsGettingLocation(false);
       },
       {
@@ -753,7 +741,7 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
       activeRoute.studentPickups.every(s => s.status === 'dropped_off') : 
       false;
     
-    // Verificação 3: Contagem manual (fallback)
+    // Verificação 3: Contagem manual (checagem adicional)
     const completedCount = trip.students.filter(s => completedStatuses.includes(s.status)).length;
     const totalCount = trip.students.length;
     const countCompleted = completedCount === totalCount && totalCount > 0;

@@ -42,21 +42,20 @@ export const RouteTrackingMap: React.FC<RouteTrackingMapProps> = ({
           const schools = JSON.parse(savedSchools);
           if (schools.length > 0) {
             const school = schools[0];
-            setSchoolLocation({
-              lat: school.lat || -23.5558,
-              lng: school.lng || -46.6396,
-              name: school.name || 'Escola Municipal'
-            });
-            console.log('🏫 Escola carregada:', school.name);
+            if (school.lat && school.lng) {
+              setSchoolLocation({
+                lat: school.lat,
+                lng: school.lng,
+                name: school.name || 'Escola Municipal'
+              });
+              console.log('🏫 Escola carregada:', school.name);
+            } else {
+              console.log('⚠️ Escola cadastrada sem coordenadas');
+            }
           }
         }
       } catch (error) {
         console.error('❌ Erro ao carregar escola:', error);
-        setSchoolLocation({
-          lat: -23.5558,
-          lng: -46.6396,
-          name: 'Escola'
-        });
       }
     };
 
@@ -81,21 +80,20 @@ export const RouteTrackingMap: React.FC<RouteTrackingMapProps> = ({
           const students = JSON.parse(savedStudents);
           if (students.length > 0) {
             const student = students[0]; // Primeiro estudante
-            setStudentHome({
-              lat: student.lat || -23.5475,
-              lng: student.lng || -46.6361,
-              name: student.name || 'Casa do Aluno'
-            });
-            console.log('🏠 Casa do aluno carregada:', student.name);
+            if (student.lat && student.lng) {
+              setStudentHome({
+                lat: student.lat,
+                lng: student.lng,
+                name: student.name || 'Casa do Aluno'
+              });
+              console.log('🏠 Casa do aluno carregada:', student.name);
+            } else {
+              console.log('⚠️ Estudante cadastrado sem coordenadas');
+            }
           }
         }
       } catch (error) {
         console.error('❌ Erro ao carregar casa do aluno:', error);
-        setStudentHome({
-          lat: -23.5475,
-          lng: -46.6361,
-          name: 'Casa do Aluno'
-        });
       }
     };
 

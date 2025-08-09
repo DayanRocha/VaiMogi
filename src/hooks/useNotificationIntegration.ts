@@ -15,7 +15,7 @@ export const useNotificationIntegration = ({ students, schools }: UseNotificatio
     return school ? school.name : 'Escola';
   };
 
-  // Função para obter localização atual (simulada)
+  // Função para obter localização atual (sem fallback fixo)
   const getCurrentLocation = (): Promise<{ lat: number; lng: number } | undefined> => {
     return new Promise((resolve) => {
       if (navigator.geolocation) {
@@ -27,11 +27,8 @@ export const useNotificationIntegration = ({ students, schools }: UseNotificatio
             });
           },
           () => {
-            // Se falhar, usar localização padrão de São Paulo
-            resolve({
-              lat: -23.550520,
-              lng: -46.633308
-            });
+            // Sem fallback para localização simulada
+            resolve(undefined);
           }
         );
       } else {

@@ -5,136 +5,19 @@ import { useNotificationIntegration } from '@/hooks/useNotificationIntegration';
 import { realTimeNotificationService } from '@/services/realTimeNotificationService';
 import { routeTrackingService } from '@/services/routeTrackingService';
 
-// Mock data - In a real app, this would come from Supabase
-const mockDriver: Driver = {
-  id: '1',
-  name: 'João Silva',
-  email: 'joao.silva@email.com',
-  phone: '(11) 99999-9999',
-  address: 'Rua das Flores, 123 - São Paulo, SP',
-  photo: '/placeholder.svg'
-};
-
-const mockVan: Van = {
-  id: '1',
-  driverId: '1',
-  model: 'Fiat Ducato',
-  plate: 'ABC-1234',
-  capacity: 15,
-  observations: 'Van em excelente estado'
-};
-
-const mockGuardians: Guardian[] = [
-  {
-    id: 'g1',
-    name: 'Maria Silva',
-    email: 'maria.silva@email.com',
-    phone: '(11) 98765-4321',
-    isActive: true
-  },
-  {
-    id: 'g2',
-    name: 'José Santos',
-    email: 'jose.santos@email.com',
-    phone: '(11) 97654-3210',
-    isActive: true
-  },
-  {
-    id: 'g3',
-    name: 'Ana Oliveira',
-    email: 'ana.oliveira@email.com',
-    phone: '(11) 96543-2109',
-    isActive: false
-  },
-  {
-    id: 'g4',
-    name: 'Carlos Pereira',
-    email: 'carlos.pereira@email.com',
-    phone: '(11) 95432-1098',
-    isActive: true
-  },
-  {
-    id: 'g5',
-    name: 'Fernanda Costa',
-    email: 'fernanda.costa@email.com',
-    phone: '(11) 94321-0987',
-    isActive: false
-  }
-];
-
-const mockStudents: Student[] = [
-  {
-    id: '1',
-    name: 'Ana Silva',
-    address: 'Rua A, 100',
-    guardianId: 'g1',
-    guardianPhone: '(11) 99999-1111',
-    guardianEmail: 'ana.responsavel@email.com',
-    pickupPoint: 'Rua A, 100',
-    schoolId: 's1',
-    status: 'waiting'
-  },
-  {
-    id: '2',
-    name: 'Bruno Santos',
-    address: 'Rua B, 200',
-    guardianId: 'g2',
-    guardianPhone: '(11) 99999-2222',
-    guardianEmail: 'bruno.responsavel@email.com',
-    pickupPoint: 'Rua B, 200',
-    schoolId: 's1',
-    status: 'waiting'
-  },
-  {
-    id: '3',
-    name: 'Carla Oliveira',
-    address: 'Rua C, 300',
-    guardianId: 'g3',
-    guardianPhone: '(11) 99999-3333',
-    guardianEmail: 'carla.responsavel@email.com',
-    pickupPoint: 'Rua C, 300',
-    schoolId: 's2',
-    status: 'waiting'
-  }
-];
-
-const mockSchools: School[] = [
-  {
-    id: 's1',
-    name: 'Escola Municipal Dom Pedro',
-    address: 'Av. Paulista, 1000'
-  },
-  {
-    id: 's2',
-    name: 'Colégio Santa Clara',
-    address: 'Rua Augusta, 500'
-  }
-];
-
-const mockRoutes: Route[] = [
-  {
-    id: '1',
-    driverId: '1',
-    name: 'Rota Manhã',
-    startTime: '06:30',
-    weekDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-    students: mockStudents
-  }
-];
-
 export const useDriverData = () => {
   // Carregar dados do motorista do localStorage se existirem
-  const getInitialDriver = (): Driver => {
+  const getInitialDriver = (): Driver | null => {
     const savedDriverData = localStorage.getItem('driverData');
     if (savedDriverData) {
       try {
         const parsedData = JSON.parse(savedDriverData);
-        return { ...mockDriver, ...parsedData };
+        return parsedData;
       } catch (error) {
         console.error('Erro ao carregar dados do motorista:', error);
       }
     }
-    return mockDriver;
+    return null;
   };
 
   // Carregar dados dos responsáveis do localStorage se existirem
@@ -149,8 +32,8 @@ export const useDriverData = () => {
         console.error('Erro ao carregar dados dos responsáveis:', error);
       }
     }
-    console.log('📋 Usando dados mock dos responsáveis');
-    return mockGuardians;
+    console.log('📋 Nenhum responsável encontrado no localStorage');
+    return [];
   };
 
   // Carregar dados dos estudantes do localStorage se existirem
@@ -165,12 +48,12 @@ export const useDriverData = () => {
         console.error('Erro ao carregar dados dos estudantes:', error);
       }
     }
-    console.log('👨‍🎓 Usando dados mock dos estudantes');
-    return mockStudents;
+    console.log('👨‍🎓 Nenhum estudante encontrado no localStorage');
+    return [];
   };
 
   // Carregar dados da van do localStorage se existirem
-  const getInitialVan = (): Van => {
+  const getInitialVan = (): Van | null => {
     const savedDriverData = localStorage.getItem('driverData');
     if (savedDriverData) {
       try {
@@ -183,8 +66,8 @@ export const useDriverData = () => {
         console.error('Erro ao carregar dados da van:', error);
       }
     }
-    console.log('🚐 Usando dados mock da van');
-    return mockVan;
+    console.log('🚐 Nenhuma van encontrada no localStorage');
+    return null;
   };
 
   // Carregar dados das escolas do localStorage se existirem
@@ -199,13 +82,13 @@ export const useDriverData = () => {
         console.error('Erro ao carregar dados das escolas:', error);
       }
     }
-    console.log('🏫 Usando dados mock das escolas');
-    return mockSchools;
+    console.log('🏫 Nenhuma escola encontrada no localStorage');
+    return [];
   };
 
-  const [driver, setDriver] = useState<Driver>(getInitialDriver());
-  const [van, setVan] = useState<Van>(getInitialVan());
-  const [routes, setRoutes] = useState<Route[]>(mockRoutes);
+  const [driver, setDriver] = useState<Driver | null>(getInitialDriver());
+  const [van, setVan] = useState<Van | null>(getInitialVan());
+  const [routes, setRoutes] = useState<Route[]>([]);
   const [students, setStudents] = useState<Student[]>(getInitialStudents());
   const [schools, setSchools] = useState<School[]>(getInitialSchools());
   const [guardians, setGuardians] = useState<Guardian[]>(getInitialGuardians());
@@ -475,7 +358,7 @@ export const useDriverData = () => {
             console.log(`📊 ${student.name}: configuração da rota=${routeConfig.direction} → direction=${direction}`);
           } else {
             direction = student.dropoffLocation === 'home' ? 'to_home' : 'to_school';
-            console.log(`📊 ${student.name}: fallback dropoffLocation=${student.dropoffLocation} → direction=${direction}`);
+            console.log(`📊 ${student.name}: direction inferido de dropoffLocation=${student.dropoffLocation} → direction=${direction}`);
           }
           
           return {
@@ -533,9 +416,9 @@ export const useDriverData = () => {
             direction = routeConfig.direction === 'embarque' ? 'to_school' : 'to_home';
             console.log(`📊 ${student.name}: configuração da rota=${routeConfig.direction} → direction=${direction}`);
           } else {
-            // Fallback para configuração do aluno
+            // Sem configuração específica: inferir da preferência do aluno
             direction = student.dropoffLocation === 'home' ? 'to_home' : 'to_school';
-            console.log(`📊 ${student.name}: fallback dropoffLocation=${student.dropoffLocation} → direction=${direction}`);
+            console.log(`📊 ${student.name}: direction inferido de dropoffLocation=${student.dropoffLocation} → direction=${direction}`);
           }
           
           return {

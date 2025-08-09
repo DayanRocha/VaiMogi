@@ -2,10 +2,7 @@
 export const MAPBOX_CONFIG = {
   accessToken: import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '',
   style: 'mapbox://styles/mapbox/streets-v12',
-  defaultCenter: {
-    lng: -46.6333,
-    lat: -23.5505
-  },
+  // Removido defaultCenter fixo (São Paulo). O centro deve ser informado por quem usa o componente ou derivado dos dados.
   defaultZoom: 14,
   directionsApiUrl: 'https://api.mapbox.com/directions/v5/mapbox/driving'
 };

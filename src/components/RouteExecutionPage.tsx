@@ -40,31 +40,12 @@ export const RouteExecutionPage = ({
       console.log(`📊 ${student.name}: dropoffLocation = ${student.dropoffLocation}`);
     });
   }, [students]);
-  // Mock data para demonstrar a funcionalidade baseada na imagem
-  const [routeStudents, setRouteStudents] = useState<RouteStudent[]>([
-    {
-      id: '1',
-      name: 'Pietro Costa',
-      school: 'Colégio Farroupilha',
-      status: 'pending'
-    },
-    {
-      id: '2', 
-      name: 'Aline Freitas',
-      school: 'Colégio Farroupilha',
-      status: 'pending'
-    }
-  ]);
-
-  const [routeSchools] = useState([
-    {
-      id: '1',
-      name: 'Colégio Farroupilha'
-    }
-  ]);
+  
+  // Removidos: dados mock de demonstração
+  // const [routeStudents, setRouteStudents] = useState<RouteStudent[]>([ ... ]);
+  // const [routeSchools] = useState([ ... ]);
 
   const handleRemoveStudent = (studentId: string) => {
-    setRouteStudents(prev => prev.filter(student => student.id !== studentId));
     onRemoveStudent(studentId);
   };
 
@@ -152,31 +133,31 @@ export const RouteExecutionPage = ({
           ))}
 
           {/* Schools List */}
-          {routeSchools.map((school) => (
-            <div key={school.id} className="bg-blue-50 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-200 rounded-full flex items-center justify-center">
-                    <span className="text-blue-600 text-xs">🏫</span>
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-gray-800">{school.name}</h3>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                    <span className="text-gray-600 text-xs">🚶</span>
-                  </button>
-                  <button className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                    <span className="text-gray-600 text-xs">🚗</span>
-                  </button>
-                  <button className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                    <X className="w-4 h-4 text-gray-600" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+          {schools.map((school) => (
+             <div key={school.id} className="bg-blue-50 rounded-lg p-4">
+               <div className="flex items-center justify-between">
+                 <div className="flex items-center gap-3">
+                   <div className="w-10 h-10 bg-blue-200 rounded-full flex items-center justify-center">
+                     <span className="text-blue-600 text-xs">🏫</span>
+                   </div>
+                   <div>
+                     <h3 className="font-medium text-gray-800">{school.name}</h3>
+                   </div>
+                 </div>
+                 <div className="flex items-center gap-2">
+                   <button className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                     <span className="text-gray-600 text-xs">🚶</span>
+                   </button>
+                   <button className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                     <span className="text-gray-600 text-xs">🚗</span>
+                   </button>
+                   <button className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                     <X className="w-4 h-4 text-gray-600" />
+                   </button>
+                 </div>
+               </div>
+             </div>
+           ))}
         </div>
 
         {/* Add Buttons */}

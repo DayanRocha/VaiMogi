@@ -31,27 +31,20 @@ export const CleanDynamicMap: React.FC<CleanDynamicMapProps> = ({
           const schools = JSON.parse(savedSchools);
           if (schools.length > 0) {
             const school = schools[0];
-            setSchoolLocation({
-              lat: school.lat || -23.5558,
-              lng: school.lng || -46.6396,
-              name: school.name || 'Escola Municipal'
-            });
-            console.log('🏫 Escola carregada:', school.name);
+            if (school.lat && school.lng) {
+              setSchoolLocation({
+                lat: school.lat,
+                lng: school.lng,
+                name: school.name || 'Escola Municipal'
+              });
+              console.log('🏫 Escola carregada:', school.name);
+            } else {
+              console.log('⚠️ Escola cadastrada sem coordenadas');
+            }
           }
-        } else {
-          setSchoolLocation({
-            lat: -23.5558,
-            lng: -46.6396,
-            name: 'Escola Municipal'
-          });
         }
       } catch (error) {
         console.error('❌ Erro ao carregar escola:', error);
-        setSchoolLocation({
-          lat: -23.5558,
-          lng: -46.6396,
-          name: 'Escola'
-        });
       }
     };
 

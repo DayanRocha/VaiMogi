@@ -2,8 +2,9 @@ import { GuardianNotification } from '@/hooks/useGuardianData';
 import { TripStudent, Student, School } from '@/types/driver';
 import { audioService, NotificationSoundType } from '@/services/audioService';
 import { routeTrackingService } from '@/services/routeTrackingService';
-import { mockDriverMovement } from '@/services/mockLocationService';
+// Removido: import { mockDriverMovement } from '@/services/mockLocationService';
 import { realTimeNotificationService } from '@/services/realTimeNotificationService';
+// Remover duplicação: import { Student } from '@/types/driver';
 
 export interface NotificationEvent {
   type: 'route_started' | 'van_arrived' | 'embarked' | 'at_school' | 'disembarked' | 'route_finished';
@@ -180,7 +181,7 @@ class NotificationService {
       case 'disembarked':
         return 'disembarked';
       default:
-        return 'van_arrived'; // fallback
+        return 'van_arrived'; // padrão conservador quando não identificado
     }
   }
 
@@ -516,7 +517,7 @@ class NotificationService {
     } catch (error) {
       console.error('❌ Erro ao enviar notificação de fim de rota:', error);
       
-      // Fallback: enviar sem ID específico
+      // Quando não houver ID específico, enviar notificação geral
       await this.sendNotification({
         type: 'route_finished',
         studentId: 'all',

@@ -17,7 +17,7 @@ interface MapboxMapProps {
 }
 
 export const MapboxMap: React.FC<MapboxMapProps> = ({
-  center = [MAPBOX_CONFIG.defaultCenter.lng, MAPBOX_CONFIG.defaultCenter.lat],
+  center,
   zoom = MAPBOX_CONFIG.defaultZoom,
   markers = [],
   route = [],
@@ -37,13 +37,26 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
 
     if (map.current) return; // Evita inicializar múltiplas vezes
 
+    // Derivar centro inicial a partir dos dados disponíveis, sem usar fallback fixo
+    const derivedCenter: [number, number] | null = (() => {
+      if (center && Array.isArray(center) && center.length === 2) return center;
+      if (markers && markers.length > 0) return markers[0].coordinates;
+      if (route && route.length > 0) return route[0];
+      return null;
+    })();
+
+    if (!derivedCenter) {
+      setError('Sem dados de localização para inicializar o mapa');
+      return;
+    }
+
     mapboxgl.accessToken = MAPBOX_CONFIG.accessToken;
 
     try {
       map.current = new mapboxgl.Map({
         container: mapContainer.current!,
         style: MAPBOX_CONFIG.style,
-        center: { lng: center[0], lat: center[1] },
+        center: { lng: derivedCenter[0], lat: derivedCenter[1] },
         zoom: zoom
       });
 
@@ -70,7 +83,8 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
         map.current = null;
       }
     };
-  }, []);
+  // Dependências incluem props que podem fornecer centro/rota/marcadores posteriormente
+  }, [center, markers, route, zoom, onMapLoad]);
 
   // Atualizar marcadores
   useEffect(() => {

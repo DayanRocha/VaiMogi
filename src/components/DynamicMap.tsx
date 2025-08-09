@@ -40,31 +40,12 @@ export const DynamicMap: React.FC<DynamicMapProps> = ({
               });
               console.log('🏫 Escola encontrada:', { name: school.name, lat: school.lat, lng: school.lng });
             } else {
-              // Se não tem coordenadas, usar localização padrão de escola em SP
-              setSchoolLocation({ 
-                lat: -23.5558, 
-                lng: -46.6396, 
-                name: 'Escola Padrão' 
-              });
-              console.log('🏫 Usando localização padrão da escola');
+              console.log('⚠️ Escola cadastrada sem coordenadas');
             }
           }
-        } else {
-          // Escola padrão se não houver cadastrada
-          setSchoolLocation({ 
-            lat: -23.5558, 
-            lng: -46.6396, 
-            name: 'Escola Municipal' 
-          });
-          console.log('🏫 Usando escola padrão');
         }
       } catch (error) {
         console.error('❌ Erro ao carregar dados da escola:', error);
-        setSchoolLocation({ 
-          lat: -23.5558, 
-          lng: -46.6396, 
-          name: 'Escola (Erro)' 
-        });
       }
     };
 

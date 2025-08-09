@@ -28,7 +28,7 @@ interface RouteTrackingMapProps {
 export const RouteTrackingMap: React.FC<RouteTrackingMapProps> = ({
   students,
   driverLocation,
-  schoolLocation = [-46.6333, -23.5505], // São Paulo como padrão
+  schoolLocation,
   onStudentClick,
   className
 }) => {

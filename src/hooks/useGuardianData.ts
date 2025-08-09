@@ -19,7 +19,7 @@ export interface GuardianNotification {
 }
 
 // Função para carregar dados do responsável logado
-const getLoggedGuardian = (): Guardian => {
+const getLoggedGuardian = (): Guardian | null => {
   const savedGuardianData = localStorage.getItem('guardianData');
   
   if (savedGuardianData) {
@@ -39,19 +39,12 @@ const getLoggedGuardian = (): Guardian => {
     }
   }
   
-  // Fallback para dados mock
-  return {
-    id: '1',
-    name: 'Maria Silva',
-    email: 'maria.silva@email.com',
-    phone: '(11) 98765-4321',
-    uniqueCode: 'MS2024',
-    isActive: true
-  };
+  console.log('❌ Nenhum responsável encontrado no localStorage');
+  return null;
 };
 
 // Função para buscar dados do motorista do localStorage
-const getDriverData = (guardianId: string): Driver => {
+const getDriverData = (guardianId: string): Driver | null => {
   // Primeiro tentar buscar dados individuais do motorista
   const savedDriverData = localStorage.getItem('driverData');
   const savedDrivers = localStorage.getItem('drivers');
@@ -141,20 +134,12 @@ const getDriverData = (guardianId: string): Driver => {
     console.log('❌ Nenhum motorista encontrado no localStorage');
   }
   
-  console.log('🔄 Usando dados mock do motorista');
-  // Fallback para dados mock
-  return {
-    id: '1',
-    name: 'João Silva',
-    email: 'joao.silva@email.com',
-    phone: '(11) 99999-9999',
-    address: 'Rua das Flores, 123 - São Paulo, SP',
-    photo: '/placeholder.svg'
-  };
+  console.log('❌ Nenhum motorista encontrado, retornando null');
+  return null;
 };
 
 // Função para buscar dados da van do localStorage
-const getVanData = (driverId: string): Van => {
+const getVanData = (driverId: string): Van | null => {
   console.log('🚐 Buscando van do motorista:', driverId);
   
   // A van pode estar salva junto com os dados do motorista ou separadamente
@@ -227,54 +212,9 @@ const getVanData = (driverId: string): Van => {
     console.log('❌ Nenhuma van encontrada no localStorage');
   }
   
-  console.log('🔄 Usando dados mock da van');
-  // Fallback para dados mock
-  return {
-    id: '1',
-    driverId: driverId,
-    model: 'Mercedes Sprinter',
-    plate: 'ABC-1234',
-    capacity: 20,
-    observations: 'Van escolar equipada com cintos de segurança',
-    photo: '/placeholder.svg'
-  };
+  console.log('❌ Nenhuma van encontrada, retornando null');
+  return null;
 };
-
-const mockStudents: Student[] = [
-  {
-    id: '1',
-    name: 'Pedro Silva',
-    address: 'Rua das Palmeiras, 456',
-    guardianId: '1',
-    guardianPhone: '(11) 98765-4321',
-    guardianEmail: 'maria.silva@email.com',
-    pickupPoint: 'Rua das Palmeiras, 456 - São Paulo, SP',
-    schoolId: '1',
-    status: 'waiting',
-    dropoffLocation: 'school'
-  }
-];
-
-const mockNotifications: GuardianNotification[] = [
-  {
-    id: '1',
-    type: 'van_arrived',
-    studentName: 'Pedro Silva',
-    message: 'A van chegou no ponto de embarque de Pedro Silva',
-    timestamp: new Date().toISOString(),
-    isRead: false,
-    location: { lat: -23.550520, lng: -46.633308 }
-  },
-  {
-    id: '2',
-    type: 'embarked',
-    studentName: 'Pedro Silva',
-    message: 'Pedro Silva embarcou na van e está a caminho da escola',
-    timestamp: new Date(Date.now() - 300000).toISOString(), // 5 min ago
-    isRead: false,
-    location: { lat: -23.550520, lng: -46.633308 }
-  }
-];
 
 // Função para buscar filhos do responsável logado
 const getGuardianChildren = (guardianId: string): Student[] => {
@@ -289,8 +229,8 @@ const getGuardianChildren = (guardianId: string): Student[] => {
     }
   }
   
-  // Fallback para dados mock filtrados pelo guardianId
-  return mockStudents.filter(student => student.guardianId === guardianId);
+  console.log('❌ Nenhum estudante encontrado no localStorage');
+  return [];
 };
 
 // Função para buscar escolas do localStorage
@@ -312,28 +252,42 @@ const getSchools = () => {
     console.log('❌ Nenhuma escola encontrada no localStorage');
   }
   
-  console.log('🔄 Usando dados mock das escolas');
-  // Fallback para dados mock
-  return [
-    { id: '1', name: 'Escola Municipal João Silva', address: 'Rua da Escola, 100' },
-    { id: '2', name: 'Colégio Estadual Maria Santos', address: 'Av. Educação, 200' }
-  ];
+  console.log('❌ Nenhuma escola encontrada, retornando array vazio');
+  return [];
 };
 
 export const useGuardianData = () => {
   const guardian = getLoggedGuardian();
   
+  // Se não há guardian logado, retornar valores padrão
+  if (!guardian) {
+    return {
+      guardian: { id: '1', name: 'Responsável', email: '', isActive: true },
+      driver: null,
+      van: null,
+      students: [],
+      schools: [],
+      activeTrip: null,
+      notifications: [],
+      markNotificationAsRead: () => {},
+      deleteNotification: () => {},
+      deleteNotifications: () => {},
+      getUnreadCount: () => 0
+    };
+  }
+  
   // Debug: mostrar dados do guardian
   console.log('👤 Guardian logado:', guardian);
   
-  const [driver, setDriver] = useState<Driver>(() => {
+  const [driver, setDriver] = useState<Driver | null>(() => {
     const driverData = getDriverData(guardian.id);
     console.log('🚗 Driver inicial:', driverData);
     return driverData;
   });
   
-  const [van, setVan] = useState<Van>(() => {
+  const [van, setVan] = useState<Van | null>(() => {
     const initialDriver = getDriverData(guardian.id);
+    if (!initialDriver) return null;
     const vanData = getVanData(initialDriver.id);
     console.log('🚐 Van inicial:', vanData);
     return vanData;
@@ -353,7 +307,7 @@ export const useGuardianData = () => {
   useEffect(() => {
     const updateData = () => {
       const newDriver = getDriverData(guardian.id);
-      const newVan = getVanData(newDriver.id);
+      const newVan = newDriver ? getVanData(newDriver.id) : null;
       const newStudents = getGuardianChildren(guardian.id);
       const newSchools = getSchools();
       

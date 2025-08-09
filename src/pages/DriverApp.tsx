@@ -635,6 +635,7 @@ export default function DriverApp() {
               alert('Nenhuma viagem ativa no momento.');
             }
           }}
+          onLogout={() => navigate('/auth')}
           activeTopButton={activeTopButton}
           hasActiveTrip={!!activeTrip}
         />
