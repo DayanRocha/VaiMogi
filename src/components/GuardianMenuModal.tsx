@@ -1,3 +1,4 @@
+
 import { X, Phone, MapPin, Mail, Truck, User, Users, Baby, School } from 'lucide-react';
 import { Driver, Van, Guardian, Student, School as SchoolType } from '@/types/driver';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -222,45 +223,58 @@ export const GuardianMenuModal = ({
                 </div>
               </div>
 
-              {/* Van Information */}
-              <div className="bg-blue-50 rounded-lg p-4">
-                <h4 className="font-medium text-gray-800 text-sm border-b pb-1 mb-3 flex items-center gap-2">
-                  <Truck className="w-4 h-4" />
-                  Informações da Van
-                </h4>
-                
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={van.photo || '/placeholder.svg'}
-                      alt={`Foto da van ${van.model}`}
-                      className="w-12 h-12 rounded-lg object-cover border border-gray-200 flex-shrink-0"
-                    />
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-800">{van.model}</p>
-                      <p className="text-sm text-gray-600">Placa: {van.plate}</p>
+              {/* Van Information - Only show if van exists */}
+              {van && (
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-800 text-sm border-b pb-1 mb-3 flex items-center gap-2">
+                    <Truck className="w-4 h-4" />
+                    Informações da Van
+                  </h4>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={van.photo || '/placeholder.svg'}
+                        alt={`Foto da van ${van.model}`}
+                        className="w-12 h-12 rounded-lg object-cover border border-gray-200 flex-shrink-0"
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-800">{van.model}</p>
+                        <p className="text-sm text-gray-600">Placa: {van.plate}</p>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="bg-white rounded-lg p-2 border">
-                      <span className="text-gray-500 text-xs">Capacidade:</span>
-                      <p className="font-medium text-gray-800">{van.capacity} passageiros</p>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="bg-white rounded-lg p-2 border">
+                        <span className="text-gray-500 text-xs">Capacidade:</span>
+                        <p className="font-medium text-gray-800">{van.capacity} passageiros</p>
+                      </div>
+                      <div className="bg-white rounded-lg p-2 border">
+                        <span className="text-gray-500 text-xs">Status:</span>
+                        <p className="font-medium text-green-600">Ativa</p>
+                      </div>
                     </div>
-                    <div className="bg-white rounded-lg p-2 border">
-                      <span className="text-gray-500 text-xs">Status:</span>
-                      <p className="font-medium text-green-600">Ativa</p>
-                    </div>
-                  </div>
 
-                  {van.observations && (
-                    <div className="bg-white rounded-lg p-2 border">
-                      <span className="text-gray-500 text-xs">Observações:</span>
-                      <p className="text-sm text-gray-700 mt-1">{van.observations}</p>
-                    </div>
-                  )}
+                    {van.observations && (
+                      <div className="bg-white rounded-lg p-2 border">
+                        <span className="text-gray-500 text-xs">Observações:</span>
+                        <p className="text-sm text-gray-700 mt-1">{van.observations}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Show message if no van */}
+              {!van && (
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-800 text-sm border-b pb-1 mb-3 flex items-center gap-2">
+                    <Truck className="w-4 h-4" />
+                    Informações da Van
+                  </h4>
+                  <p className="text-sm text-gray-500">Nenhuma van cadastrada para este motorista.</p>
+                </div>
+              )}
 
               {/* Emergency Info */}
               <div className="bg-red-50 border border-red-200 rounded-lg p-3">
