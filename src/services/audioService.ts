@@ -83,73 +83,29 @@ class AudioService {
     }
   }
 
-  // Sons específicos para cada tipo de notificação
+  // Sons específicos para cada tipo de notificação - sempre usa buzina
   async playNotificationSound(type: NotificationSoundType) {
     if (!this.isEnabled) return;
 
-    console.log('🔊 Reproduzindo som para notificação:', type);
+    console.log('🔊 Reproduzindo buzina para notificação:', type);
 
-    // Tentar reproduzir arquivo de áudio primeiro (se habilitado)
-    if (this.useAudioFiles && await this.playAudioFile(type)) {
-      return; // Arquivo de áudio reproduzido com sucesso
+    // Sempre tentar reproduzir a buzina primeiro
+    if (await this.playAudioFile(type)) {
+      return; // Buzina reproduzida com sucesso
     }
 
-    // Fallback para sons gerados (tons)
-    switch (type) {
-      case 'route_started':
-        // Som de início - sequência ascendente
-        await this.playToneSequence([
-          { frequency: 440, duration: 0.2 }, // Lá
-          { frequency: 554, duration: 0.2 }, // Dó#
-          { frequency: 659, duration: 0.3 }  // Mi
-        ]);
-        break;
-
-      case 'van_arrived':
-        // Som de chegada - dois tons médios
-        await this.playToneSequence([
-          { frequency: 523, duration: 0.25 }, // Dó
-          { frequency: 659, duration: 0.25 }  // Mi
-        ]);
-        break;
-
-      case 'embarked':
-        // Som de embarque - tom único mais longo
-        await this.generateTone(587, 0.4); // Ré
-        break;
-
-      case 'at_school':
-        // Som de chegada na escola - sequência alegre
-        await this.playToneSequence([
-          { frequency: 523, duration: 0.15 }, // Dó
-          { frequency: 659, duration: 0.15 }, // Mi
-          { frequency: 784, duration: 0.25 }  // Sol
-        ]);
-        break;
-
-      case 'disembarked':
-        // Som de desembarque - tom de conclusão
-        await this.playToneSequence([
-          { frequency: 659, duration: 0.2 }, // Mi
-          { frequency: 523, duration: 0.3 }  // Dó
-        ]);
-        break;
-
-      case 'route_finished':
-        // Som de finalização - sequência completa
-        await this.playToneSequence([
-          { frequency: 523, duration: 0.15 }, // Dó
-          { frequency: 659, duration: 0.15 }, // Mi
-          { frequency: 784, duration: 0.15 }, // Sol
-          { frequency: 1047, duration: 0.3 }  // Dó oitava
-        ]);
-        break;
-
-      default:
-        // Som padrão - tom simples
-        await this.generateTone(800, 0.3);
-        break;
+    // Se a buzina não estiver carregada, tentar carregar e reproduzir
+    console.log('⚠️ Buzina não carregada, tentando carregar...');
+    await this.loadAllAudioFiles();
+    
+    // Tentar reproduzir novamente após carregar
+    if (await this.playAudioFile(type)) {
+      return; // Buzina reproduzida com sucesso após carregamento
     }
+
+    // Último recurso: som padrão simples
+    console.warn('❌ Não foi possível reproduzir buzina, usando tom padrão');
+    await this.generateTone(800, 0.3);
   }
 
   // Ativar/desativar sons
@@ -170,12 +126,19 @@ class AudioService {
     this.isEnabled = this.isAudioEnabled();
     this.useAudioFiles = true; // Sempre usar buzina
     
-    // Carregar arquivo de buzina
-    await this.loadAllAudioFiles();
+    console.log('🔊 AudioService inicializado - buzina habilitada');
+    
+    // Tentar carregar arquivo de buzina (não bloquear se falhar)
+    try {
+      await this.loadAllAudioFiles();
+    } catch (error) {
+      console.warn('⚠️ Erro ao carregar buzina na inicialização:', error);
+    }
   }
 
-  // Testar som (para configurações)
+  // Testar som da buzina (para configurações)
   async testSound() {
+    console.log('🧪 Testando buzina...');
     await this.playNotificationSound('default');
   }
 
@@ -257,21 +220,15 @@ class AudioService {
     }
   }
 
-  // Reproduzir arquivo de áudio
+  // Reproduzir arquivo de áudio da buzina
   private async playAudioFile(type: NotificationSoundType): Promise<boolean> {
     console.log(`🔊 Tentando reproduzir buzina para: ${type}`);
     
-    const audio = this.audioFiles.get('default') || this.audioFiles.get(type);
-    if (!audio) {
-      console.warn(`❌ Arquivo de áudio não encontrado para ${type}`);
-      return false;
-    }
-
     try {
-      // Criar uma nova instância para permitir sobreposição
-      const audioClone = new Audio('/sounds/buzina-van.mp3');  // Caminho corrigido
-      audioClone.volume = 0.7;
-      audioClone.playbackRate = 1.0;  // Taxa de reprodução normal
+      // Sempre criar uma nova instância da buzina para permitir sobreposição
+      const audioClone = new Audio('/sounds/buzina-van.mp3');
+      audioClone.volume = 0.8; // Volume alto para notificações
+      audioClone.playbackRate = 1.0;
       audioClone.currentTime = 0;
       
       console.log(`🎵 Reproduzindo buzina-van.mp3 para ${type}...`);
@@ -280,7 +237,6 @@ class AudioService {
       return true;
     } catch (error) {
       console.warn(`❌ Erro ao reproduzir buzina para ${type}:`, error);
-      console.warn('Detalhes do erro:', error);
       return false;
     }
   }
