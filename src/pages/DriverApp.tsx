@@ -227,6 +227,17 @@ export default function DriverApp() {
     deleteSchool
   } = useDriverData();
 
+  // Inicializar token do Mapbox se existir
+  useEffect(() => {
+    const savedToken = localStorage.getItem('mapboxAccessToken');
+    if (savedToken) {
+      import('@/services/realTimeTrackingService').then(({ realTimeTrackingService }) => {
+        realTimeTrackingService.setMapboxToken(savedToken);
+        console.log('🗺️ Token do Mapbox carregado automaticamente');
+      });
+    }
+  }, []);
+
   const navigateToScreen = (screen: string) => {
     // Reset all states first
     setShowStudentForm(false);
@@ -445,6 +456,7 @@ export default function DriverApp() {
           route={executingRoute}
           students={students}
           schools={schools}
+          driverName={driver?.name || 'Motorista'}
           onBack={() => {
             setShowRouteExecutionScreen(false);
             setExecutingRoute(null);

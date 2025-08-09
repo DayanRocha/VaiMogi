@@ -1,11 +1,12 @@
 
 import { useState, useRef } from 'react';
-import { ArrowRight, ArrowLeft, MapPin, School, CheckCircle, Navigation, User, Bell, Home, Map, LogOut } from 'lucide-react';
+import { ArrowRight, ArrowLeft, MapPin, School, CheckCircle, Navigation, User, Bell, Home, Map, LogOut, StopCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Trip, Student, School as SchoolType, TripStudent, Driver } from '@/types/driver';
 import { routeTrackingService } from '@/services/routeTrackingService';
+import { useRealTimeTracking } from '@/hooks/useRealTimeTracking';
 
 
 interface ActiveTripProps {
@@ -483,6 +484,7 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
 export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentStatus, onUpdateMultipleStudentsStatus, onFinishTrip, onBack, onLogout }: ActiveTripProps) => {
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [showGroupDisembarkDialog, setShowGroupDisembarkDialog] = useState(false);
+  const { stopTracking, hasActiveRoute, isTracking } = useRealTimeTracking();
   const [selectedSchool, setSelectedSchool] = useState<SchoolType | null>(null);
   const [selectedStudentsForDisembark, setSelectedStudentsForDisembark] = useState<string[]>([]);
   const [isDisembarking, setIsDisembarking] = useState(false);
@@ -796,8 +798,29 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
             <ArrowLeft className="w-6 h-6" />
           </button>
           <span className="text-white font-semibold text-lg">Executando rota</span>
+          {isTracking && (
+            <div className="flex items-center gap-1 bg-white bg-opacity-20 rounded-full px-2 py-1">
+              <MapPin className="w-3 h-3 text-white animate-pulse" />
+              <span className="text-white text-xs">Rastreando</span>
+            </div>
+          )}
         </div>
-        <span className="text-white text-sm">Rota da manhã</span>
+        <div className="flex items-center gap-2">
+          <span className="text-white text-sm">Rota da manhã</span>
+          {hasActiveRoute && (
+            <button
+              onClick={() => {
+                if (confirm('Deseja parar o rastreamento em tempo real?')) {
+                  stopTracking();
+                }
+              }}
+              className="text-white hover:text-red-200"
+              title="Parar rastreamento"
+            >
+              <StopCircle className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </div>
 
 
@@ -1225,6 +1248,12 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
               </Button>
               <Button
                 onClick={() => {
+                  // Parar rastreamento em tempo real
+                  if (hasActiveRoute) {
+                    console.log('🛑 Parando rastreamento em tempo real');
+                    stopTracking();
+                  }
+                  
                   onFinishTrip();
                   setConfirmFinish(false);
                 }}

@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { ArrowLeft, User, School as SchoolIcon, Home, X, Plus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, User, School as SchoolIcon, Home, X, Plus, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Route, Student, School } from '@/types/driver';
+import { useRealTimeTracking } from '@/hooks/useRealTimeTracking';
 
 interface RouteItem {
     id: string;
@@ -20,6 +21,7 @@ interface RouteExecutionScreenProps {
     onBack: () => void;
     onSaveChanges: (routeItems: RouteItem[]) => void;
     onStartRoute: () => void;
+    driverName?: string;
 }
 
 export const RouteExecutionScreen = ({
@@ -28,8 +30,10 @@ export const RouteExecutionScreen = ({
     schools,
     onBack,
     onSaveChanges,
-    onStartRoute
+    onStartRoute,
+    driverName = 'Motorista'
 }: RouteExecutionScreenProps) => {
+    const { startTracking, stopTracking, isTracking, hasActiveRoute, trackingError } = useRealTimeTracking();
     const [routeItems, setRouteItems] = useState<RouteItem[]>([
         // Inicializar com os estudantes já cadastrados na rota
         ...route.students.map(student => ({
@@ -119,6 +123,61 @@ export const RouteExecutionScreen = ({
         const school = schools.find(s => s.id === schoolId);
         return school ? school.name : 'Escola não encontrada';
     };
+
+    // Função para iniciar rota com rastreamento em tempo real
+    const handleStartRoute = async () => {
+        try {
+            console.log('🚀 Iniciando rota com rastreamento em tempo real');
+            
+            // Obter escola da rota (assumindo que há uma escola associada)
+            const routeStudents = routeItems
+                .filter(item => item.type === 'student' && item.studentData)
+                .map(item => item.studentData!);
+            
+            // Encontrar escola dos estudantes
+            const schoolId = routeStudents[0]?.schoolId;
+            const school = schoolId ? schools.find(s => s.id === schoolId) : null;
+            
+            if (!school) {
+                console.warn('⚠️ Nenhuma escola encontrada para a rota');
+                alert('Erro: Nenhuma escola encontrada para esta rota');
+                return;
+            }
+
+            // Determinar direção da rota (assumindo 'to_school' por padrão)
+            const direction: 'to_school' | 'to_home' = 'to_school';
+            
+            // Iniciar rastreamento em tempo real
+            const success = await startTracking(
+                route.driverId || 'driver-id',
+                driverName,
+                direction,
+                routeStudents,
+                school
+            );
+
+            if (success) {
+                console.log('✅ Rastreamento iniciado com sucesso');
+                // Chamar a função original para manter compatibilidade
+                onStartRoute();
+            } else {
+                console.error('❌ Falha ao iniciar rastreamento');
+                alert('Erro ao iniciar rastreamento da rota. Tente novamente.');
+            }
+        } catch (error) {
+            console.error('❌ Erro ao iniciar rota:', error);
+            alert('Erro inesperado ao iniciar a rota. Tente novamente.');
+        }
+    };
+
+    // Parar rastreamento quando sair da tela
+    useEffect(() => {
+        return () => {
+            if (hasActiveRoute) {
+                console.log('🛑 Saindo da tela de execução, mantendo rastreamento ativo');
+            }
+        };
+    }, [hasActiveRoute]);
 
     const getStudentInitials = (name: string) => {
         if (!name) return 'N/A';
@@ -214,10 +273,22 @@ export const RouteExecutionScreen = ({
                         Salvar Mudanças
                     </Button>
                     <Button
-                        onClick={onStartRoute}
-                        className="w-full bg-purple-500 hover:bg-purple-600 text-white py-4 rounded-full"
+                        onClick={handleStartRoute}
+                        disabled={isTracking}
+                        className="w-full bg-purple-500 hover:bg-purple-600 text-white py-4 rounded-full disabled:opacity-50"
                     >
-                        Iniciar Rota
+                        {isTracking ? (
+                            <div className="flex items-center gap-2">
+                                <MapPin className="w-4 h-4 animate-pulse" />
+                                Rastreamento Ativo
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-2">
+                                <MapPin className="w-4 h-4" />
+                                Iniciar Rota
+                                <span className="text-xs text-purple-200 ml-1">(Navegação Automática)</span>
+                            </div>
+                        )}
                     </Button>
                 </div>
             </div>
@@ -329,7 +400,6 @@ export const RouteExecutionScreen = ({
                     )}
                 </DialogContent>
             </Dialog>
-
 
         </div>
     );

@@ -169,6 +169,7 @@ export const GuardianApp = () => {
             van={van}
             students={students}
             activeTrip={activeTrip}
+            guardianId={guardian.id}
           />
         </ErrorBoundary>
       </div>

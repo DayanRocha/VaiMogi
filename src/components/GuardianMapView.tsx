@@ -1,18 +1,22 @@
 
 import React, { useState, useMemo } from 'react';
-import { MapPin, AlertCircle } from 'lucide-react';
+import { MapPin, AlertCircle, Settings } from 'lucide-react';
 import { Driver, Van, Student, Trip } from '@/types/driver';
 import { useRouteTracking } from '@/hooks/useRouteTracking';
 import { MapboxMap } from '@/components/maps/MapboxMap';
+import { GuardianRealTimeMap } from '@/components/GuardianRealTimeMap';
+import { MapboxConfig } from '@/components/MapboxConfig';
+import { Button } from '@/components/ui/button';
 
 interface GuardianMapViewProps {
   driver: Driver;
   van: Van;
   students: Student[];
   activeTrip: Trip | null;
+  guardianId: string;
 }
 
-export const GuardianMapView = React.memo(({ driver, van, students, activeTrip }: GuardianMapViewProps) => {
+export const GuardianMapView = React.memo(({ driver, van, students, activeTrip, guardianId }: GuardianMapViewProps) => {
   const { 
     hasActiveRoute, 
     activeRoute, 
@@ -22,6 +26,10 @@ export const GuardianMapView = React.memo(({ driver, van, students, activeTrip }
   } = useRouteTracking();
   
   const [mapError, setMapError] = useState(false);
+  const [showMapboxConfig, setShowMapboxConfig] = useState(false);
+  const [mapboxToken, setMapboxToken] = useState(() => {
+    return localStorage.getItem('mapboxAccessToken') || '';
+  });
 
   // Memoizar dados do mapa para evitar recriações desnecessárias - SEMPRE executar hooks
   const mapData = useMemo(() => {
@@ -230,45 +238,56 @@ export const GuardianMapView = React.memo(({ driver, van, students, activeTrip }
   return (
     <div className="w-full h-full">
       <div className="relative w-full h-full">
-        <MapboxMap
-          center={mapData.mapCenter}
-          markers={mapData.markers}
-          route={mapData.routeCoordinates}
-          className="w-full h-full"
-          zoom={15}
-          onMapLoad={() => setMapError(false)}
-          onError={(error) => {
-            console.error('Erro no mapa do responsável:', error);
-            setMapError(true);
-          }}
-        />
+        {mapboxToken ? (
+          <GuardianRealTimeMap
+            guardianId={guardianId}
+            mapboxToken={mapboxToken}
+            className="w-full h-full"
+          />
+        ) : (
+          // Fallback para o mapa antigo se não houver token
+          <MapboxMap
+            center={mapData.mapCenter}
+            markers={mapData.markers}
+            route={mapData.routeCoordinates}
+            className="w-full h-full"
+            zoom={15}
+            onMapLoad={() => setMapError(false)}
+            onError={(error) => {
+              console.error('Erro no mapa do responsável:', error);
+              setMapError(true);
+            }}
+          />
+        )}
         
-        {/* Overlay com informações da rota ativa */}
-        <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 max-w-xs">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-sm font-medium text-gray-800">Rota Ativa</span>
-          </div>
-          <div className="text-xs text-gray-600 space-y-1">
-            <div>Motorista: <span className="font-medium">{driver?.name || 'N/A'}</span></div>
-            <div>Veículo: <span className="font-medium">{van?.plate || 'N/A'}</span></div>
-            {nextDestination && (
-              <div>Próximo: <span className="font-medium">{nextDestination.studentName || 'Destino'}</span></div>
-            )}
-          </div>
-        </div>
-        
-        {/* Botão para alternar para modo simplificado em caso de problemas */}
-        <div className="absolute top-4 right-4">
-          <button
-            onClick={() => setMapError(true)}
-            className="bg-white rounded-lg shadow-lg p-2 text-gray-600 hover:text-gray-800 transition-colors"
-            title="Modo simplificado"
+        {/* Botão de configuração do Mapbox */}
+        <div className="absolute top-4 right-4 flex gap-2">
+          <Button
+            onClick={() => setShowMapboxConfig(true)}
+            size="sm"
+            variant="outline"
+            className="bg-white shadow-lg"
           >
-            <AlertCircle className="w-4 h-4" />
-          </button>
+            <Settings className="w-4 h-4" />
+          </Button>
+          
+          {!mapboxToken && (
+            <div className="bg-yellow-100 border border-yellow-300 rounded-lg px-3 py-2 text-sm">
+              <span className="text-yellow-800">Configure o Mapbox para rastreamento em tempo real</span>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Modal de configuração do Mapbox */}
+      <MapboxConfig
+        open={showMapboxConfig}
+        onOpenChange={setShowMapboxConfig}
+        onTokenSaved={(token) => {
+          setMapboxToken(token);
+          console.log('✅ Token do Mapbox configurado no painel do responsável');
+        }}
+      />
     </div>
   );
 });
