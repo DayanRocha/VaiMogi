@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Camera, Save, Truck, ArrowLeft, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -6,14 +7,29 @@ import { Label } from '@/components/ui/label';
 import { Van } from '@/types/driver';
 
 interface VanRegistrationProps {
-  van: Van;
+  van: Van | null;
   onUpdate: (updates: Partial<Van>) => void;
   onBack: () => void;
   onLogout?: () => void;
 }
 
 export const VanRegistration = ({ van, onUpdate, onBack, onLogout }: VanRegistrationProps) => {
-  const [formData, setFormData] = useState(van);
+  // Initialize formData with van data if it exists, or with default values
+  const [formData, setFormData] = useState(() => {
+    if (van) {
+      return van;
+    }
+    // Default van data if no van exists
+    return {
+      id: Date.now().toString(),
+      driverId: '1', // Will be set properly when saved
+      model: '',
+      plate: '',
+      capacity: 0,
+      observations: '',
+      photo: ''
+    };
+  });
 
   const handleSave = () => {
     onUpdate(formData);

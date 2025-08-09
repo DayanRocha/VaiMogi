@@ -1,3 +1,4 @@
+
 import { X, Phone, MapPin, Mail, Truck, User } from 'lucide-react';
 import { Driver, Van } from '@/types/driver';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -7,7 +8,7 @@ interface DriverInfoModalProps {
   isOpen: boolean;
   onClose: () => void;
   driver: Driver;
-  van: Van;
+  van: Van | null;
 }
 
 export const DriverInfoModal = ({ isOpen, onClose, driver, van }: DriverInfoModalProps) => {
@@ -81,43 +82,56 @@ export const DriverInfoModal = ({ isOpen, onClose, driver, van }: DriverInfoModa
             </div>
           </div>
 
-          {/* Van Information */}
-          <div className="space-y-3">
-            <h4 className="font-medium text-gray-800 border-b pb-2 flex items-center gap-2">
-              <Truck className="w-4 h-4" />
-              Informações da Van
-            </h4>
-            
-            <div className="flex items-center gap-4">
-              <img
-                src={van.photo || '/placeholder.svg'}
-                alt={`Foto da van ${van.model}`}
-                className="w-12 h-12 rounded-lg object-cover border border-gray-200"
-              />
-              <div>
-                <p className="font-medium text-gray-800">{van.model}</p>
-                <p className="text-sm text-gray-600">Placa: {van.plate}</p>
+          {/* Van Information - Only show if van exists */}
+          {van && (
+            <div className="space-y-3">
+              <h4 className="font-medium text-gray-800 border-b pb-2 flex items-center gap-2">
+                <Truck className="w-4 h-4" />
+                Informações da Van
+              </h4>
+              
+              <div className="flex items-center gap-4">
+                <img
+                  src={van.photo || '/placeholder.svg'}
+                  alt={`Foto da van ${van.model}`}
+                  className="w-12 h-12 rounded-lg object-cover border border-gray-200"
+                />
+                <div>
+                  <p className="font-medium text-gray-800">{van.model}</p>
+                  <p className="text-sm text-gray-600">Placa: {van.plate}</p>
+                </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-gray-500">Capacidade:</span>
-                <p className="font-medium">{van.capacity} passageiros</p>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-500">Capacidade:</span>
+                  <p className="font-medium">{van.capacity} passageiros</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Status:</span>
+                  <p className="font-medium text-green-600">Ativa</p>
+                </div>
               </div>
-              <div>
-                <span className="text-gray-500">Status:</span>
-                <p className="font-medium text-green-600">Ativa</p>
-              </div>
-            </div>
 
-            {van.observations && (
-              <div>
-                <span className="text-gray-500 text-sm">Observações:</span>
-                <p className="text-sm text-gray-700 mt-1">{van.observations}</p>
-              </div>
-            )}
-          </div>
+              {van.observations && (
+                <div>
+                  <span className="text-gray-500 text-sm">Observações:</span>
+                  <p className="text-sm text-gray-700 mt-1">{van.observations}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Show message if no van */}
+          {!van && (
+            <div className="space-y-3">
+              <h4 className="font-medium text-gray-800 border-b pb-2 flex items-center gap-2">
+                <Truck className="w-4 h-4" />
+                Informações da Van
+              </h4>
+              <p className="text-sm text-gray-500">Nenhuma van cadastrada para este motorista.</p>
+            </div>
+          )}
 
           {/* Emergency Info */}
           <div className="bg-red-50 border border-red-200 rounded-lg p-3">
