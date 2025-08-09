@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Camera, Edit, Save, X, ArrowLeft, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -6,15 +7,34 @@ import { Label } from '@/components/ui/label';
 import { Driver } from '@/types/driver';
 
 interface DriverProfileProps {
-  driver: Driver;
+  driver: Driver | null;
   onUpdate: (updates: Partial<Driver>) => void;
   onBack: () => void;
   onLogout?: () => void;
 }
 
 export const DriverProfile = ({ driver, onUpdate, onBack, onLogout }: DriverProfileProps) => {
+  // If driver is null, provide default values
+  const defaultDriver: Driver = {
+    id: '',
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    photo: ''
+  };
+
+  const currentDriver = driver || defaultDriver;
+  
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState(driver);
+  const [formData, setFormData] = useState(currentDriver);
+
+  // Update formData when driver changes
+  useState(() => {
+    if (driver) {
+      setFormData(driver);
+    }
+  });
 
   const handleSave = () => {
     onUpdate(formData);
@@ -22,7 +42,7 @@ export const DriverProfile = ({ driver, onUpdate, onBack, onLogout }: DriverProf
   };
 
   const handleCancel = () => {
-    setFormData(driver);
+    setFormData(currentDriver);
     setIsEditing(false);
   };
 
@@ -40,6 +60,34 @@ export const DriverProfile = ({ driver, onUpdate, onBack, onLogout }: DriverProf
       reader.readAsDataURL(file);
     }
   };
+
+  // Show loading state if driver is null
+  if (!driver) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="p-4 sm:p-6 max-w-md mx-auto">
+          <div className="flex items-center justify-between mb-8 pt-4">
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={onBack} 
+                className="text-gray-600 hover:text-gray-800 p-2 rounded-xl hover:bg-white/50 transition-all duration-200 active:scale-95"
+              >
+                <ArrowLeft className="w-6 h-6" />
+              </button>
+              <h1 className="text-2xl font-bold text-gray-800">Perfil do Motorista</h1>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center text-gray-500">
+              <div className="animate-spin w-8 h-8 border-4 border-blue-400 border-t-transparent rounded-full mx-auto mb-4"></div>
+              <p>Carregando dados do motorista...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -68,7 +116,7 @@ export const DriverProfile = ({ driver, onUpdate, onBack, onLogout }: DriverProf
         <div className="flex flex-col items-center mb-6">
           <div className="relative w-24 h-24 mb-4">
             <img
-              src={formData.photo || '/placeholder.svg'}
+              src={formData?.photo || '/placeholder.svg'}
               alt="Foto do perfil"
               className="w-full h-full rounded-full object-cover border-4 border-blue-100"
             />
@@ -90,7 +138,7 @@ export const DriverProfile = ({ driver, onUpdate, onBack, onLogout }: DriverProf
             <Label htmlFor="name">Nome Completo</Label>
             <Input
               id="name"
-              value={formData.name}
+              value={formData?.name || ''}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               disabled={!isEditing}
               className={!isEditing ? "bg-gray-50" : ""}
@@ -102,7 +150,7 @@ export const DriverProfile = ({ driver, onUpdate, onBack, onLogout }: DriverProf
             <Input
               id="email"
               type="email"
-              value={formData.email}
+              value={formData?.email || ''}
               onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
               disabled={!isEditing}
               className={!isEditing ? "bg-gray-50" : ""}
@@ -114,7 +162,7 @@ export const DriverProfile = ({ driver, onUpdate, onBack, onLogout }: DriverProf
             <Label htmlFor="phone">Telefone</Label>
             <Input
               id="phone"
-              value={formData.phone}
+              value={formData?.phone || ''}
               onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
               disabled={!isEditing}
               className={!isEditing ? "bg-gray-50" : ""}
@@ -126,15 +174,13 @@ export const DriverProfile = ({ driver, onUpdate, onBack, onLogout }: DriverProf
             <Label htmlFor="address">Endereço</Label>
             <Input
               id="address"
-              value={formData.address}
+              value={formData?.address || ''}
               onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
               disabled={!isEditing}
               className={!isEditing ? "bg-gray-50" : ""}
             />
           </div>
         </div>
-
-
 
         {/* Action Buttons */}
         <div className="mt-6 flex gap-3">

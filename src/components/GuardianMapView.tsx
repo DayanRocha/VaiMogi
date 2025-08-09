@@ -48,7 +48,7 @@ export const GuardianMapView = React.memo(({ driver, van, students, activeTrip }
         markers.push({
           id: 'driver',
           coordinates: [currentDriverLocation.lng, currentDriverLocation.lat] as [number, number],
-          popup: `<div class="p-2"><strong>${driver?.name || 'Motorista'} - ${van?.licensePlate || 'Veículo'}</strong><br/>Localização ${driverLocation ? 'atual' : 'padrão'} do motorista</div>`,
+          popup: `<div class="p-2"><strong>${driver?.name || 'Motorista'} - ${van?.plate || 'Veículo'}</strong><br/>Localização ${driverLocation ? 'atual' : 'padrão'} do motorista</div>`,
           color: '#10B981' // Verde para o motorista
         });
       }
@@ -66,10 +66,8 @@ export const GuardianMapView = React.memo(({ driver, van, students, activeTrip }
         });
       }
       
-      // Preparar dados da rota se disponível
-      const routeCoordinates = (activeRoute && activeRoute.coordinates && Array.isArray(activeRoute.coordinates)) ? 
-        activeRoute.coordinates.filter(coord => Array.isArray(coord) && coord.length === 2 && 
-          typeof coord[0] === 'number' && typeof coord[1] === 'number') : [];
+      // Preparar dados da rota se disponível - remover referência a coordinates que não existe
+      const routeCoordinates: [number, number][] = [];
       
       // Determinar centro do mapa
       const mapCenter: [number, number] = [currentDriverLocation.lng, currentDriverLocation.lat];
@@ -91,7 +89,7 @@ export const GuardianMapView = React.memo(({ driver, van, students, activeTrip }
         isValid: false
       };
     }
-  }, [driverLocation, nextDestination, activeRoute, driver?.name, van?.licensePlate]);
+  }, [driverLocation, nextDestination, activeRoute, driver?.name, van?.plate]);
 
   // Renderização condicional APÓS todos os hooks
   if (isLoading) {
@@ -129,7 +127,7 @@ export const GuardianMapView = React.memo(({ driver, van, students, activeTrip }
               </div>
               <div className="flex items-center justify-between text-sm mt-2">
                 <span className="text-gray-600">Veículo:</span>
-                <span className="font-medium text-gray-800">{van.licensePlate}</span>
+                <span className="font-medium text-gray-800">{van.plate}</span>
               </div>
               <div className="flex items-center justify-between text-sm mt-2">
                 <span className="text-gray-600">Status:</span>
@@ -169,7 +167,7 @@ export const GuardianMapView = React.memo(({ driver, van, students, activeTrip }
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Veículo:</span>
-                  <span className="font-medium text-gray-800">{van.licensePlate}</span>
+                  <span className="font-medium text-gray-800">{van.plate}</span>
                 </div>
                 {nextDestination && (
                   <div className="flex items-center justify-between">
@@ -219,7 +217,7 @@ export const GuardianMapView = React.memo(({ driver, van, students, activeTrip }
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Veículo:</span>
-                  <span className="font-medium text-gray-800">{van?.licensePlate || 'Carregando...'}</span>
+                  <span className="font-medium text-gray-800">{van?.plate || 'Carregando...'}</span>
                 </div>
               </div>
             </div>
@@ -253,7 +251,7 @@ export const GuardianMapView = React.memo(({ driver, van, students, activeTrip }
           </div>
           <div className="text-xs text-gray-600 space-y-1">
             <div>Motorista: <span className="font-medium">{driver?.name || 'N/A'}</span></div>
-            <div>Veículo: <span className="font-medium">{van?.licensePlate || 'N/A'}</span></div>
+            <div>Veículo: <span className="font-medium">{van?.plate || 'N/A'}</span></div>
             {nextDestination && (
               <div>Próximo: <span className="font-medium">{nextDestination.studentName || 'Destino'}</span></div>
             )}
