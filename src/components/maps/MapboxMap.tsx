@@ -13,86 +13,141 @@ interface MapboxMapProps {
   }>;
   route?: Array<[number, number]>;
   onMapLoad?: (map: mapboxgl.Map) => void;
+  onError?: (error: string) => void;
   className?: string;
 }
 
-export const MapboxMap: React.FC<MapboxMapProps> = ({
+export const MapboxMap: React.FC<MapboxMapProps> = React.memo(({
   center,
   zoom = MAPBOX_CONFIG.defaultZoom,
   markers = [],
   route = [],
   onMapLoad,
+  onError,
   className = 'w-full h-96'
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
+  const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isMapboxConfigured()) {
-      setError('Token do MapBox não configurado. Configure VITE_MAPBOX_ACCESS_TOKEN no arquivo .env');
+      const errorMsg = 'Token do MapBox não configurado. Configure VITE_MAPBOX_ACCESS_TOKEN no arquivo .env';
+      setError(errorMsg);
+      if (onError) {
+        onError(errorMsg);
+      }
       return;
     }
 
     if (map.current) return; // Evita inicializar múltiplas vezes
 
-    // Derivar centro inicial a partir dos dados disponíveis, sem usar fallback fixo
-    const derivedCenter: [number, number] | null = (() => {
-      if (center && Array.isArray(center) && center.length === 2) return center;
-      if (markers && markers.length > 0) return markers[0].coordinates;
-      if (route && route.length > 0) return route[0];
-      return null;
-    })();
-
-    if (!derivedCenter) {
-      setError('Sem dados de localização para inicializar o mapa');
+    if (!mapContainer.current) {
+      const errorMsg = 'Container do mapa não encontrado';
+      setError(errorMsg);
+      if (onError) {
+        onError(errorMsg);
+      }
       return;
     }
+
+    // Usar centro fornecido ou fallback para São Paulo
+    const initialCenter: [number, number] = center || [-46.6333, -23.5505];
 
     mapboxgl.accessToken = MAPBOX_CONFIG.accessToken;
 
     try {
       map.current = new mapboxgl.Map({
-        container: mapContainer.current!,
+        container: mapContainer.current,
         style: MAPBOX_CONFIG.style,
-        center: { lng: derivedCenter[0], lat: derivedCenter[1] },
+        center: initialCenter,
         zoom: zoom
       });
 
       map.current.on('load', () => {
+        if (loadingTimeoutRef.current) {
+          clearTimeout(loadingTimeoutRef.current);
+          loadingTimeoutRef.current = null;
+        }
         setIsLoaded(true);
         if (onMapLoad && map.current) {
           onMapLoad(map.current);
         }
       });
 
+      // Timeout para detectar se o mapa está demorando muito para carregar
+      loadingTimeoutRef.current = setTimeout(() => {
+        if (!isLoaded) {
+          const timeoutError = 'Timeout: Mapa demorou muito para carregar';
+          console.warn(timeoutError);
+          setError(timeoutError);
+          if (onError) {
+            onError(timeoutError);
+          }
+        }
+      }, 15000); // 15 segundos
+
       map.current.on('error', (e) => {
         console.error('Erro no MapBox:', e);
-        setError('Erro ao carregar o mapa');
+        const errorMessage = `Erro ao carregar o mapa: ${e.error?.message || 'Erro desconhecido'}`;
+        setError(errorMessage);
+        if (onError) {
+          onError(errorMessage);
+        }
       });
 
     } catch (err) {
       console.error('Erro ao inicializar MapBox:', err);
-      setError('Erro ao inicializar o mapa');
+      const errorMessage = `Erro ao inicializar o mapa: ${err instanceof Error ? err.message : 'Erro desconhecido'}`;
+      setError(errorMessage);
+      if (onError) {
+        onError(errorMessage);
+      }
     }
 
     return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+      
       if (map.current) {
+        // Limpar marcadores
+        markersRef.current.forEach(marker => marker.remove());
+        markersRef.current = [];
+        
         map.current.remove();
         map.current = null;
+        setIsLoaded(false);
       }
     };
-  // Dependências incluem props que podem fornecer centro/rota/marcadores posteriormente
-  }, [center, markers, route, zoom, onMapLoad]);
+  }, []);
+
+  // Atualizar centro do mapa quando necessário
+  useEffect(() => {
+    if (!map.current || !isLoaded || !center) return;
+    
+    const currentCenter = map.current.getCenter();
+    const [newLng, newLat] = center;
+    
+    // Só atualizar se a diferença for significativa (mais de 0.001 graus)
+    const threshold = 0.001;
+    if (Math.abs(currentCenter.lng - newLng) > threshold || 
+        Math.abs(currentCenter.lat - newLat) > threshold) {
+      map.current.setCenter(center);
+    }
+  }, [center, isLoaded]);
 
   // Atualizar marcadores
   useEffect(() => {
     if (!map.current || !isLoaded) return;
 
     // Remover marcadores existentes
-    const existingMarkers = document.querySelectorAll('.mapboxgl-marker');
-    existingMarkers.forEach(marker => marker.remove());
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
 
     // Adicionar novos marcadores
     markers.forEach(marker => {
@@ -114,6 +169,8 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
           .setHTML(marker.popup);
         mapboxMarker.setPopup(popup);
       }
+
+      markersRef.current.push(mapboxMarker);
     });
   }, [markers, isLoaded]);
 
@@ -156,11 +213,21 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
   }, [route, isLoaded]);
 
   if (error) {
+    // Notificar o componente pai sobre o erro
+    if (onError && !error.includes('já foi reportado')) {
+      onError(error + ' - já foi reportado');
+    }
+    
     return (
       <div className={`${className} flex items-center justify-center bg-gray-100 border border-gray-300 rounded-lg`}>
         <div className="text-center p-4">
           <p className="text-red-600 font-medium">Erro no Mapa</p>
-          <p className="text-sm text-gray-600 mt-1">{error}</p>
+          <p className="text-sm text-gray-600 mt-1">
+            {error.includes('Token') ? 'Configuração do MapBox' : 'Falha ao carregar'}
+          </p>
+          <p className="text-xs text-gray-500 mt-2">
+            Alternando para modo simplificado...
+          </p>
         </div>
       </div>
     );
@@ -179,6 +246,8 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
       )}
     </div>
   );
-};
+});
+
+MapboxMap.displayName = 'MapboxMap';
 
 export default MapboxMap;

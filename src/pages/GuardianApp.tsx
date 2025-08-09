@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GuardianMapView } from '@/components/GuardianMapView';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { GuardianHeader } from '@/components/GuardianHeader';
 import { GuardianMenuModal } from '@/components/GuardianMenuModal';
 import { NotificationPanel } from '@/components/NotificationPanel';
@@ -162,12 +163,14 @@ export const GuardianApp = () => {
 
       {/* Main Map View */}
       <div className="h-[calc(100vh-64px)] relative">
-        <GuardianMapView
-          driver={driver}
-          van={van}
-          students={students}
-          activeTrip={activeTrip}
-        />
+        <ErrorBoundary>
+          <GuardianMapView
+            driver={driver}
+            van={van}
+            students={students}
+            activeTrip={activeTrip}
+          />
+        </ErrorBoundary>
       </div>
 
       {/* Guardian Menu Modal */}

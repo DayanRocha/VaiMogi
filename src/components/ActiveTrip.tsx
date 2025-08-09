@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Trip, Student, School as SchoolType, TripStudent, Driver } from '@/types/driver';
 import { routeTrackingService } from '@/services/routeTrackingService';
 
+
 interface ActiveTripProps {
   trip: Trip | null;
   students: Student[];
@@ -798,6 +799,8 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
         </div>
         <span className="text-white text-sm">Rota da manhã</span>
       </div>
+
+
 
       {/* Content */}
       <div className="bg-gray-100 min-h-screen rounded-t-3xl p-4">
