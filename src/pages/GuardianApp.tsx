@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GuardianMapView } from '@/components/GuardianMapView';
+import GuardianMapView from '@/components/GuardianMapView';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { GuardianHeader } from '@/components/GuardianHeader';
 import { GuardianMenuModal } from '@/components/GuardianMenuModal';

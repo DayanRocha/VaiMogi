@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
-import { MAPBOX_CONFIG } from '../config/maps';
+import { MAPBOX_CONFIG, getMapboxToken } from '../config/maps';
 
 interface RouteResponse {
   routes: Array<{
@@ -33,7 +33,12 @@ export const useMapbox = (): UseMapboxReturn => {
     setError(null);
 
     try {
-      const url = `${MAPBOX_CONFIG.directionsApiUrl}/${start[0]},${start[1]};${end[0]},${end[1]}?geometries=geojson&access_token=${MAPBOX_CONFIG.accessToken}`;
+      const token = getMapboxToken();
+      if (!token) {
+        throw new Error('Token do Mapbox não configurado');
+      }
+      
+      const url = `${MAPBOX_CONFIG.directionsApiUrl}/${start[0]},${start[1]};${end[0]},${end[1]}?geometries=geojson&access_token=${token}`;
       
       const response = await fetch(url);
       
@@ -94,8 +99,13 @@ export const useMapbox = (): UseMapboxReturn => {
     setError(null);
 
     try {
+      const token = getMapboxToken();
+      if (!token) {
+        throw new Error('Token do Mapbox não configurado');
+      }
+      
       const encodedAddress = encodeURIComponent(address);
-      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedAddress}.json?access_token=${MAPBOX_CONFIG.accessToken}&country=BR&limit=1`;
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedAddress}.json?access_token=${token}&country=BR&limit=1`;
       
       const response = await fetch(url);
       
@@ -126,7 +136,12 @@ export const useMapbox = (): UseMapboxReturn => {
     setError(null);
 
     try {
-      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${coordinates[0]},${coordinates[1]}.json?access_token=${MAPBOX_CONFIG.accessToken}&types=address`;
+      const token = getMapboxToken();
+      if (!token) {
+        throw new Error('Token do Mapbox não configurado');
+      }
+      
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${coordinates[0]},${coordinates[1]}.json?access_token=${token}&types=address`;
       
       const response = await fetch(url);
       

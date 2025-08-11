@@ -286,6 +286,57 @@ class PushNotificationService {
     return success;
   }
 
+  // Notificação de atualização de rota
+  async sendRouteUpdateNotification(data: {
+    driverName: string;
+    reason: string;
+    newEstimatedTime?: string;
+    guardianIds?: string[];
+  }): Promise<boolean> {
+    const success = await this.showNotification({
+      title: `🗺️ Rota atualizada - ${data.driverName}`,
+      body: `${data.reason}${data.newEstimatedTime ? `. Nova previsão: ${data.newEstimatedTime}` : ''}`,
+      icon: '/icon-192x192.png',
+      badge: '/badge-72x72.png',
+      tag: `route-update-${Date.now()}`,
+      data: {
+        type: 'route_update',
+        driverName: data.driverName,
+        reason: data.reason,
+        newEstimatedTime: data.newEstimatedTime,
+        timestamp: Date.now()
+      },
+      actions: [
+        {
+          action: 'view',
+          title: '👀 Ver no Mapa',
+          icon: '/icon-view.png'
+        },
+        {
+          action: 'dismiss',
+          title: '✅ OK',
+          icon: '/icon-ok.png'
+        }
+      ]
+    });
+
+    if (success) {
+      // Emitir evento customizado para notificação toast
+      window.dispatchEvent(new CustomEvent('tracking-notification', {
+        detail: {
+          type: 'route_update',
+          data: {
+            driverName: data.driverName,
+            reason: data.reason,
+            newEstimatedTime: data.newEstimatedTime
+          }
+        }
+      }));
+    }
+
+    return success;
+  }
+
   // Verificar proximidade e enviar notificação se necessário
   async checkProximityAndNotify(
     driverLocation: { lat: number; lng: number },

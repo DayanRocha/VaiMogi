@@ -30,6 +30,10 @@ export interface TrackingRoute {
   totalDistance?: number; // em metros
   notificationsEnabled?: boolean; // Se notificações estão habilitadas para esta rota
   proximityNotificationsSent?: Set<string>; // IDs dos estudantes que já receberam notificação
+  offRouteThreshold?: number; // Distância em metros para considerar fora da rota (padrão: 100m)
+  lastRouteRecalculation?: string; // Timestamp da última recalculação
+  isOffRoute?: boolean; // Se o motorista está fora da rota
+  offRouteDistance?: number; // Distância atual da rota em metros
 }
 
 class RealTimeTrackingService {
@@ -41,12 +45,34 @@ class RealTimeTrackingService {
   private lastKnownLocation: RouteLocation | null = null;
   private hasRetriedLocation: boolean = false;
   private locationCache: Map<string, { location: RouteLocation; timestamp: number }> = new Map();
+  private offRouteThreshold: number = 100; // metros
+  private minRecalculationInterval: number = 30000; // 30 segundos entre recalculações
+  private autoNavigationEnabled: boolean = true; // Navegação automática habilitada por padrão
   private constructor() {
-    // Configurar token do Mapbox (deve ser configurado via env ou config)
-    this.mapboxAccessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '';
-    if (!this.mapboxAccessToken) {
-      console.warn('⚠️ Token do Mapbox não configurado. Funcionalidades de rota podem não funcionar.');
+    // Configurar token do Mapbox automaticamente
+    this.updateMapboxToken();
+  }
+
+  // Atualizar token do Mapbox automaticamente
+  private updateMapboxToken() {
+    // Primeiro, tentar buscar do ambiente (.env)
+    const envToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+    if (envToken && envToken.startsWith('pk.') && envToken.length > 20) {
+      this.mapboxAccessToken = envToken;
+      console.log('✅ Token do Mapbox configurado automaticamente do ambiente (.env)');
+      return;
     }
+    
+    // Se não houver no ambiente, buscar do localStorage
+    const savedToken = localStorage.getItem('mapboxAccessToken');
+    if (savedToken && savedToken.startsWith('pk.') && savedToken.length > 20) {
+      this.mapboxAccessToken = savedToken;
+      console.log('✅ Token do Mapbox configurado automaticamente do localStorage');
+      return;
+    }
+    
+    this.mapboxAccessToken = '';
+    console.warn('⚠️ Token do Mapbox não configurado. Funcionalidades de rota podem não funcionar.');
   }
 
   static getInstance(): RealTimeTrackingService {
@@ -59,7 +85,12 @@ class RealTimeTrackingService {
   // Configurar token do Mapbox
   setMapboxToken(token: string) {
     this.mapboxAccessToken = token;
-    console.log('🗺️ Token do Mapbox configurado');
+    console.log('🗺️ Token do Mapbox configurado manualmente');
+  }
+
+  // Recarregar token do Mapbox automaticamente
+  reloadMapboxToken() {
+    this.updateMapboxToken();
   }
 
 
@@ -603,17 +634,23 @@ class RealTimeTrackingService {
       await this.checkProximityNotifications(route, location);
     }
 
-    // Recalcular rota se necessário (opcional, para otimização dinâmica)
+    // Verificar se o motorista está fora da rota e recalcular automaticamente
+    let routeWasRecalculated = false;
     if (this.mapboxAccessToken && route.routePoints.length > 0) {
       try {
-        const updatedRoute = await this.calculateOptimizedRoute(location, route.routePoints);
-        if (updatedRoute) {
-          route.mapboxRoute = updatedRoute;
-          route.estimatedDuration = Math.round(updatedRoute.duration / 60);
-          route.totalDistance = Math.round(updatedRoute.distance);
+        routeWasRecalculated = await this.checkOffRouteAndRecalculate(route, location);
+        
+        // Se não houve recalculação por desvio, fazer recálculo de otimização normal
+        if (!routeWasRecalculated) {
+          const updatedRoute = await this.calculateOptimizedRoute(location, route.routePoints);
+          if (updatedRoute) {
+            route.mapboxRoute = updatedRoute;
+            route.estimatedDuration = Math.round(updatedRoute.duration / 60);
+            route.totalDistance = Math.round(updatedRoute.distance);
+          }
         }
       } catch (error) {
-        console.warn('⚠️ Erro ao recalcular rota:', error);
+        console.warn('⚠️ Erro ao verificar/recalcular rota:', error);
       }
     }
 
@@ -777,6 +814,212 @@ class RealTimeTrackingService {
         }
       }
     }
+  }
+
+  // Calcular distância entre dois pontos (Haversine)
+  private calculateDistance(
+    point1: { lat: number; lng: number },
+    point2: { lat: number; lng: number }
+  ): number {
+    const R = 6371e3; // Raio da Terra em metros
+    const φ1 = point1.lat * Math.PI / 180;
+    const φ2 = point2.lat * Math.PI / 180;
+    const Δφ = (point2.lat - point1.lat) * Math.PI / 180;
+    const Δλ = (point2.lng - point1.lng) * Math.PI / 180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c;
+  }
+
+  // Calcular distância de um ponto até uma linha (rota)
+  private calculateDistanceToRoute(
+    point: { lat: number; lng: number },
+    routeGeometry: any
+  ): number {
+    if (!routeGeometry || !routeGeometry.coordinates || routeGeometry.coordinates.length < 2) {
+      return Infinity;
+    }
+
+    let minDistance = Infinity;
+    const coordinates = routeGeometry.coordinates;
+
+    // Verificar distância para cada segmento da rota
+    for (let i = 0; i < coordinates.length - 1; i++) {
+      const segmentStart = { lat: coordinates[i][1], lng: coordinates[i][0] };
+      const segmentEnd = { lat: coordinates[i + 1][1], lng: coordinates[i + 1][0] };
+      
+      const distanceToSegment = this.calculateDistanceToLineSegment(
+        point,
+        segmentStart,
+        segmentEnd
+      );
+      
+      minDistance = Math.min(minDistance, distanceToSegment);
+    }
+
+    return minDistance;
+  }
+
+  // Calcular distância de um ponto até um segmento de linha
+  private calculateDistanceToLineSegment(
+    point: { lat: number; lng: number },
+    lineStart: { lat: number; lng: number },
+    lineEnd: { lat: number; lng: number }
+  ): number {
+    // Converter para coordenadas projetadas (aproximação simples)
+    const px = point.lng;
+    const py = point.lat;
+    const ax = lineStart.lng;
+    const ay = lineStart.lat;
+    const bx = lineEnd.lng;
+    const by = lineEnd.lat;
+
+    // Calcular o ponto mais próximo no segmento
+    const A = px - ax;
+    const B = py - ay;
+    const C = bx - ax;
+    const D = by - ay;
+
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    
+    let param = -1;
+    if (lenSq !== 0) {
+      param = dot / lenSq;
+    }
+
+    let xx, yy;
+    if (param < 0) {
+      xx = ax;
+      yy = ay;
+    } else if (param > 1) {
+      xx = bx;
+      yy = by;
+    } else {
+      xx = ax + param * C;
+      yy = ay + param * D;
+    }
+
+    // Calcular distância usando Haversine
+    return this.calculateDistance(point, { lat: yy, lng: xx });
+  }
+
+  // Verificar se o motorista está fora da rota e recalcular se necessário
+  private async checkOffRouteAndRecalculate(
+    route: TrackingRoute,
+    currentLocation: RouteLocation
+  ): Promise<boolean> {
+    if (!route.mapboxRoute || !route.mapboxRoute.geometry) {
+      return false;
+    }
+
+    // Calcular distância até a rota
+    const distanceToRoute = this.calculateDistanceToRoute(
+      { lat: currentLocation.lat, lng: currentLocation.lng },
+      route.mapboxRoute.geometry
+    );
+
+    const threshold = route.offRouteThreshold || this.offRouteThreshold;
+    const isOffRoute = distanceToRoute > threshold;
+    
+    // Atualizar status da rota
+    route.isOffRoute = isOffRoute;
+    route.offRouteDistance = distanceToRoute;
+
+    console.log('🛣️ Verificação de desvio de rota:', {
+      distanceToRoute: Math.round(distanceToRoute),
+      threshold,
+      isOffRoute,
+      needsRecalculation: isOffRoute && this.shouldRecalculateRoute(route)
+    });
+
+    // Se estiver fora da rota, tentar recalcular
+    if (isOffRoute && this.shouldRecalculateRoute(route)) {
+      console.log('🔄 Motorista fora da rota! Recalculando automaticamente...');
+      
+      try {
+        const updatedRoute = await this.calculateOptimizedRoute(currentLocation, route.routePoints);
+        if (updatedRoute) {
+          route.mapboxRoute = updatedRoute;
+          route.estimatedDuration = Math.round(updatedRoute.duration / 60);
+          route.totalDistance = Math.round(updatedRoute.distance);
+          route.lastRouteRecalculation = new Date().toISOString();
+          route.isOffRoute = false; // Reset após recalcular
+          
+          console.log('✅ Rota recalculada com sucesso:', {
+            newDuration: route.estimatedDuration,
+            newDistance: route.totalDistance
+          });
+          
+          // Notificar responsáveis sobre a nova rota
+          await this.notifyGuardiansAboutRouteChange(route);
+          
+          return true;
+        }
+      } catch (error) {
+        console.error('❌ Erro ao recalcular rota:', error);
+      }
+    }
+
+    return false;
+  }
+
+  // Verificar se deve recalcular a rota (evitar recalculações muito frequentes)
+  private shouldRecalculateRoute(route: TrackingRoute): boolean {
+    if (!route.lastRouteRecalculation) {
+      return true;
+    }
+
+    const lastRecalculation = new Date(route.lastRouteRecalculation).getTime();
+    const now = new Date().getTime();
+    const timeSinceLastRecalculation = now - lastRecalculation;
+
+    return timeSinceLastRecalculation >= this.minRecalculationInterval;
+  }
+
+  // Notificar responsáveis sobre mudança na rota
+  private async notifyGuardiansAboutRouteChange(route: TrackingRoute): Promise<void> {
+    try {
+      // Encontrar todos os estudantes na rota
+      const studentPoints = route.routePoints.filter(point => point.type === 'student');
+      
+      for (const studentPoint of studentPoints) {
+        if (studentPoint.studentId) {
+          const guardianId = this.getGuardianIdForStudent(studentPoint.studentId);
+          
+          if (guardianId) {
+            await pushNotificationService.sendRouteUpdateNotification({
+              guardianId,
+              studentName: studentPoint.studentName || 'Estudante',
+              driverName: route.driverName,
+              newEstimatedArrival: this.calculateEstimatedArrival(route),
+              reason: 'Rota recalculada automaticamente'
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erro ao notificar responsáveis sobre mudança na rota:', error);
+    }
+  }
+
+  // Calcular horário estimado de chegada
+  private calculateEstimatedArrival(route: TrackingRoute): string {
+    if (!route.estimatedDuration) {
+      return 'Não disponível';
+    }
+
+    const now = new Date();
+    const arrivalTime = new Date(now.getTime() + route.estimatedDuration * 60 * 1000);
+    
+    return arrivalTime.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   }
 
   // Calcular direção entre dois pontos (Haversine)
@@ -1085,6 +1328,126 @@ class RealTimeTrackingService {
       totalUpdates: route.locationHistory.length,
       highQualityPercentage: Math.round(highQualityPercentage)
     };
+  }
+
+  // Configurar limite de distância para considerar fora da rota
+  setOffRouteThreshold(meters: number): void {
+    this.offRouteThreshold = Math.max(10, meters); // Mínimo de 10 metros
+    console.log('🛣️ Limite de desvio de rota configurado:', this.offRouteThreshold, 'metros');
+  }
+
+  // Obter limite atual de desvio de rota
+  getOffRouteThreshold(): number {
+    return this.offRouteThreshold;
+  }
+
+  // Configurar intervalo mínimo entre recalculações
+  setMinRecalculationInterval(milliseconds: number): void {
+    this.minRecalculationInterval = Math.max(10000, milliseconds); // Mínimo de 10 segundos
+    console.log('⏱️ Intervalo mínimo de recalculação configurado:', this.minRecalculationInterval / 1000, 'segundos');
+  }
+
+  // Obter intervalo atual entre recalculações
+  getMinRecalculationInterval(): number {
+    return this.minRecalculationInterval;
+  }
+
+  // Obter status de desvio de rota
+  getOffRouteStatus(): {
+    isOffRoute: boolean;
+    distanceFromRoute?: number;
+    threshold: number;
+    lastRecalculation?: string;
+    timeSinceLastRecalculation?: number;
+  } {
+    const route = this.getActiveTrackingRoute();
+    
+    if (!route) {
+      return {
+        isOffRoute: false,
+        threshold: this.offRouteThreshold
+      };
+    }
+
+    let timeSinceLastRecalculation: number | undefined;
+    if (route.lastRouteRecalculation) {
+      const lastRecalc = new Date(route.lastRouteRecalculation).getTime();
+      const now = new Date().getTime();
+      timeSinceLastRecalculation = Math.round((now - lastRecalc) / 1000);
+    }
+
+    return {
+      isOffRoute: route.isOffRoute || false,
+      distanceFromRoute: route.offRouteDistance,
+      threshold: route.offRouteThreshold || this.offRouteThreshold,
+      lastRecalculation: route.lastRouteRecalculation,
+      timeSinceLastRecalculation
+    };
+  }
+
+  // Forçar recalculação da rota (ignorar intervalo mínimo)
+  async forceRouteRecalculation(): Promise<boolean> {
+    const route = this.getActiveTrackingRoute();
+    
+    if (!route || !route.isActive || !route.currentLocation) {
+      console.warn('⚠️ Não há rota ativa para recalcular');
+      return false;
+    }
+
+    if (!this.mapboxAccessToken) {
+      console.warn('⚠️ Token do Mapbox não configurado');
+      return false;
+    }
+
+    console.log('🔄 Forçando recalculação da rota...');
+    
+    try {
+      const updatedRoute = await this.calculateOptimizedRoute(route.currentLocation, route.routePoints);
+      if (updatedRoute) {
+        route.mapboxRoute = updatedRoute;
+        route.estimatedDuration = Math.round(updatedRoute.duration / 60);
+        route.totalDistance = Math.round(updatedRoute.distance);
+        route.lastRouteRecalculation = new Date().toISOString();
+        route.isOffRoute = false;
+        
+        this.saveTrackingRoute(route);
+        this.notifyListeners(route);
+        
+        console.log('✅ Rota recalculada com sucesso (forçada)');
+        
+        // Notificar responsáveis
+        await this.notifyGuardiansAboutRouteChange(route);
+        
+        return true;
+      }
+    } catch (error) {
+      console.error('❌ Erro ao forçar recalculação da rota:', error);
+    }
+
+    return false;
+  }
+
+  /**
+   * Configura se a navegação automática está habilitada
+   */
+  setAutoNavigationEnabled(enabled: boolean): void {
+    this.autoNavigationEnabled = enabled;
+    localStorage.setItem('autoNavigationEnabled', JSON.stringify(enabled));
+  }
+
+  /**
+   * Verifica se a navegação automática está habilitada
+   */
+  isAutoNavigationEnabled(): boolean {
+    try {
+      const stored = localStorage.getItem('autoNavigationEnabled');
+      if (stored !== null) {
+        this.autoNavigationEnabled = JSON.parse(stored);
+      }
+    } catch (error) {
+      console.warn('Erro ao carregar configuração de navegação automática:', error);
+    }
+    return this.autoNavigationEnabled;
   }
 }
 

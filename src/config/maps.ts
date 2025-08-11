@@ -7,9 +7,34 @@ export const MAPBOX_CONFIG = {
   directionsApiUrl: 'https://api.mapbox.com/directions/v5/mapbox/driving'
 };
 
+// Obter token do Mapbox automaticamente (ambiente ou localStorage)
+export const getMapboxToken = (): string => {
+  // Primeiro, tentar buscar do ambiente (.env)
+  const envToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+  if (envToken && envToken.startsWith('pk.') && envToken.length > 20) {
+    return envToken;
+  }
+  
+  // Se não houver no ambiente, buscar do localStorage
+  const savedToken = localStorage.getItem('mapboxAccessToken');
+  if (savedToken && savedToken.startsWith('pk.') && savedToken.length > 20) {
+    return savedToken;
+  }
+  
+  return '';
+};
+
 // Verificar se o token está configurado
 export const isMapboxConfigured = (): boolean => {
-  return MAPBOX_CONFIG.accessToken.startsWith('pk.') && 
-         MAPBOX_CONFIG.accessToken.length > 20;
+  const token = getMapboxToken();
+  return token.startsWith('pk.') && token.length > 20;
+};
+
+// Atualizar configuração com token dinâmico
+export const getMapboxConfig = () => {
+  return {
+    ...MAPBOX_CONFIG,
+    accessToken: getMapboxToken()
+  };
 };
 

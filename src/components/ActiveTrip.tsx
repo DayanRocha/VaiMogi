@@ -9,6 +9,7 @@ import { routeTrackingService } from '@/services/routeTrackingService';
 import { useRealTimeTracking } from '@/hooks/useRealTimeTracking';
 
 
+
 interface ActiveTripProps {
   trip: Trip | null;
   students: Student[];
@@ -830,6 +831,8 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
 
       {/* Content */}
       <div className="bg-gray-100 min-h-screen rounded-t-3xl p-4">
+
+        
         {/* Escolas para desembarque */}
         {schoolGroups.map((group) => {
           const studentsAtSchool = group.students.filter(s => s.tripData.status === 'at_school');

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
-import { MAPBOX_CONFIG, isMapboxConfigured } from '../../config/maps';
+import { MAPBOX_CONFIG, isMapboxConfigured, getMapboxToken } from '@/config/maps';
 import carIconUrl from '@mapbox/maki/icons/car.svg?url';
 
 interface MapboxMapProps {
@@ -58,7 +58,8 @@ export const MapboxMap: React.FC<MapboxMapProps> = React.memo(({
     // Usar centro fornecido ou fallback para São Paulo
     const initialCenter: [number, number] = center || [-46.6333, -23.5505];
 
-    mapboxgl.accessToken = MAPBOX_CONFIG.accessToken;
+    const token = getMapboxToken();
+    mapboxgl.accessToken = token;
 
     try {
       map.current = new mapboxgl.Map({
