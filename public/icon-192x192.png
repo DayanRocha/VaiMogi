@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="192" height="192" rx="24" fill="#FF8C00"/>
+  <path d="M48 96L96 48L144 96L96 144L48 96Z" fill="white"/>
+  <circle cx="96" cy="96" r="16" fill="#FF8C00"/>
+  <text x="96" y="160" text-anchor="middle" fill="white" font-family="Arial" font-size="20" font-weight="bold">VaiMogi</text>
+</svg>

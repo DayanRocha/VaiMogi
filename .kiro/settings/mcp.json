@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "supabase-mcp": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@supabase-community/supabase-mcp",
+        "--key",
+        "a2ef6dfb-35fa-4362-af3a-a7d734e029d9",
+        "--profile",
+        "payable-swordtail-frpcj5"
+      ]
+    }
+  }
+}

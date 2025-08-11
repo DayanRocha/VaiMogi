@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { MAPBOX_CONFIG, isMapboxConfigured } from '../../config/maps';
+import carIconUrl from '@mapbox/maki/icons/car.svg?url';
 
 interface MapboxMapProps {
   center?: [number, number]; // [lng, lat]
@@ -66,6 +67,14 @@ export const MapboxMap: React.FC<MapboxMapProps> = React.memo(({
         center: initialCenter,
         zoom: zoom
       });
+
+      map.current.addControl(new mapboxgl.GeolocateControl({
+        positionOptions: {
+            enableHighAccuracy: true
+        },
+        trackUserLocation: true,
+        showUserLocation: true
+      }));
 
       map.current.on('load', () => {
         if (loadingTimeoutRef.current) {
@@ -152,13 +161,21 @@ export const MapboxMap: React.FC<MapboxMapProps> = React.memo(({
     // Adicionar novos marcadores
     markers.forEach(marker => {
       const el = document.createElement('div');
-      el.className = 'marker';
-      el.style.backgroundColor = marker.color || '#3b82f6';
-      el.style.width = '20px';
-      el.style.height = '20px';
-      el.style.borderRadius = '50%';
-      el.style.border = '2px solid white';
-      el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+      if (marker.id === 'driver') {
+        el.className = 'marker-driver';
+        el.style.backgroundImage = `url(${carIconUrl})`;
+        el.style.width = '30px';
+        el.style.height = '30px';
+        el.style.backgroundSize = 'contain';
+      } else {
+        el.className = 'marker';
+        el.style.backgroundColor = marker.color || '#3b82f6';
+        el.style.width = '20px';
+        el.style.height = '20px';
+        el.style.borderRadius = '50%';
+        el.style.border = '2px solid white';
+        el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+      }
 
       const mapboxMarker = new mapboxgl.Marker(el)
         .setLngLat(marker.coordinates)

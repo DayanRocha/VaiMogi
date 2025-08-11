@@ -6,6 +6,8 @@ export interface RouteLocation {
   lng: number;
   timestamp: string;
   accuracy?: number;
+  speed?: number;      // Velocidade em m/s
+  heading?: number;    // Direção em graus (0-360)
 }
 
 export interface ActiveRoute {

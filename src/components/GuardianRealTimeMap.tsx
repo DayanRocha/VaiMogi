@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { useGuardianTracking } from '@/hooks/useRealTimeTracking';
-import { MapPin, Clock, Route, AlertCircle } from 'lucide-react';
+import { MapPin, Clock, Route, AlertCircle, Bell } from 'lucide-react';
+import NotificationSettings from './NotificationSettings';
 
 interface GuardianRealTimeMapProps {
   guardianId: string;
@@ -25,8 +26,69 @@ export const GuardianRealTimeMap = ({
   const [navigationMode, setNavigationMode] = useState(false);
   const [followDriver, setFollowDriver] = useState(true);
   const [lastPosition, setLastPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   
   const routeInfo = useGuardianTracking(guardianId);
+  const [navigationRoute, setNavigationRoute] = useState<any>(null);
+
+  // Função para atualizar indicadores de status em tempo real
+  const updateStatusIndicators = async () => {
+    try {
+      const { realTimeTrackingService } = await import('@/services/realTimeTrackingService');
+      const locationStatus = realTimeTrackingService.getLocationStatus();
+      const qualityStats = realTimeTrackingService.getLocationQualityStats();
+      const activeRoute = realTimeTrackingService.getActiveTrackingRoute();
+      
+      const speedElement = document.getElementById('speed-indicator');
+      const accuracyElement = document.getElementById('accuracy-indicator');
+      const lastUpdateElement = document.getElementById('last-update-indicator');
+      const trailElement = document.getElementById('trail-indicator');
+      
+      if (speedElement && activeRoute?.currentSpeed !== undefined) {
+        const speedKmh = (activeRoute.currentSpeed * 3.6).toFixed(1);
+        const isMoving = activeRoute.currentSpeed > 0.5;
+        speedElement.textContent = `${speedKmh} km/h ${isMoving ? '🟢' : '🟡'}`;
+        speedElement.style.color = isMoving ? '#10B981' : '#F59E0B';
+      }
+      
+      if (accuracyElement && locationStatus.accuracy) {
+        const accuracy = `${locationStatus.accuracy.toFixed(0)}m`;
+        const qualityIcon = locationStatus.quality === 'high' ? '🟢' : 
+                           locationStatus.quality === 'medium' ? '🟡' : '🔴';
+        const qualityText = locationStatus.quality === 'high' ? 'Alta' : 
+                           locationStatus.quality === 'medium' ? 'Média' : 'Baixa';
+        accuracyElement.textContent = `${accuracy} ${qualityIcon} ${qualityText}`;
+        accuracyElement.style.color = locationStatus.quality === 'high' ? '#10B981' : 
+                                     locationStatus.quality === 'medium' ? '#F59E0B' : '#EF4444';
+      }
+
+      if (lastUpdateElement && locationStatus.timeSinceUpdate !== undefined) {
+        const timeDiff = locationStatus.timeSinceUpdate;
+        const isRecent = timeDiff < 10;
+        lastUpdateElement.textContent = `${timeDiff}s atrás ${isRecent ? '🟢' : '🟡'}`;
+        lastUpdateElement.style.color = isRecent ? '#10B981' : '#F59E0B';
+      }
+      
+      if (trailElement && activeRoute?.locationHistory) {
+        const trailDistance = calculateTrailDistance(activeRoute.locationHistory);
+        trailElement.textContent = `${trailDistance} percorrido`;
+        trailElement.style.color = '#3B82F6';
+      }
+
+      // Atualizar indicador de estatísticas de qualidade
+      const qualityStatsElement = document.getElementById('quality-stats-indicator');
+      if (qualityStatsElement && qualityStats.totalUpdates > 0) {
+        const avgAccuracy = qualityStats.averageAccuracy || 0;
+        const qualityPercentage = qualityStats.highQualityPercentage;
+        const qualityIcon = qualityPercentage > 70 ? '🟢' : qualityPercentage > 40 ? '🟡' : '🔴';
+        qualityStatsElement.textContent = `Média ${avgAccuracy}m ${qualityIcon} ${qualityPercentage}%`;
+        qualityStatsElement.style.color = qualityPercentage > 70 ? '#10B981' : 
+                                         qualityPercentage > 40 ? '#F59E0B' : '#EF4444';
+      }
+    } catch (error) {
+      console.warn('Erro ao atualizar indicadores:', error);
+    }
+  };
 
   // Função para criar marcador de ponto da rota
   const createRoutePointMarker = (point: any, index: number) => {
@@ -129,6 +191,14 @@ export const GuardianRealTimeMap = ({
 
       map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
+      map.current.addControl(new mapboxgl.GeolocateControl({
+        positionOptions: {
+            enableHighAccuracy: true
+        },
+        trackUserLocation: true,
+        showUserLocation: true
+      }));
+
       map.current.on('load', () => {
         console.log('🗺️ Mapa do responsável carregado');
         setMapLoaded(true);
@@ -219,6 +289,75 @@ export const GuardianRealTimeMap = ({
     }
   }, [routeInfo.hasActiveRoute, navigationMode]);
 
+  // Atualizar indicadores de status periodicamente
+  useEffect(() => {
+    if (!routeInfo.hasActiveRoute) return;
+
+    const interval = setInterval(() => {
+      updateStatusIndicators();
+    }, 2000); // Atualizar a cada 2 segundos
+
+    // Atualização inicial
+    updateStatusIndicators();
+
+    return () => clearInterval(interval);
+  }, [routeInfo.hasActiveRoute]);
+
+  // Calcular rota de navegação em tempo real
+  const calculateNavigationRoute = async () => {
+    if (!routeInfo.hasActiveRoute || !routeInfo.driverLocation) {
+      return null;
+    }
+
+    try {
+      const { realTimeTrackingService } = await import('@/services/realTimeTrackingService');
+      const route = realTimeTrackingService.getActiveTrackingRoute();
+      
+      if (!route || !route.currentLocation) {
+        return null;
+      }
+
+      // Encontrar o estudante do responsável
+      const studentPoint = route.routePoints.find(point => 
+        point.type === 'student'
+      );
+      
+      // Encontrar a escola
+      const schoolPoint = route.routePoints.find(point => 
+        point.type === 'school'
+      );
+
+      if (!studentPoint || !schoolPoint) {
+        console.warn('⚠️ Não foi possível encontrar pontos da rota para o responsável:', guardianId);
+        return null;
+      }
+
+      // Construir waypoints: motorista -> estudante -> escola
+      const waypoints = [
+        [route.currentLocation.lng, route.currentLocation.lat],
+        [studentPoint.lng, studentPoint.lat],
+        [schoolPoint.lng, schoolPoint.lat]
+      ];
+
+      // Fazer requisição para a API do Mapbox Directions
+      const waypointsStr = waypoints.map(wp => `${wp[0]},${wp[1]}`).join(';');
+      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${waypointsStr}?geometries=geojson&access_token=${mapboxToken}`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.routes && data.routes.length > 0) {
+        console.log('🗺️ Rota de navegação calculada para o responsável:', guardianId);
+        return data.routes[0];
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('❌ Erro ao calcular rota de navegação:', error);
+      return null;
+    }
+  };
+
   // Atualizar posição do motorista e rota
   useEffect(() => {
     if (!map.current || !mapLoaded) return;
@@ -277,6 +416,30 @@ export const GuardianRealTimeMap = ({
       // Salvar posição atual para próximo cálculo de rotação
       setLastPosition({ lat, lng });
 
+      // Calcular e atualizar rota de navegação em tempo real
+      if (navigationMode) {
+        calculateNavigationRoute().then(navRoute => {
+          if (navRoute && navRoute.geometry) {
+            setNavigationRoute(navRoute);
+            
+            // Atualizar rota no mapa com a rota de navegação
+            if (map.current && map.current.getSource(routeSource.current)) {
+              const source = map.current.getSource(routeSource.current) as mapboxgl.GeoJSONSource;
+              source.setData({
+                type: 'Feature',
+                properties: {},
+                geometry: navRoute.geometry
+              });
+              
+              console.log('🧭 Rota de navegação atualizada no mapa do responsável');
+            }
+          }
+        });
+      }
+
+      // Atualizar indicadores de status
+      updateStatusIndicators();
+
       // Modo de navegação: seguir motorista automaticamente
       if (navigationMode && followDriver) {
         map.current.easeTo({
@@ -301,8 +464,8 @@ export const GuardianRealTimeMap = ({
       }
     }
 
-    // Atualizar rota no mapa
-    if (routeInfo.hasActiveRoute && routeInfo.routeGeometry && map.current.getSource(routeSource.current)) {
+    // Atualizar rota no mapa (modo normal)
+    if (!navigationMode && routeInfo.hasActiveRoute && routeInfo.routeGeometry && map.current.getSource(routeSource.current)) {
       const source = map.current.getSource(routeSource.current) as mapboxgl.GeoJSONSource;
       source.setData({
         type: 'Feature',
@@ -310,7 +473,7 @@ export const GuardianRealTimeMap = ({
         geometry: routeInfo.routeGeometry
       });
 
-      console.log('🛣️ Rota atualizada no mapa do responsável (modo navegação:', navigationMode, ')');
+      console.log('🛣️ Rota atualizada no mapa do responsável (modo normal)');
     } else if (!routeInfo.hasActiveRoute && map.current.getSource(routeSource.current)) {
       // Limpar rota se não há rota ativa
       const source = map.current.getSource(routeSource.current) as mapboxgl.GeoJSONSource;
@@ -322,8 +485,9 @@ export const GuardianRealTimeMap = ({
           coordinates: []
         }
       });
+      setNavigationRoute(null);
     }
-  }, [routeInfo, mapLoaded, navigationMode, followDriver]);
+  }, [routeInfo, mapLoaded, navigationMode, followDriver, guardianId, mapboxToken]);
 
   // Gerenciar marcadores dos pontos da rota
   useEffect(() => {
@@ -421,7 +585,18 @@ export const GuardianRealTimeMap = ({
 
       {/* Controles minimalistas no canto superior direito */}
       {routeInfo.hasActiveRoute && (
-        <div className="absolute top-4 right-16 flex gap-2">
+        <div className="absolute top-4 right-4 flex gap-2">
+          {/* Botão de configurações de notificação */}
+          <button
+            onClick={() => setShowNotificationSettings(true)}
+            className="w-10 h-10 bg-white text-orange-500 hover:bg-orange-50 rounded-full shadow-lg transition-colors flex items-center justify-center"
+            title="Configurações de Notificação"
+          >
+            <Bell className="w-5 h-5" />
+          </button>
+
+
+          
           {navigationMode ? (
             <>
               <button
@@ -465,18 +640,6 @@ export const GuardianRealTimeMap = ({
         </div>
       )}
 
-      {/* Indicador de status discreto */}
-      {routeInfo.hasActiveRoute && (
-        <div className="absolute bottom-4 left-4 bg-white bg-opacity-90 rounded-full px-3 py-2 shadow-lg">
-          <div className="flex items-center gap-2 text-sm">
-            <div className={`w-2 h-2 rounded-full ${navigationMode ? 'bg-orange-500 animate-pulse' : 'bg-green-500'}`}></div>
-            <span className="text-gray-700 font-medium">
-              {navigationMode ? 'Navegação' : 'Rastreando'}
-            </span>
-          </div>
-        </div>
-      )}
-
       {/* Mensagem quando não há rota ativa */}
       {mapLoaded && !routeInfo.hasActiveRoute && (
         <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg">
@@ -487,6 +650,12 @@ export const GuardianRealTimeMap = ({
           </div>
         </div>
       )}
+
+      {/* Modal de Configurações de Notificação */}
+      <NotificationSettings
+        isOpen={showNotificationSettings}
+        onClose={() => setShowNotificationSettings(false)}
+      />
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import { RouteLocation, ActiveRoute } from './routeTrackingService';
+import { pushNotificationService } from './pushNotificationService';
 
 export interface RoutePoint {
   lat: number;
@@ -20,17 +21,26 @@ export interface TrackingRoute {
   endTime?: string;
   isActive: boolean;
   currentLocation?: RouteLocation;
+  locationHistory?: RouteLocation[]; // Histórico de posições para visualizar movimento
+  currentSpeed?: number; // Velocidade atual em m/s
+  currentHeading?: number; // Direção atual em graus
   routePoints: RoutePoint[];
   mapboxRoute?: any; // Dados da rota do Mapbox
   estimatedDuration?: number; // em minutos
   totalDistance?: number; // em metros
+  notificationsEnabled?: boolean; // Se notificações estão habilitadas para esta rota
+  proximityNotificationsSent?: Set<string>; // IDs dos estudantes que já receberam notificação
 }
 
 class RealTimeTrackingService {
   private static instance: RealTimeTrackingService;
   private listeners: ((route: TrackingRoute | null) => void)[] = [];
   private locationUpdateInterval: NodeJS.Timeout | null = null;
+  private watchPositionId: number | null = null;
   private mapboxAccessToken: string = '';
+  private lastKnownLocation: RouteLocation | null = null;
+  private hasRetriedLocation: boolean = false;
+  private locationCache: Map<string, { location: RouteLocation; timestamp: number }> = new Map();
   private constructor() {
     // Configurar token do Mapbox (deve ser configurado via env ou config)
     this.mapboxAccessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '';
@@ -57,7 +67,7 @@ class RealTimeTrackingService {
   // Adicionar listener para atualizações de rota
   addListener(callback: (route: TrackingRoute | null) => void) {
     this.listeners.push(callback);
-    
+
     // Notificar imediatamente se há rota ativa
     const activeRoute = this.getActiveTrackingRoute();
     callback(activeRoute);
@@ -98,10 +108,10 @@ class RealTimeTrackingService {
     try {
       // Construir pontos da rota
       const routePoints = await this.buildRoutePoints(students, school, direction);
-      
+
       // Obter localização atual do motorista
       const currentLocation = await this.getCurrentLocation();
-      
+
       // Criar rota de rastreamento
       const trackingRoute: TrackingRoute = {
         id: Date.now().toString(),
@@ -293,7 +303,7 @@ class RealTimeTrackingService {
       }
 
       const data = await response.json();
-      
+
       if (data.features && data.features.length > 0) {
         const [lng, lat] = data.features[0].center;
         console.log(`📍 Endereço geocodificado: ${address} -> ${lat}, ${lng}`);
@@ -357,35 +367,142 @@ class RealTimeTrackingService {
     }
   }
 
-  // Obter localização atual
+  // Obter localização atual com alta precisão usando técnicas avançadas
   private getCurrentLocation(): Promise<RouteLocation | null> {
     return new Promise((resolve) => {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const location: RouteLocation = {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-              timestamp: new Date().toISOString(),
-              accuracy: position.coords.accuracy
-            };
-            resolve(location);
-          },
-          (error) => {
-            console.warn('⚠️ Erro na geolocalização:', error.message);
-            resolve(null);
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 30000
-          }
-        );
-      } else {
+      if (!navigator.geolocation) {
         console.warn('⚠️ Geolocalização não suportada');
         resolve(null);
+        return;
       }
+
+      // Configurações otimizadas baseadas na documentação MDN mais recente
+      const options: PositionOptions = {
+        enableHighAccuracy: true,    // Força uso do GPS para máxima precisão
+        timeout: 30000,              // 30 segundos - tempo suficiente para GPS obter fix
+        maximumAge: 0                // Sempre buscar nova localização (sem cache)
+      };
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const location: RouteLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            timestamp: new Date().toISOString(),
+            accuracy: position.coords.accuracy,
+            speed: position.coords.speed || 0,
+            heading: position.coords.heading || 0
+          };
+
+          // Validar qualidade da localização baseado na documentação MDN
+          const isHighQuality = this.validateLocationQuality(position.coords);
+
+          console.log('📍 Nova localização obtida:', {
+            lat: location.lat.toFixed(6),
+            lng: location.lng.toFixed(6),
+            accuracy: `${location.accuracy?.toFixed(0)}m`,
+            speed: location.speed ? `${(location.speed * 3.6).toFixed(1)} km/h` : 'N/A',
+            heading: location.heading ? `${location.heading.toFixed(0)}°` : 'N/A',
+            timestamp: location.timestamp,
+            source: 'getCurrentPosition',
+            quality: isHighQuality ? '🟢 Alta' : '🟡 Média'
+          });
+
+          // Se a qualidade não for boa, tentar novamente uma vez
+          if (!isHighQuality && !this.hasRetriedLocation) {
+            console.log('🔄 Qualidade baixa, tentando novamente...');
+            this.hasRetriedLocation = true;
+            setTimeout(() => {
+              this.getCurrentLocation().then(retryLocation => {
+                this.hasRetriedLocation = false;
+                resolve(retryLocation || location);
+              });
+            }, 2000);
+            return;
+          }
+
+          this.hasRetriedLocation = false;
+          resolve(location);
+        },
+        (error) => {
+          let errorMessage = '';
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = 'Permissão de localização negada pelo usuário';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = 'Informações de localização indisponíveis';
+              break;
+            case error.TIMEOUT:
+              errorMessage = 'Timeout na obtenção da localização';
+              break;
+            default:
+              errorMessage = 'Erro desconhecido na geolocalização';
+              break;
+          }
+
+          console.warn('⚠️ Erro na geolocalização:', errorMessage);
+          resolve(null);
+        },
+        options
+      );
     });
+  }
+
+  // Iniciar rastreamento contínuo com watchPosition otimizado
+  private startContinuousLocationTracking(): number | null {
+    if (!navigator.geolocation) {
+      console.warn('⚠️ Geolocalização não suportada para rastreamento contínuo');
+      return null;
+    }
+
+    // Configurações otimizadas para rastreamento contínuo de alta precisão
+    const options: PositionOptions = {
+      enableHighAccuracy: true,    // GPS obrigatório para precisão máxima
+      timeout: 25000,              // Timeout generoso para permitir GPS fix
+      maximumAge: 0                // Sempre nova localização (crítico para rastreamento)
+    };
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const location: RouteLocation = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          timestamp: new Date().toISOString(),
+          accuracy: position.coords.accuracy,
+          speed: position.coords.speed || 0,
+          heading: position.coords.heading || 0
+        };
+
+        // Validar qualidade da localização contínua
+        const isHighQuality = this.validateLocationQuality(position.coords);
+
+        console.log('📍 Localização contínua obtida:', {
+          lat: location.lat.toFixed(6),
+          lng: location.lng.toFixed(6),
+          accuracy: `${location.accuracy?.toFixed(0)}m`,
+          speed: location.speed ? `${(location.speed * 3.6).toFixed(1)} km/h` : 'N/A',
+          heading: location.heading ? `${location.heading.toFixed(0)}°` : 'N/A',
+          timestamp: location.timestamp,
+          source: 'watchPosition',
+          quality: isHighQuality ? '🟢 Alta' : '🟡 Média'
+        });
+
+        // Só atualizar se a qualidade for boa ou se não temos localização anterior
+        if (isHighQuality || !this.lastKnownLocation) {
+          this.updateDriverLocation(location);
+        } else {
+          console.log('⚠️ Localização de baixa qualidade ignorada no watchPosition');
+        }
+      },
+      (error) => {
+        console.warn('⚠️ Erro no rastreamento contínuo:', error.message);
+      },
+      options
+    );
+
+    console.log('📍 Rastreamento contínuo iniciado com watchPosition ID:', watchId);
+    return watchId;
   }
 
   // Iniciar rastreamento de localização
@@ -395,18 +512,28 @@ class RealTimeTrackingService {
 
     console.log('📍 Iniciando rastreamento de localização em tempo real');
 
-    // Atualizar localização a cada 5 segundos para melhor precisão
+    // Backup: Forçar atualização a cada 3 segundos para garantir precisão
     this.locationUpdateInterval = setInterval(async () => {
       const route = this.getActiveTrackingRoute();
       if (route && route.isActive) {
-        const location = await this.getCurrentLocation();
-        if (location) {
-          await this.updateDriverLocation(location);
+        // Verificar se a última localização é muito antiga (mais de 5 segundos)
+        const now = new Date().getTime();
+        const lastUpdate = this.lastKnownLocation ? new Date(this.lastKnownLocation.timestamp).getTime() : 0;
+        const timeDiff = now - lastUpdate;
+
+        if (timeDiff > 5000 || !this.lastKnownLocation) {
+          console.log('📍 Forçando atualização de localização (backup) - última atualização há', Math.round(timeDiff / 1000), 'segundos');
+          const location = await this.getCurrentLocation();
+          if (location) {
+            await this.updateDriverLocation(location);
+          }
+        } else {
+          console.log('📍 Localização recente - última atualização há', Math.round(timeDiff / 1000), 'segundos');
         }
       } else {
         this.stopLocationTracking();
       }
-    }, 5000);
+    }, 3000);
 
     // Primeira atualização imediata
     this.getCurrentLocation().then(location => {
@@ -428,28 +555,81 @@ class RealTimeTrackingService {
   // Atualizar localização do motorista
   private async updateDriverLocation(location: RouteLocation) {
     const route = this.getActiveTrackingRoute();
-    if (route && route.isActive) {
-      route.currentLocation = location;
-      
-      // Recalcular rota se necessário (opcional, para otimização dinâmica)
-      if (this.mapboxAccessToken && route.routePoints.length > 0) {
+    if (!route || !route.isActive) return;
+
+    // Atualizar localização atual
+    const previousLocation = route.currentLocation;
+    route.currentLocation = location;
+    this.lastKnownLocation = location;
+
+    // Adicionar ao cache inteligente
+    this.addToLocationCache(location);
+
+    // Inicializar controle de notificações se necessário
+    if (!route.proximityNotificationsSent) {
+      route.proximityNotificationsSent = new Set();
+    }
+    if (route.notificationsEnabled === undefined) {
+      route.notificationsEnabled = true; // Habilitado por padrão
+    }
+
+    // Adicionar ao histórico de posições para visualização do movimento
+    if (!route.locationHistory) {
+      route.locationHistory = [];
+    }
+
+    // Manter apenas as últimas 50 posições para performance
+    route.locationHistory.push(location);
+    if (route.locationHistory.length > 50) {
+      route.locationHistory = route.locationHistory.slice(-50);
+    }
+
+    // Calcular velocidade se temos posição anterior
+    if (previousLocation) {
+      const distance = this.calculateDistance(
+        { lat: previousLocation.lat, lng: previousLocation.lng },
+        { lat: location.lat, lng: location.lng }
+      );
+      const timeDiff = (new Date(location.timestamp).getTime() - new Date(previousLocation.timestamp).getTime()) / 1000;
+      const calculatedSpeed = timeDiff > 0 ? distance / timeDiff : 0; // m/s
+
+      // Usar velocidade do GPS se disponível, senão usar calculada
+      route.currentSpeed = location.speed || calculatedSpeed;
+      route.currentHeading = location.heading || this.calculateBearing(previousLocation, location);
+    }
+
+    // Verificar proximidade e enviar notificações se habilitadas
+    if (route.notificationsEnabled) {
+      await this.checkProximityNotifications(route, location);
+    }
+
+    // Recalcular rota se necessário (opcional, para otimização dinâmica)
+    if (this.mapboxAccessToken && route.routePoints.length > 0) {
+      try {
         const updatedRoute = await this.calculateOptimizedRoute(location, route.routePoints);
         if (updatedRoute) {
           route.mapboxRoute = updatedRoute;
           route.estimatedDuration = Math.round(updatedRoute.duration / 60);
           route.totalDistance = Math.round(updatedRoute.distance);
         }
+      } catch (error) {
+        console.warn('⚠️ Erro ao recalcular rota:', error);
       }
-
-      this.saveTrackingRoute(route);
-      this.notifyListeners(route);
-
-      console.log('📍 Localização do motorista atualizada:', {
-        lat: location.lat.toFixed(6),
-        lng: location.lng.toFixed(6),
-        accuracy: location.accuracy ? `${location.accuracy.toFixed(0)}m` : 'N/A'
-      });
     }
+
+    this.saveTrackingRoute(route);
+    this.notifyListeners(route);
+
+    const speedKmh = route.currentSpeed ? (route.currentSpeed * 3.6).toFixed(1) : 'N/A';
+
+    console.log('📍 Localização do motorista atualizada:', {
+      lat: location.lat.toFixed(6),
+      lng: location.lng.toFixed(6),
+      accuracy: location.accuracy ? `${location.accuracy.toFixed(0)}m` : 'N/A',
+      speed: `${speedKmh} km/h`,
+      heading: route.currentHeading ? `${route.currentHeading.toFixed(0)}°` : 'N/A',
+      historyPoints: route.locationHistory.length
+    });
   }
 
   // Salvar rota de rastreamento
@@ -467,21 +647,21 @@ class RealTimeTrackingService {
     try {
       const stored = localStorage.getItem('realTimeTrackingRoute');
       const flag = localStorage.getItem('trackingRouteFlag');
-      
+
       if (stored && flag === 'true') {
         const route = JSON.parse(stored);
-        
+
         // Verificar se a rota não é muito antiga (mais de 4 horas)
         const startTime = new Date(route.startTime);
         const now = new Date();
         const hoursDiff = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-        
+
         if (hoursDiff > 4) {
           console.log('⏰ Rota de rastreamento muito antiga, limpando...');
           this.endRouteTracking();
           return null;
         }
-        
+
         if (route.isActive) {
           return route;
         }
@@ -489,24 +669,24 @@ class RealTimeTrackingService {
     } catch (error) {
       console.error('❌ Erro ao carregar rota de rastreamento:', error);
     }
-    
+
     return null;
   }
 
   // Encerrar rastreamento de rota
   endRouteTracking(): boolean {
     console.log('🏁 Encerrando rastreamento de rota');
-    
+
     const route = this.getActiveTrackingRoute();
     if (route) {
       route.isActive = false;
       route.endTime = new Date().toISOString();
-      
+
       console.log('✅ Rota de rastreamento encerrada:', {
         id: route.id,
         driverName: route.driverName,
-        duration: route.endTime && route.startTime ? 
-          `${Math.round((new Date(route.endTime).getTime() - new Date(route.startTime).getTime()) / (1000 * 60))} min` : 
+        duration: route.endTime && route.startTime ?
+          `${Math.round((new Date(route.endTime).getTime() - new Date(route.startTime).getTime()) / (1000 * 60))} min` :
           'N/A'
       });
     }
@@ -539,13 +719,13 @@ class RealTimeTrackingService {
     nextStop?: RoutePoint;
   } {
     const route = this.getActiveTrackingRoute();
-    
+
     if (!route || !route.isActive) {
       return { hasActiveRoute: false };
     }
 
     // Encontrar próxima parada
-    const nextStop = route.routePoints.find(point => 
+    const nextStop = route.routePoints.find(point =>
       point.type === 'student' && point.studentId // Lógica pode ser refinada
     );
 
@@ -553,9 +733,357 @@ class RealTimeTrackingService {
       hasActiveRoute: true,
       driverLocation: route.currentLocation,
       routeGeometry: route.mapboxRoute?.geometry,
-      estimatedArrival: route.estimatedDuration ? 
+      estimatedArrival: route.estimatedDuration ?
         `${route.estimatedDuration} minutos` : undefined,
       nextStop
+    };
+  }
+
+  // Verificar proximidade e enviar notificações
+  private async checkProximityNotifications(route: TrackingRoute, driverLocation: RouteLocation) {
+    if (!route.routePoints || route.routePoints.length === 0) return;
+
+    // Verificar cada ponto da rota (estudantes)
+    for (const point of route.routePoints) {
+      if (point.type === 'student' && point.studentId && point.studentName) {
+        const studentLocation = { lat: point.lat, lng: point.lng };
+
+        // Verificar se já foi enviada notificação para este estudante
+        const notificationKey = `${point.studentId}-proximity`;
+        if (route.proximityNotificationsSent?.has(notificationKey)) {
+          continue; // Já foi enviada
+        }
+
+        try {
+          // Usar o serviço de notificações para verificar proximidade
+          const notificationSent = await pushNotificationService.checkProximityAndNotify(
+            { lat: driverLocation.lat, lng: driverLocation.lng },
+            studentLocation,
+            {
+              id: point.studentId,
+              name: point.studentName,
+              guardianId: this.getGuardianIdForStudent(point.studentId) // Implementar se necessário
+            },
+            route.driverName,
+            route.estimatedDuration ? `${route.estimatedDuration} minutos` : 'Em breve'
+          );
+
+          if (notificationSent) {
+            route.proximityNotificationsSent?.add(notificationKey);
+            console.log(`🔔 Notificação de proximidade enviada para ${point.studentName}`);
+          }
+        } catch (error) {
+          console.error(`❌ Erro ao verificar proximidade para ${point.studentName}:`, error);
+        }
+      }
+    }
+  }
+
+  // Calcular direção entre dois pontos (Haversine)
+  private calculateBearing(from: RouteLocation, to: RouteLocation): number {
+    const lat1 = from.lat * Math.PI / 180;
+    const lat2 = to.lat * Math.PI / 180;
+    const deltaLng = (to.lng - from.lng) * Math.PI / 180;
+
+    const x = Math.sin(deltaLng) * Math.cos(lat2);
+    const y = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLng);
+
+    const bearing = Math.atan2(x, y) * 180 / Math.PI;
+    return (bearing + 360) % 360; // Normalizar para 0-360
+  }
+
+  // Obter ID do responsável para um estudante (implementar conforme necessário)
+  private getGuardianIdForStudent(studentId: string): string {
+    // Por enquanto, retornar um ID genérico
+    // Em uma implementação real, isso viria do banco de dados
+    return `guardian-${studentId}`;
+  }
+
+  // Habilitar/desabilitar notificações para a rota ativa
+  setNotificationsEnabled(enabled: boolean): boolean {
+    const route = this.getActiveTrackingRoute();
+    if (route) {
+      route.notificationsEnabled = enabled;
+      this.saveTrackingRoute(route);
+      console.log(`🔔 Notificações ${enabled ? 'habilitadas' : 'desabilitadas'} para a rota`);
+      return true;
+    }
+    return false;
+  }
+
+  // Verificar se notificações estão habilitadas
+  areNotificationsEnabled(): boolean {
+    const route = this.getActiveTrackingRoute();
+    return route?.notificationsEnabled ?? true;
+  }
+
+  // Limpar notificações enviadas (para permitir reenvio)
+  clearProximityNotifications(): boolean {
+    const route = this.getActiveTrackingRoute();
+    if (route) {
+      route.proximityNotificationsSent?.clear();
+      this.saveTrackingRoute(route);
+      console.log('🧹 Cache de notificações de proximidade limpo');
+      return true;
+    }
+    return false;
+  }
+
+  // Limpar cache de localização
+  clearLocationCache(): void {
+    this.locationCache.clear();
+    console.log('🧹 Cache de localização limpo');
+  }
+
+  // Adicionar localização ao cache inteligente
+  private addToLocationCache(location: RouteLocation): void {
+    const key = `${location.lat.toFixed(4)}-${location.lng.toFixed(4)}`;
+    this.locationCache.set(key, {
+      location,
+      timestamp: Date.now()
+    });
+
+    // Limpar entradas antigas (mais de 5 minutos)
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    for (const [cacheKey, cached] of this.locationCache.entries()) {
+      if (cached.timestamp < fiveMinutesAgo) {
+        this.locationCache.delete(cacheKey);
+      }
+    }
+  }
+
+  // Configurar threshold de proximidade
+  setProximityThreshold(meters: number): void {
+    pushNotificationService.setProximityThreshold(meters);
+  }
+
+  // Obter threshold de proximidade atual
+  getProximityThreshold(): number {
+    return pushNotificationService.getProximityThreshold();
+  }
+
+  // Solicitar permissão para notificações
+  async requestNotificationPermission(): Promise<boolean> {
+    return await pushNotificationService.requestPermission();
+  }
+
+  // Validar qualidade da localização baseado na documentação MDN
+  private validateLocationQuality(coords: GeolocationCoordinates): boolean {
+    // Critérios de qualidade baseados na documentação MDN:
+    // 1. Precisão menor que 50m é considerada boa
+    // 2. Coordenadas válidas (não 0,0 que pode indicar erro)
+    // 3. Timestamp recente (implícito no getCurrentPosition)
+
+    const hasGoodAccuracy = coords.accuracy && coords.accuracy < 50;
+    const hasValidCoordinates = coords.latitude !== 0 || coords.longitude !== 0;
+    const hasReasonableCoordinates = Math.abs(coords.latitude) <= 90 && Math.abs(coords.longitude) <= 180;
+
+    const isHighQuality = hasGoodAccuracy && hasValidCoordinates && hasReasonableCoordinates;
+
+    console.log('🔍 Validação de qualidade da localização:', {
+      accuracy: coords.accuracy ? `${coords.accuracy.toFixed(0)}m` : 'N/A',
+      hasGoodAccuracy: hasGoodAccuracy ? '✅' : '❌',
+      hasValidCoordinates: hasValidCoordinates ? '✅' : '❌',
+      hasReasonableCoordinates: hasReasonableCoordinates ? '✅' : '❌',
+      overallQuality: isHighQuality ? '🟢 Alta' : '🟡 Média'
+    });
+
+    return isHighQuality;
+  }
+
+  // Testar notificação
+  async testNotification(): Promise<boolean> {
+    return await pushNotificationService.testNotification();
+  }
+
+  // Forçar atualização imediata da localização com múltiplas tentativas
+  async forceLocationUpdate(): Promise<boolean> {
+    console.log('🔄 Forçando atualização imediata da localização...');
+
+    // Tentar múltiplas estratégias de localização
+    const location = await this.getLocationWithFallback();
+
+    if (location) {
+      await this.updateDriverLocation(location);
+      console.log('✅ Localização atualizada com sucesso');
+      return true;
+    }
+    console.warn('❌ Falha ao obter nova localização com todas as estratégias');
+    return false;
+  }
+
+  // Obter localização com múltiplas estratégias de fallback
+  private async getLocationWithFallback(): Promise<RouteLocation | null> {
+    console.log('🎯 Tentando obter localização com estratégias múltiplas...');
+
+    // Estratégia 1: Alta precisão com timeout longo
+    try {
+      const highAccuracyLocation = await this.getLocationWithOptions({
+        enableHighAccuracy: true,
+        timeout: 30000,
+        maximumAge: 0
+      });
+
+      if (highAccuracyLocation && this.validateLocationQuality(highAccuracyLocation)) {
+        console.log('✅ Localização de alta precisão obtida');
+        return this.convertToRouteLocation(highAccuracyLocation);
+      }
+    } catch (error) {
+      console.log('⚠️ Estratégia de alta precisão falhou, tentando fallback...');
+    }
+
+    // Estratégia 2: Precisão média com timeout menor
+    try {
+      const mediumAccuracyLocation = await this.getLocationWithOptions({
+        enableHighAccuracy: false,
+        timeout: 15000,
+        maximumAge: 5000
+      });
+
+      if (mediumAccuracyLocation) {
+        console.log('✅ Localização de precisão média obtida');
+        return this.convertToRouteLocation(mediumAccuracyLocation);
+      }
+    } catch (error) {
+      console.log('⚠️ Estratégia de precisão média falhou');
+    }
+
+    // Estratégia 3: Usar cache recente se disponível
+    if (this.lastKnownLocation) {
+      const timeSinceLastLocation = Date.now() - new Date(this.lastKnownLocation.timestamp).getTime();
+      if (timeSinceLastLocation < 60000) { // Menos de 1 minuto
+        console.log('✅ Usando localização em cache (< 1 minuto)');
+        return this.lastKnownLocation;
+      }
+    }
+
+    console.warn('❌ Todas as estratégias de localização falharam');
+    return null;
+  }
+
+  // Obter localização com opções específicas
+  private getLocationWithOptions(options: PositionOptions): Promise<GeolocationCoordinates | null> {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        resolve(null);
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => resolve(position.coords),
+        (error) => {
+          console.warn(`Erro na geolocalização (${error.code}): ${error.message}`);
+          resolve(null);
+        },
+        options
+      );
+    });
+  }
+
+  // Converter GeolocationCoordinates para RouteLocation
+  private convertToRouteLocation(coords: GeolocationCoordinates): RouteLocation {
+    return {
+      lat: coords.latitude,
+      lng: coords.longitude,
+      timestamp: new Date().toISOString(),
+      accuracy: coords.accuracy,
+      speed: coords.speed || 0,
+      heading: coords.heading || 0
+    };
+  }
+
+  // Validar qualidade usando GeolocationCoordinates
+  private validateLocationQuality(coords: GeolocationCoordinates): boolean {
+    const hasGoodAccuracy = coords.accuracy && coords.accuracy < 50;
+    const hasValidCoordinates = coords.latitude !== 0 || coords.longitude !== 0;
+    const hasReasonableCoordinates = Math.abs(coords.latitude) <= 90 && Math.abs(coords.longitude) <= 180;
+
+    return hasGoodAccuracy && hasValidCoordinates && hasReasonableCoordinates;
+  }
+
+  // Obter status detalhado da última localização
+  getLocationStatus(): {
+    hasLocation: boolean;
+    lastUpdate?: string;
+    timeSinceUpdate?: number;
+    accuracy?: number;
+    quality?: 'high' | 'medium' | 'low';
+    coordinates?: { lat: number; lng: number };
+    speed?: number;
+    heading?: number;
+  } {
+    if (!this.lastKnownLocation) {
+      return { hasLocation: false };
+    }
+
+    const now = new Date().getTime();
+    const lastUpdate = new Date(this.lastKnownLocation.timestamp).getTime();
+    const timeSinceUpdate = now - lastUpdate;
+
+    // Determinar qualidade baseada na precisão e idade
+    let quality: 'high' | 'medium' | 'low' = 'low';
+    if (this.lastKnownLocation.accuracy) {
+      if (this.lastKnownLocation.accuracy < 20 && timeSinceUpdate < 10000) {
+        quality = 'high';
+      } else if (this.lastKnownLocation.accuracy < 50 && timeSinceUpdate < 30000) {
+        quality = 'medium';
+      }
+    }
+
+    return {
+      hasLocation: true,
+      lastUpdate: this.lastKnownLocation.timestamp,
+      timeSinceUpdate: Math.round(timeSinceUpdate / 1000), // em segundos
+      accuracy: this.lastKnownLocation.accuracy,
+      quality,
+      coordinates: {
+        lat: this.lastKnownLocation.lat,
+        lng: this.lastKnownLocation.lng
+      },
+      speed: this.lastKnownLocation.speed,
+      heading: this.lastKnownLocation.heading
+    };
+  }
+
+  // Obter estatísticas de qualidade da localização
+  getLocationQualityStats(): {
+    averageAccuracy?: number;
+    bestAccuracy?: number;
+    worstAccuracy?: number;
+    totalUpdates: number;
+    highQualityPercentage: number;
+  } {
+    const route = this.getActiveTrackingRoute();
+    if (!route?.locationHistory || route.locationHistory.length === 0) {
+      return {
+        totalUpdates: 0,
+        highQualityPercentage: 0
+      };
+    }
+
+    const accuracies = route.locationHistory
+      .map(loc => loc.accuracy)
+      .filter(acc => acc !== undefined) as number[];
+
+    if (accuracies.length === 0) {
+      return {
+        totalUpdates: route.locationHistory.length,
+        highQualityPercentage: 0
+      };
+    }
+
+    const averageAccuracy = accuracies.reduce((sum, acc) => sum + acc, 0) / accuracies.length;
+    const bestAccuracy = Math.min(...accuracies);
+    const worstAccuracy = Math.max(...accuracies);
+    const highQualityCount = accuracies.filter(acc => acc < 20).length;
+    const highQualityPercentage = (highQualityCount / accuracies.length) * 100;
+
+    return {
+      averageAccuracy: Math.round(averageAccuracy),
+      bestAccuracy: Math.round(bestAccuracy),
+      worstAccuracy: Math.round(worstAccuracy),
+      totalUpdates: route.locationHistory.length,
+      highQualityPercentage: Math.round(highQualityPercentage)
     };
   }
 }

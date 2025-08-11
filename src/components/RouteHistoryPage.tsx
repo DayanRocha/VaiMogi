@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Trash2, Send, Calendar, Clock, MapPin, User, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Trash2, Send, Calendar, Clock, MapPin, User, CheckCircle, Filter, X } from 'lucide-react';
 import { routeHistoryService, RouteHistoryItem } from '../services/routeHistoryService';
 import { Guardian } from '@/types/driver';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ interface RouteHistoryPageProps {
 
 export const RouteHistoryPage = ({ onBack }: RouteHistoryPageProps) => {
   const [routeHistory, setRouteHistory] = useState<RouteHistoryItem[]>([]);
+  const [filteredRouteHistory, setFilteredRouteHistory] = useState<RouteHistoryItem[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<RouteHistoryItem | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isSendDialogOpen, setIsSendDialogOpen] = useState(false);
@@ -26,6 +27,16 @@ export const RouteHistoryPage = ({ onBack }: RouteHistoryPageProps) => {
   const [selectedGuardian, setSelectedGuardian] = useState<any>(null);
   const [guardians, setGuardians] = useState<any[]>([]);
   const [filteredGuardians, setFilteredGuardians] = useState<any[]>([]);
+
+  // Estados para filtro de data
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [dateRange, setDateRange] = useState<{ start: string, end: string }>({
+    start: '',
+    end: ''
+  });
+  const [filterType, setFilterType] = useState<'today' | 'date' | 'range'>('today');
+
   const { toast } = useToast();
 
   // Carregar histórico de rotas e responsáveis do localStorage
@@ -34,12 +45,17 @@ export const RouteHistoryPage = ({ onBack }: RouteHistoryPageProps) => {
     loadGuardians();
   }, []);
 
+  // Aplicar filtros quando dados ou filtros mudarem
+  useEffect(() => {
+    applyDateFilter();
+  }, [routeHistory, selectedDate, dateRange, filterType]);
+
   // Filtrar responsáveis baseado no termo de busca
   useEffect(() => {
     if (guardianSearchTerm.trim() === '') {
       setFilteredGuardians([]);
     } else {
-      const filtered = guardians.filter(guardian => 
+      const filtered = guardians.filter(guardian =>
         guardian.name.toLowerCase().includes(guardianSearchTerm.toLowerCase())
       );
       setFilteredGuardians(filtered);
@@ -48,17 +64,18 @@ export const RouteHistoryPage = ({ onBack }: RouteHistoryPageProps) => {
 
   const loadRouteHistory = () => {
     try {
-      // Carregar apenas dados reais do histórico de rotas
-      const todayRoutes = routeHistoryService.getTodayRouteHistory();
-      setRouteHistory(todayRoutes);
-      
-      console.log(`📊 Histórico carregado: ${todayRoutes.length} rotas encontradas para hoje`);
-      
-      if (todayRoutes.length > 0) {
-        console.log('✅ Rotas reais carregadas:', todayRoutes.map(route => ({
+      // Carregar todo o histórico de rotas (não apenas hoje)
+      const allRoutes = routeHistoryService.getRouteHistory();
+      setRouteHistory(allRoutes);
+
+      console.log(`📊 Histórico carregado: ${allRoutes.length} rotas encontradas no total`);
+
+      if (allRoutes.length > 0) {
+        console.log('✅ Rotas carregadas:', allRoutes.map(route => ({
           id: route.id,
           driverName: route.driverName,
           direction: route.direction,
+          date: new Date(route.date).toLocaleDateString('pt-BR'),
           studentsCount: route.studentsCount,
           completedStudents: route.completedStudents,
           duration: route.duration
@@ -72,6 +89,78 @@ export const RouteHistoryPage = ({ onBack }: RouteHistoryPageProps) => {
         variant: "destructive"
       });
       setRouteHistory([]);
+    }
+  };
+
+  const applyDateFilter = () => {
+    let filtered: RouteHistoryItem[] = [];
+
+    switch (filterType) {
+      case 'today':
+        filtered = routeHistoryService.getTodayRouteHistory();
+        break;
+
+      case 'date':
+        if (selectedDate) {
+          const targetDate = new Date(selectedDate);
+          filtered = routeHistory.filter(route => {
+            const routeDate = new Date(route.date);
+            return routeDate.toDateString() === targetDate.toDateString();
+          });
+        } else {
+          filtered = routeHistory;
+        }
+        break;
+
+      case 'range':
+        if (dateRange.start && dateRange.end) {
+          const startDate = new Date(dateRange.start);
+          const endDate = new Date(dateRange.end);
+          endDate.setHours(23, 59, 59, 999); // Incluir o dia final completo
+
+          filtered = routeHistory.filter(route => {
+            const routeDate = new Date(route.date);
+            return routeDate >= startDate && routeDate <= endDate;
+          });
+        } else {
+          filtered = routeHistory;
+        }
+        break;
+
+      default:
+        filtered = routeHistory;
+    }
+
+    setFilteredRouteHistory(filtered);
+
+    console.log(`🔍 Filtro aplicado (${filterType}):`, {
+      total: routeHistory.length,
+      filtered: filtered.length,
+      selectedDate,
+      dateRange
+    });
+  };
+
+  const clearFilters = () => {
+    setFilterType('today');
+    setSelectedDate(new Date().toISOString().split('T')[0]);
+    setDateRange({ start: '', end: '' });
+    setShowDateFilter(false);
+  };
+
+  const getFilterDescription = () => {
+    switch (filterType) {
+      case 'today':
+        return `Rotas de hoje - ${new Date().toLocaleDateString('pt-BR')}`;
+      case 'date':
+        return selectedDate ? `Rotas de ${new Date(selectedDate).toLocaleDateString('pt-BR')}` : 'Selecione uma data';
+      case 'range':
+        if (dateRange.start && dateRange.end) {
+          return `Rotas de ${new Date(dateRange.start).toLocaleDateString('pt-BR')} até ${new Date(dateRange.end).toLocaleDateString('pt-BR')}`;
+        }
+        return 'Selecione o período';
+      default:
+        return 'Todas as rotas';
     }
   };
 
@@ -101,11 +190,11 @@ export const RouteHistoryPage = ({ onBack }: RouteHistoryPageProps) => {
     if (selectedRoute) {
       try {
         const success = routeHistoryService.removeRouteFromHistory(selectedRoute.id);
-        
+
         if (success) {
           const updatedHistory = routeHistory.filter(route => route.id !== selectedRoute.id);
           setRouteHistory(updatedHistory);
-          
+
           toast({
             title: "Rota excluída",
             description: "A rota foi removida do histórico com sucesso."
@@ -141,24 +230,24 @@ export const RouteHistoryPage = ({ onBack }: RouteHistoryPageProps) => {
       try {
         // Formatar número de telefone para WhatsApp (remover caracteres especiais)
         const phoneNumber = selectedGuardian.phone.replace(/\D/g, '');
-        
+
         // Criar URL do WhatsApp com a mensagem
         const whatsappUrl = `https://wa.me/55${phoneNumber}?text=${encodeURIComponent(message)}`;
-        
+
         // Abrir WhatsApp em nova aba
         window.open(whatsappUrl, '_blank');
-        
+
         toast({
           title: "WhatsApp aberto",
           description: `Relatório preparado para envio via WhatsApp para ${selectedGuardian.name}.`
         });
-        
+
         console.log('📱 WhatsApp aberto para:', {
           guardian: selectedGuardian.name,
           phone: selectedGuardian.phone,
           route: selectedRoute.id
         });
-        
+
       } catch (error) {
         console.error('❌ Erro ao abrir WhatsApp:', error);
         toast({
@@ -167,7 +256,7 @@ export const RouteHistoryPage = ({ onBack }: RouteHistoryPageProps) => {
           variant: "destructive"
         });
       }
-      
+
       setIsSendDialogOpen(false);
       setSelectedRoute(null);
       setRecipientEmail('');
@@ -211,25 +300,151 @@ export const RouteHistoryPage = ({ onBack }: RouteHistoryPageProps) => {
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div>
+          <div className="flex-1">
             <h1 className="text-xl font-bold">Histórico de Rotas</h1>
             <p className="text-orange-100 text-sm">
-              Rotas realizadas hoje - {new Date().toLocaleDateString('pt-BR')}
+              {getFilterDescription()}
             </p>
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowDateFilter(!showDateFilter)}
+            className="text-white hover:bg-orange-600 p-2"
+          >
+            <Filter className="w-5 h-5" />
+          </Button>
         </div>
       </div>
 
+      {/* Filtro de Data */}
+      {showDateFilter && (
+        <div className="bg-white border-b shadow-sm p-4">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-medium text-gray-900">Filtrar por Data</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowDateFilter(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {/* Opções de filtro */}
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                variant={filterType === 'today' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilterType('today')}
+                className="text-xs"
+              >
+                Hoje
+              </Button>
+              <Button
+                variant={filterType === 'date' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilterType('date')}
+                className="text-xs"
+              >
+                Data Específica
+              </Button>
+              <Button
+                variant={filterType === 'range' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilterType('range')}
+                className="text-xs"
+              >
+                Período
+              </Button>
+            </div>
+
+            {/* Seleção de data específica */}
+            {filterType === 'date' && (
+              <div className="space-y-2">
+                <Label htmlFor="specific-date">Selecionar Data</Label>
+                <Input
+                  id="specific-date"
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+            )}
+
+            {/* Seleção de período */}
+            {filterType === 'range' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="start-date">Data Inicial</Label>
+                  <Input
+                    id="start-date"
+                    type="date"
+                    value={dateRange.start}
+                    onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="end-date">Data Final</Label>
+                  <Input
+                    id="end-date"
+                    type="date"
+                    value={dateRange.end}
+                    onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Botões de ação */}
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearFilters}
+                className="text-xs"
+              >
+                Limpar Filtros
+              </Button>
+              <div className="flex-1"></div>
+              <span className="text-sm text-gray-500">
+                {filteredRouteHistory.length} rota(s) encontrada(s)
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       <div className="p-4 space-y-4">
-        {routeHistory.length === 0 ? (
+        {filteredRouteHistory.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <h3 className="text-lg font-medium text-gray-600 mb-2">Nenhuma rota realizada hoje</h3>
-            <p className="text-sm">As rotas executadas aparecerão aqui</p>
+            <h3 className="text-lg font-medium text-gray-600 mb-2">
+              {filterType === 'today' ? 'Nenhuma rota realizada hoje' : 'Nenhuma rota encontrada'}
+            </h3>
+            <p className="text-sm">
+              {filterType === 'today'
+                ? 'As rotas executadas aparecerão aqui'
+                : 'Tente ajustar os filtros de data'
+              }
+            </p>
+            {filterType !== 'today' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearFilters}
+                className="mt-4"
+              >
+                Ver rotas de hoje
+              </Button>
+            )}
           </div>
         ) : (
-          routeHistory.map((route) => (
+          filteredRouteHistory.map((route) => (
             <div key={route.id} className="bg-white rounded-lg shadow-sm border p-4">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
@@ -238,13 +453,12 @@ export const RouteHistoryPage = ({ onBack }: RouteHistoryPageProps) => {
                     <span className="font-medium text-gray-900">
                       {getDirectionLabel(route.direction)}
                     </span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      getStatusColor(route.completedStudents, route.studentsCount)
-                    }`}>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(route.completedStudents, route.studentsCount)
+                      }`}>
                       {route.completedStudents === route.studentsCount ? 'Concluída' : 'Parcial'}
                     </span>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
                     <div className="flex items-center gap-2">
                       <User className="w-4 h-4" />
@@ -260,12 +474,16 @@ export const RouteHistoryPage = ({ onBack }: RouteHistoryPageProps) => {
                     </div>
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
-                      <span>{route.duration || 'Calculando...'}</span>
+                      <span>{new Date(route.date).toLocaleDateString('pt-BR')}</span>
+                    </div>
+                    <div className="flex items-center gap-2 col-span-2">
+                      <Clock className="w-4 h-4" />
+                      <span>Duração: {route.duration || 'Calculando...'}</span>
                     </div>
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex gap-2 pt-3 border-t">
                 <Button
                   variant="outline"
@@ -334,16 +552,15 @@ export const RouteHistoryPage = ({ onBack }: RouteHistoryPageProps) => {
                 value={guardianSearchTerm}
                 onChange={(e) => setGuardianSearchTerm(e.target.value)}
               />
-              
+
               {/* Lista de responsáveis filtrados */}
               {filteredGuardians.length > 0 && (
                 <div className="mt-2 max-h-32 overflow-y-auto border rounded-md">
                   {filteredGuardians.map((guardian) => (
                     <div
                       key={guardian.id}
-                      className={`p-2 cursor-pointer hover:bg-gray-50 border-b last:border-b-0 ${
-                        selectedGuardian?.id === guardian.id ? 'bg-blue-50 border-blue-200' : ''
-                      }`}
+                      className={`p-2 cursor-pointer hover:bg-gray-50 border-b last:border-b-0 ${selectedGuardian?.id === guardian.id ? 'bg-blue-50 border-blue-200' : ''
+                        }`}
                       onClick={() => {
                         setSelectedGuardian(guardian);
                         setGuardianSearchTerm(guardian.name);
@@ -356,7 +573,7 @@ export const RouteHistoryPage = ({ onBack }: RouteHistoryPageProps) => {
                   ))}
                 </div>
               )}
-              
+
               {/* Responsável selecionado */}
               {selectedGuardian && (
                 <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
@@ -370,7 +587,7 @@ export const RouteHistoryPage = ({ onBack }: RouteHistoryPageProps) => {
                 </div>
               )}
             </div>
-            
+
             <div>
               <Label htmlFor="message">Mensagem</Label>
               <Textarea
@@ -382,7 +599,7 @@ export const RouteHistoryPage = ({ onBack }: RouteHistoryPageProps) => {
                 className="text-sm"
               />
             </div>
-            
+
             <div className="flex gap-2 justify-end">
               <Button
                 variant="outline"
