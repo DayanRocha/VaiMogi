@@ -347,22 +347,25 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button 
-              onClick={handleMapClick} 
-              disabled={isGettingLocation}
-              className={`p-2 rounded-full transition-colors ${
-                isGettingLocation 
-                  ? 'bg-gray-200 cursor-not-allowed' 
-                  : 'hover:bg-gray-100'
-              }`}
-              title={isGettingLocation ? 'Obtendo localização...' : 
-                `Ver rota do motorista até ${tripData.direction === 'to_school' ? `casa de ${student.name}` : school.name}`
-              }
-            >
-              <Map className={`w-6 h-6 ${
-                isGettingLocation ? 'text-gray-400 animate-pulse' : 'text-orange-500'
-              }`} />
-            </button>
+            {/* Ocultar botão do mapa quando status for desembarque em casa */}
+            {tripData.direction !== 'to_home' && (
+              <button 
+                onClick={handleMapClick} 
+                disabled={isGettingLocation}
+                className={`p-2 rounded-full transition-colors ${
+                  isGettingLocation 
+                    ? 'bg-gray-200 cursor-not-allowed' 
+                    : 'hover:bg-gray-100'
+                }`}
+                title={isGettingLocation ? 'Obtendo localização...' : 
+                  `Ver rota do motorista até ${tripData.direction === 'to_school' ? `casa de ${student.name}` : school.name}`
+                }
+              >
+                <Map className={`w-6 h-6 ${
+                  isGettingLocation ? 'text-gray-400 animate-pulse' : 'text-orange-500'
+                }`} />
+              </button>
+            )}
             <div className={`w-12 h-12 ${getStatusColor(tripData.status)} rounded-full flex items-center justify-center relative transition-all duration-200 ${
               isDragging ? 'scale-110' : 'scale-100'
             }`}>
@@ -402,15 +405,15 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
           <div className={`flex items-center gap-2 transition-all duration-200 ${isDragging ? 'opacity-50 scale-95' : 'opacity-100 scale-100'}`}>
             {tripData.direction === 'to_school' ? (
               <>
-                <School className="w-5 h-5 text-gray-400" />
-                <ArrowRight className="w-4 h-4 text-gray-400" />
                 <Home className="w-5 h-5 text-gray-400" />
+                <ArrowRight className="w-4 h-4 text-gray-400" />
+                <School className="w-5 h-5 text-gray-400" />
               </>
             ) : (
               <>
-                <Home className="w-5 h-5 text-gray-400" />
-                <ArrowRight className="w-4 h-4 text-gray-400" />
                 <School className="w-5 h-5 text-gray-400" />
+                <ArrowRight className="w-4 h-4 text-gray-400" />
+                <Home className="w-5 h-5 text-gray-400" />
               </>
             )}
           </div>
@@ -853,7 +856,13 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
                       <School className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-800">{group.school.name}</h3>
+                      <h3 className="font-semibold text-gray-800">
+                        {studentsAtSchool.length === 0 && studentsDisembarked.length > 0 && 
+                         group.students.some(s => s.tripData.direction === 'to_home') 
+                          ? 'Todos os alunos foram desembarcados em casa' 
+                          : group.school.name
+                        }
+                      </h3>
                       <p className="text-sm text-gray-500">
                         {studentsAtSchool.length > 0 ? `Desembarque (${studentsAtSchool.length})` : `Todos desembarcaram (${studentsDisembarked.length})`}
                       </p>

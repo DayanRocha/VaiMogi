@@ -260,23 +260,25 @@ export const GuardianMapView = React.memo(({ driver, van, students, activeTrip, 
           />
         )}
         
-        {/* Botão de configuração do Mapbox */}
-        <div className="absolute top-4 right-4 flex gap-2">
-          <Button
-            onClick={() => setShowMapboxConfig(true)}
-            size="sm"
-            variant="outline"
-            className="bg-white shadow-lg"
-          >
-            <Settings className="w-4 h-4" />
-          </Button>
-          
-          {!mapboxToken && (
-            <div className="bg-yellow-100 border border-yellow-300 rounded-lg px-3 py-2 text-sm">
-              <span className="text-yellow-800">Configure o Mapbox para rastreamento em tempo real</span>
-            </div>
-          )}
-        </div>
+        {/* Botão de configuração do Mapbox - oculto quando rota está em modo 'desembarque em casa' */}
+        {activeRoute?.direction !== 'to_home' && (
+          <div className="absolute top-4 right-4 flex gap-2">
+            <Button
+              onClick={() => setShowMapboxConfig(true)}
+              size="sm"
+              variant="outline"
+              className="bg-white shadow-lg"
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
+            
+            {!mapboxToken && (
+              <div className="bg-yellow-100 border border-yellow-300 rounded-lg px-3 py-2 text-sm">
+                <span className="text-yellow-800">Configure o Mapbox para rastreamento em tempo real</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Modal de configuração do Mapbox */}
