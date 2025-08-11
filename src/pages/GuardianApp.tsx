@@ -19,6 +19,7 @@ export const GuardianApp = () => {
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showMap, setShowMap] = useState(false);
   const { 
     guardian, 
     driver, 
@@ -35,6 +36,17 @@ export const GuardianApp = () => {
   // Hook para rastreamento de rota
   const { hasActiveRoute, activeRoute } = useRouteTracking();
 
+  // Controlar visibilidade do mapa baseado na rota ativa
+  useEffect(() => {
+    if (hasActiveRoute) {
+      console.log('🗺️ Rota iniciada - abrindo mapa automaticamente');
+      setShowMap(true);
+    } else {
+      console.log('🗺️ Rota encerrada - ocultando mapa automaticamente');
+      setShowMap(false);
+    }
+  }, [hasActiveRoute]);
+
   // Notificações em tempo real
   const {
     notifications: realTimeNotifications,
@@ -43,6 +55,20 @@ export const GuardianApp = () => {
     markAllAsRead: markAllRealTimeAsRead,
     deleteNotification: deleteRealTimeNotification
   } = useRealTimeNotifications(guardian.id);
+
+  // Detectar notificações de início e fim de rota para controlar o mapa
+  useEffect(() => {
+    const latestNotification = realTimeNotifications[0];
+    if (latestNotification) {
+      if (latestNotification.type === 'route_started') {
+        console.log('🚌 Notificação de rota iniciada recebida - abrindo mapa');
+        setShowMap(true);
+      } else if (latestNotification.type === 'route_completed') {
+        console.log('🏁 Notificação de rota finalizada recebida - ocultando mapa');
+        setShowMap(false);
+      }
+    }
+  }, [realTimeNotifications]);
 
   // Filtrar notificações legadas que podem ser duplicadas
   const filteredLegacyNotifications = legacyNotifications.filter(legacy => {
@@ -161,18 +187,37 @@ export const GuardianApp = () => {
         onLogout={handleLogout}
       />
 
-      {/* Main Map View */}
-      <div className="h-[calc(100vh-64px)] relative">
-        <ErrorBoundary>
-          <GuardianMapView
-            driver={driver}
-            van={van}
-            students={students}
-            activeTrip={activeTrip}
-            guardianId={guardian.id}
-          />
-        </ErrorBoundary>
-      </div>
+      {/* Main Map View - Mostrado apenas quando há rota ativa */}
+      {showMap ? (
+        <div className="h-[calc(100vh-64px)] relative">
+          <ErrorBoundary>
+            <GuardianMapView
+              driver={driver}
+              van={van}
+              students={students}
+              activeTrip={activeTrip}
+              guardianId={guardian.id}
+            />
+          </ErrorBoundary>
+        </div>
+      ) : (
+        <div className="h-[calc(100vh-64px)] flex items-center justify-center bg-gray-50">
+          <div className="text-center p-8">
+            <div className="w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-12 h-12 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m-6 3l6-3" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">Aguardando Rota</h3>
+            <p className="text-gray-600 mb-4">O mapa será exibido automaticamente quando o motorista iniciar a rota.</p>
+            <div className="text-sm text-gray-500">
+              <p>• Você receberá uma notificação quando a rota iniciar</p>
+              <p>• O mapa mostrará a localização em tempo real</p>
+              <p>• Será ocultado automaticamente quando a rota terminar</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Guardian Menu Modal */}
       <GuardianMenuModal

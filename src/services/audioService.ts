@@ -26,8 +26,11 @@ class AudioService {
     if (!this.audioContext) {
       try {
         this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        console.log('🎵 AudioContext criado, estado:', this.audioContext.state);
+        
         if (this.audioContext.state === 'suspended') {
           await this.audioContext.resume();
+          console.log('🎵 AudioContext resumido, novo estado:', this.audioContext.state);
         }
       } catch (error) {
         console.warn('❌ Não foi possível inicializar contexto de áudio:', error);
@@ -84,28 +87,47 @@ class AudioService {
   }
 
   // Sons específicos para cada tipo de notificação - sempre usa buzina
-  async playNotificationSound(type: NotificationSoundType) {
-    if (!this.isEnabled) return;
-
-    console.log('🔊 Reproduzindo buzina para notificação:', type);
-
-    // Sempre tentar reproduzir a buzina primeiro
-    if (await this.playAudioFile(type)) {
-      return; // Buzina reproduzida com sucesso
+  async playNotificationSound(type: NotificationSoundType = 'default'): Promise<void> {
+    if (!this.isEnabled) {
+      console.log('🔇 Sons desabilitados');
+      return;
     }
 
-    // Se a buzina não estiver carregada, tentar carregar e reproduzir
-    console.log('⚠️ Buzina não carregada, tentando carregar...');
-    await this.loadAllAudioFiles();
-    
-    // Tentar reproduzir novamente após carregar
-    if (await this.playAudioFile(type)) {
-      return; // Buzina reproduzida com sucesso após carregamento
+    try {
+      console.log('🔊 Tentando reproduzir buzina para:', type);
+      
+      // Verificar se o AudioContext está ativo
+      if (!this.audioContext || this.audioContext.state === 'suspended') {
+        console.log('🎵 AudioContext suspenso, tentando reativar...');
+        await this.requestAudioPermission();
+      }
+      
+      // Tentar reproduzir a buzina
+      if (await this.playAudioFile(type)) {
+        return; // Buzina reproduzida com sucesso
+      }
+      
+      // Se falhou, tentar carregar e reproduzir novamente
+      console.log('⚠️ Buzina não carregada, tentando carregar...');
+      await this.loadAllAudioFiles();
+      
+      if (await this.playAudioFile(type)) {
+        return; // Buzina reproduzida com sucesso após carregamento
+      }
+      
+      // Último recurso: som padrão
+      console.warn('❌ Não foi possível reproduzir buzina, usando tom padrão');
+      await this.generateTone(800, 0.3, 0.2);
+      
+    } catch (error) {
+      console.warn('⚠️ Erro ao reproduzir buzina:', error);
+      try {
+        // Último recurso: gerar um tom
+        await this.generateTone(800, 0.3, 0.2);
+      } catch (toneError) {
+        console.error('❌ Falha total ao reproduzir som:', toneError);
+      }
     }
-
-    // Último recurso: som padrão simples
-    console.warn('❌ Não foi possível reproduzir buzina, usando tom padrão');
-    await this.generateTone(800, 0.3);
   }
 
   // Ativar/desativar sons
@@ -136,18 +158,24 @@ class AudioService {
     }
   }
 
-  // Testar som da buzina (para configurações)
-  async testSound() {
-    console.log('🧪 Testando buzina...');
-    await this.playNotificationSound('default');
-  }
+
 
   // Solicitar permissão de áudio (deve ser chamado após interação do usuário)
   async requestAudioPermission(): Promise<boolean> {
     try {
+      console.log('🎵 Solicitando permissão de áudio...');
       await this.initAudioContext();
+      
+      // Verificar se o contexto foi criado com sucesso
+      if (!this.audioContext) {
+        console.warn('❌ AudioContext não foi criado');
+        return false;
+      }
+      
       // Tocar um som muito baixo para ativar o contexto
       await this.generateTone(440, 0.01, 0.01);
+      
+      console.log('✅ Permissão de áudio concedida');
       return true;
     } catch (error) {
       console.warn('❌ Permissão de áudio negada:', error);
@@ -225,18 +253,44 @@ class AudioService {
     console.log(`🔊 Tentando reproduzir buzina para: ${type}`);
     
     try {
+      // Inicializar AudioContext se necessário
+      await this.initAudioContext();
+      
       // Sempre criar uma nova instância da buzina para permitir sobreposição
       const audioClone = new Audio('/sounds/buzina-van.mp3');
       audioClone.volume = 0.8; // Volume alto para notificações
       audioClone.playbackRate = 1.0;
       audioClone.currentTime = 0;
       
+      // Aguardar o áudio estar pronto para reprodução
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Timeout ao carregar áudio'));
+        }, 3000);
+        
+        audioClone.addEventListener('canplay', () => {
+          clearTimeout(timeout);
+          resolve(true);
+        });
+        
+        audioClone.addEventListener('error', (e) => {
+          clearTimeout(timeout);
+          reject(e);
+        });
+        
+        audioClone.load();
+      });
+      
       console.log(`🎵 Reproduzindo buzina-van.mp3 para ${type}...`);
       await audioClone.play();
       console.log(`✅ Buzina reproduzida com sucesso para: ${type}`);
       return true;
     } catch (error) {
-      console.warn(`❌ Erro ao reproduzir buzina para ${type}:`, error);
+      if (error.name === 'NotAllowedError') {
+        console.warn(`❌ Reprodução de áudio bloqueada pelo navegador para ${type}. Interação do usuário necessária.`);
+      } else {
+        console.warn(`❌ Erro ao reproduzir buzina para ${type}:`, error);
+      }
       return false;
     }
   }
