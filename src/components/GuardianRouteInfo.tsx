@@ -1,6 +1,7 @@
 import React from 'react';
 import { Clock, MapPin, Navigation, Users, CheckCircle } from 'lucide-react';
 import { ActiveRoute, RouteLocation } from '@/services/routeTrackingService';
+import RouteDeviationStats from './RouteDeviationStats';
 
 interface GuardianRouteInfoProps {
   activeRoute: ActiveRoute;
@@ -136,6 +137,11 @@ export const GuardianRouteInfo: React.FC<GuardianRouteInfoProps> = ({
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Estatísticas de Desvio de Rota */}
+      <div className="border-t pt-3 mt-3">
+        <RouteDeviationStats compact={true} className="" />
       </div>
     </div>
   );

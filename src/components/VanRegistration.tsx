@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Camera, Save, Truck, ArrowLeft, LogOut } from 'lucide-react';
+import { Camera, Save, Truck, ArrowLeft, LogOut, FileText, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,7 +27,8 @@ export const VanRegistration = ({ van, onUpdate, onBack, onLogout }: VanRegistra
       plate: '',
       capacity: 0,
       observations: '',
-      photo: ''
+      photo: '',
+      drivingAuthorization: ''
     };
   });
 
@@ -45,6 +46,39 @@ export const VanRegistration = ({ van, onUpdate, onBack, onLogout }: VanRegistra
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleAuthorizationUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const authorizationUrl = e.target?.result as string;
+        setFormData(prev => ({ ...prev, drivingAuthorization: authorizationUrl }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDownloadAuthorization = () => {
+    if (formData.drivingAuthorization) {
+      const link = document.createElement('a');
+      link.href = formData.drivingAuthorization;
+      link.download = `autorizacao_van_${formData.plate || 'documento'}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const getFileNameFromUrl = (url: string) => {
+    if (url.startsWith('data:')) {
+      const mimeType = url.split(';')[0].split(':')[1];
+      if (mimeType.includes('pdf')) return 'Documento PDF';
+      if (mimeType.includes('image')) return 'Imagem';
+      return 'Arquivo';
+    }
+    return url.split('/').pop() || 'Arquivo';
   };
 
   return (
@@ -144,6 +178,65 @@ export const VanRegistration = ({ van, onUpdate, onBack, onLogout }: VanRegistra
               onChange={(e) => setFormData(prev => ({ ...prev, observations: e.target.value }))}
               placeholder="Observações adicionais"
             />
+          </div>
+
+          <div>
+            <Label className="text-gray-700 font-medium">Autorização para Dirigir Van Escolar</Label>
+            <div className="mt-3">
+              {formData.drivingAuthorization ? (
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-5 h-5 text-blue-600" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">
+                          {getFileNameFromUrl(formData.drivingAuthorization)}
+                        </p>
+                        <p className="text-xs text-gray-500">Documento carregado</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleDownloadAuthorization}
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
+                      <label className="cursor-pointer">
+                        <Button type="button" size="sm" variant="outline" asChild>
+                          <span>
+                            <Camera className="w-4 h-4" />
+                          </span>
+                        </Button>
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
+                          onChange={handleAuthorizationUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <label className="block">
+                  <div className="w-full h-20 bg-white rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                    <div className="text-center text-gray-500">
+                      <FileText className="w-6 h-6 mx-auto mb-1" />
+                      <p className="text-sm">Carregar autorização (JPG ou PDF)</p>
+                    </div>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={handleAuthorizationUpload}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
           </div>
         </div>
 

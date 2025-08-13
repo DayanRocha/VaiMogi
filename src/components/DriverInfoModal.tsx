@@ -1,5 +1,5 @@
 
-import { X, Phone, MapPin, Mail, Truck, User } from 'lucide-react';
+import { X, Phone, MapPin, Mail, Truck, User, FileText, Download } from 'lucide-react';
 import { Driver, Van } from '@/types/driver';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,26 @@ interface DriverInfoModalProps {
 }
 
 export const DriverInfoModal = ({ isOpen, onClose, driver, van }: DriverInfoModalProps) => {
+  const handleDownloadAuthorization = () => {
+    if (van?.drivingAuthorization) {
+      const link = document.createElement('a');
+      link.href = van.drivingAuthorization;
+      link.download = `autorizacao_van_${van.plate || 'documento'}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const getFileNameFromUrl = (url: string) => {
+    if (url.startsWith('data:')) {
+      const mimeType = url.split(';')[0].split(':')[1];
+      if (mimeType.includes('pdf')) return 'Documento PDF';
+      if (mimeType.includes('image')) return 'Imagem';
+      return 'Arquivo';
+    }
+    return url.split('/').pop() || 'Arquivo';
+  };
   const handleCall = (phone: string) => {
     window.location.href = `tel:${phone}`;
   };
@@ -117,6 +137,35 @@ export const DriverInfoModal = ({ isOpen, onClose, driver, van }: DriverInfoModa
                 <div>
                   <span className="text-gray-500 text-sm">Observações:</span>
                   <p className="text-sm text-gray-700 mt-1">{van.observations}</p>
+                </div>
+              )}
+
+              {/* Driving Authorization */}
+              {van.drivingAuthorization && (
+                <div>
+                  <span className="text-gray-500 text-sm">Autorização para Dirigir Van Escolar:</span>
+                  <div className="mt-2 bg-blue-50 rounded-lg border border-blue-200 p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-blue-600" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-800">
+                            {getFileNameFromUrl(van.drivingAuthorization)}
+                          </p>
+                          <p className="text-xs text-gray-500">Documento disponível</p>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleDownloadAuthorization}
+                        className="text-blue-600 border-blue-200 hover:bg-blue-100"
+                      >
+                        <Download className="w-4 h-4 mr-1" />
+                        Baixar
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

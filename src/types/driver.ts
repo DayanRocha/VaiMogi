@@ -16,6 +16,7 @@ export interface Van {
   capacity: number;
   observations?: string;
   photo?: string;
+  drivingAuthorization?: string; // Autorização para dirigir van escolar (JPG ou PDF)
 }
 
 export interface RouteStudentConfig {

@@ -1,5 +1,5 @@
 
-import { X, Phone, MapPin, Mail, Truck, User, Users, Baby, School } from 'lucide-react';
+import { X, Phone, MapPin, Mail, Truck, User, Users, Baby, School, FileText, Download } from 'lucide-react';
 import { Driver, Van, Guardian, Student, School as SchoolType } from '@/types/driver';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,26 @@ export const GuardianMenuModal = ({
   children,
   schools 
 }: GuardianMenuModalProps) => {
+  const handleDownloadAuthorization = () => {
+    if (van?.drivingAuthorization) {
+      const link = document.createElement('a');
+      link.href = van.drivingAuthorization;
+      link.download = `autorizacao_van_${van.plate || 'documento'}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const getFileNameFromUrl = (url: string) => {
+    if (url.startsWith('data:')) {
+      const mimeType = url.split(';')[0].split(':')[1];
+      if (mimeType.includes('pdf')) return 'Documento PDF';
+      if (mimeType.includes('image')) return 'Imagem';
+      return 'Arquivo';
+    }
+    return url.split('/').pop() || 'Arquivo';
+  };
   const getSchoolName = (schoolId: string) => {
     console.log('🏫 Buscando escola com ID:', schoolId);
     console.log('🏫 Escolas disponíveis:', schools);
@@ -267,6 +287,54 @@ export const GuardianMenuModal = ({
                         <p className="text-sm text-gray-700 mt-1">{van.observations}</p>
                       </div>
                     )}
+
+                    {/* Driving Authorization */}
+                    <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-4 border-2 border-green-200 shadow-sm">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                          <FileText className="w-4 h-4 text-white" />
+                        </div>
+                        <h5 className="font-semibold text-gray-800 text-sm">Autorização para Dirigir Van Escolar</h5>
+                      </div>
+                      
+                      {van.drivingAuthorization ? (
+                        <div className="bg-white rounded-lg border border-green-300 p-4 shadow-sm">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <FileText className="w-5 h-5 text-blue-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-800 truncate">
+                                  {getFileNameFromUrl(van.drivingAuthorization)}
+                                </p>
+                                <p className="text-xs text-green-600 font-medium">✓ Documento disponível</p>
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={handleDownloadAuthorization}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 h-auto flex items-center gap-2 shadow-sm w-full sm:w-auto"
+                            >
+                              <Download className="w-4 h-4" />
+                              <span className="text-sm font-medium">Baixar Documento</span>
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-white rounded-lg border border-orange-200 p-4 shadow-sm">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <FileText className="w-5 h-5 text-orange-500" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-800">Documento não cadastrado</p>
+                              <p className="text-xs text-orange-600">⚠️ Solicite ao motorista o envio da autorização</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ) : (

@@ -1449,6 +1449,7 @@ class RealTimeTrackingService {
     }
     return this.autoNavigationEnabled;
   }
+
 }
 
 export const realTimeTrackingService = RealTimeTrackingService.getInstance();

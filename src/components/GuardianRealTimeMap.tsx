@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { useGuardianTracking } from '@/hooks/useRealTimeTracking';
-import { MapPin, Clock, Route, AlertCircle, Bell } from 'lucide-react';
-import NotificationSettings from './NotificationSettings';
+import { MapPin, Clock, Route, AlertCircle, AlertTriangle } from 'lucide-react';
+import RouteDeviationAlert from './RouteDeviationAlert';
+import RouteDeviationSettings from './RouteDeviationSettings';
+import { useRouteDeviationAlert } from '@/hooks/useRouteDeviationAlert';
 
 interface GuardianRealTimeMapProps {
   guardianId: string;
@@ -26,10 +28,43 @@ export const GuardianRealTimeMap = ({
   const [navigationMode, setNavigationMode] = useState(false);
   const [followDriver, setFollowDriver] = useState(true);
   const [lastPosition, setLastPosition] = useState<{ lat: number; lng: number } | null>(null);
-  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
+  const [showDeviationSettings, setShowDeviationSettings] = useState(false);
   
   const routeInfo = useGuardianTracking(guardianId);
   const [navigationRoute, setNavigationRoute] = useState<any>(null);
+  
+  // Hook para gerenciar alertas de desvio de rota
+  const {
+    isAlertVisible,
+    deviationState,
+    isRecalculating,
+    showAlert,
+    hideAlert,
+    forceRecalculation
+  } = useRouteDeviationAlert({
+    autoShow: true,
+    autoHide: false, // Não ocultar automaticamente para dar controle ao responsável
+    alertThreshold: 1, // Mostrar alerta no primeiro desvio
+    enableToastNotifications: true,
+    onDeviationDetected: (state) => {
+      console.log('🚨 Desvio detectado:', state);
+      // Focar no motorista quando houver desvio
+      if (followDriver && map.current && lastPosition) {
+        map.current.flyTo({
+          center: [lastPosition.lng, lastPosition.lat],
+          zoom: 16,
+          duration: 1000
+        });
+      }
+    },
+    onRouteRecalculated: (success) => {
+      console.log(success ? '✅ Rota recalculada' : '❌ Falha no recálculo');
+    },
+    onBackOnRoute: () => {
+      console.log('✅ Motorista voltou à rota');
+      hideAlert();
+    }
+  });
 
   // Função para atualizar indicadores de status em tempo real
   const updateStatusIndicators = async () => {
@@ -586,14 +621,16 @@ export const GuardianRealTimeMap = ({
       {/* Controles minimalistas no canto superior direito */}
       {routeInfo.hasActiveRoute && (
         <div className="absolute top-4 right-4 flex gap-2">
-          {/* Botão de configurações de notificação */}
+          {/* Botão de configurações de desvio de rota */}
           <button
-            onClick={() => setShowNotificationSettings(true)}
-            className="w-10 h-10 bg-white text-orange-500 hover:bg-orange-50 rounded-full shadow-lg transition-colors flex items-center justify-center"
-            title="Configurações de Notificação"
+            onClick={() => setShowDeviationSettings(true)}
+            className="w-10 h-10 bg-white text-red-500 hover:bg-red-50 rounded-full shadow-lg transition-colors flex items-center justify-center"
+            title="Configurações de Desvio de Rota"
           >
-            <Bell className="w-5 h-5" />
+            <AlertTriangle className="w-5 h-5" />
           </button>
+
+
 
 
           
@@ -651,11 +688,37 @@ export const GuardianRealTimeMap = ({
         </div>
       )}
 
-      {/* Modal de Configurações de Notificação */}
-      <NotificationSettings
-        isOpen={showNotificationSettings}
-        onClose={() => setShowNotificationSettings(false)}
+      {/* Alerta de Desvio de Rota */}
+      <RouteDeviationAlert
+        isVisible={isAlertVisible}
+        onDismiss={hideAlert}
+        onViewMap={() => {
+          // Focar no motorista no mapa
+          if (map.current && lastPosition) {
+            map.current.flyTo({
+              center: [lastPosition.lng, lastPosition.lat],
+              zoom: 16,
+              duration: 1000
+            });
+          }
+          // Ativar modo navegação se não estiver ativo
+          if (!navigationMode) {
+            setNavigationMode(true);
+          }
+          // Seguir motorista
+          setFollowDriver(true);
+        }}
       />
+
+      {/* Modal de Configurações de Desvio de Rota */}
+      <RouteDeviationSettings
+        isOpen={showDeviationSettings}
+        onClose={() => setShowDeviationSettings(false)}
+      />
+
+
     </div>
   );
 };
+
+export default GuardianRealTimeMap;
