@@ -125,8 +125,161 @@ export const GuardianRealTimeMap = ({
     }
   };
 
+  // Função para agrupar estudantes pelo mesmo endereço
+  const groupStudentsByAddress = (routePoints: any[]) => {
+    const addressGroups: { [address: string]: any[] } = {};
+    
+    routePoints.forEach(point => {
+      if (point.type === 'student') {
+        const address = point.address || 'Endereço não informado';
+        if (!addressGroups[address]) {
+          addressGroups[address] = [];
+        }
+        addressGroups[address].push({
+          id: point.studentId,
+          name: point.studentName,
+          schoolName: point.schoolName,
+          address: point.address,
+          lat: point.lat,
+          lng: point.lng
+        });
+      }
+    });
+    
+    return addressGroups;
+  };
+
+  // Função para mostrar modal com estudantes do mesmo endereço
+  const showStudentsAtAddress = (address: string, students: any[]) => {
+    const studentsHtml = students.map(student => `
+      <div style="
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px;
+        margin: 4px 0;
+        background: #f8f9fa;
+        border-radius: 6px;
+        border-left: 3px solid #3B82F6;
+      ">
+        <div style="
+          width: 24px;
+          height: 24px;
+          background: #3B82F6;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-size: 10px;
+          font-weight: bold;
+        ">${student.name.charAt(0)}</div>
+        <div>
+          <div style="font-weight: bold; color: #333; font-size: 14px;">${student.name}</div>
+          ${student.schoolName ? `<div style="font-size: 12px; color: #666;">${student.schoolName}</div>` : ''}
+        </div>
+      </div>
+    `).join('');
+    
+    const modalContent = `
+      <div style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        padding: 20px;
+      " onclick="this.remove()">
+        <div style="
+          background: white;
+          border-radius: 12px;
+          padding: 20px;
+          max-width: 400px;
+          width: 100%;
+          max-height: 80vh;
+          overflow-y: auto;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        " onclick="event.stopPropagation()">
+          <div style="
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #eee;
+          ">
+            <h3 style="
+              margin: 0;
+              color: #333;
+              font-size: 18px;
+              font-weight: bold;
+            ">👥 Estudantes neste endereço</h3>
+            <button onclick="this.closest('.modal-overlay').remove()" style="
+              background: none;
+              border: none;
+              font-size: 20px;
+              cursor: pointer;
+              color: #666;
+              padding: 4px;
+            ">×</button>
+          </div>
+          
+          <div style="
+            margin-bottom: 16px;
+            padding: 12px;
+            background: #f0f9ff;
+            border-radius: 8px;
+            border-left: 4px solid #3B82F6;
+          ">
+            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">📍 Endereço:</div>
+            <div style="font-weight: 500; color: #333;">${address}</div>
+          </div>
+          
+          <div style="margin-bottom: 16px;">
+            <div style="
+              font-size: 14px;
+              color: #666;
+              margin-bottom: 8px;
+              font-weight: 500;
+            ">Estudantes (${students.length}):</div>
+            ${studentsHtml}
+          </div>
+          
+          <div style="text-align: center;">
+            <button onclick="this.closest('.modal-overlay').remove()" style="
+              background: #3B82F6;
+              color: white;
+              border: none;
+              padding: 10px 20px;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: 500;
+            ">Fechar</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Remover modal existente se houver
+    const existingModal = document.querySelector('.modal-overlay');
+    if (existingModal) {
+      existingModal.remove();
+    }
+    
+    // Criar e adicionar novo modal
+    const modalDiv = document.createElement('div');
+    modalDiv.className = 'modal-overlay';
+    modalDiv.innerHTML = modalContent;
+    document.body.appendChild(modalDiv);
+  };
+
   // Função para criar marcador de ponto da rota
-  const createRoutePointMarker = (point: any, index: number) => {
+  const createRoutePointMarker = (point: any, index: number, allRoutePoints: any[] = []) => {
     const isStudent = point.type === 'student';
     const isSchool = point.type === 'school';
     const isMixed = point.type === 'mixed';
@@ -213,6 +366,28 @@ export const GuardianRealTimeMap = ({
 
     const marker = new mapboxgl.Marker(markerElement)
       .setLngLat([point.lng, point.lat]);
+
+    // Adicionar event listener de clique para estudantes
+    if (isStudent) {
+      markerElement.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
+        // Agrupar estudantes por endereço
+        const addressGroups = groupStudentsByAddress(allRoutePoints);
+        const studentsAtAddress = addressGroups[point.address] || [];
+        
+        // Se há mais de um estudante no mesmo endereço, mostrar modal
+        if (studentsAtAddress.length > 1) {
+          showStudentsAtAddress(point.address, studentsAtAddress);
+        } else {
+          // Se há apenas um estudante, mostrar popup normal
+          const popup = marker.getPopup();
+          if (popup) {
+            popup.addTo(map.current!);
+          }
+        }
+      });
+    }
 
     // Adicionar popup com informações
     let popupContent = '';
@@ -619,7 +794,7 @@ export const GuardianRealTimeMap = ({
         
         if (activeRoute && activeRoute.routePoints) {
           activeRoute.routePoints.forEach((point, index) => {
-            const marker = createRoutePointMarker(point, index);
+            const marker = createRoutePointMarker(point, index, activeRoute.routePoints);
             marker.addTo(map.current!);
             routePointMarkers.current.push(marker);
           });
