@@ -1,255 +1,131 @@
 
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import GuardianMapView from '@/components/GuardianMapView';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { GuardianHeader } from '@/components/GuardianHeader';
-import { GuardianMenuModal } from '@/components/GuardianMenuModal';
-import { NotificationPanel } from '@/components/NotificationPanel';
-import { GuardianWelcomeDialog } from '@/components/GuardianWelcomeDialog';
+import { Driver, Van, Student, ActiveTrip } from '@/types/driver';
+import { useNavigate } from 'react-router-dom'; // Changed from Next.js router
+import { WelcomeDialog } from '@/components/WelcomeDialog';
 
-import { useGuardianData } from '@/hooks/useGuardianData';
-import { useRealTimeNotifications } from '@/hooks/useRealTimeNotifications';
-import { useRouteTracking } from '@/hooks/useRouteTracking';
-import { audioService } from '@/services/audioService';
-import { initNotificationCleanup } from '@/utils/notificationCleanup';
+const GuardianApp: React.FC = () => {
+  const navigate = useNavigate(); // Changed from useRouter
+  const [driver, setDriver] = useState<Driver | null>(null);
+  const [van, setVan] = useState<Van | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [activeTrip, setActiveTrip] = useState<ActiveTrip | null>(null);
+  const [guardianId, setGuardianId] = useState<string | null>(null);
+  const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(false);
 
-export const GuardianApp = () => {
-  const navigate = useNavigate();
-  const [showMenuModal, setShowMenuModal] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(false);
-  const [showMap, setShowMap] = useState(false);
-  const { 
-    guardian, 
-    driver, 
-    van, 
-    students, 
-    schools,
-    activeTrip, 
-    notifications: legacyNotifications,
-    markNotificationAsRead,
-    deleteNotification,
-    deleteNotifications
-  } = useGuardianData();
-
-  // Hook para rastreamento de rota
-  const { hasActiveRoute, activeRoute } = useRouteTracking();
-
-  // Controlar visibilidade do mapa baseado na rota ativa
   useEffect(() => {
-    if (hasActiveRoute) {
-      console.log('🗺️ Rota iniciada - abrindo mapa automaticamente');
-      setShowMap(true);
-    } else {
-      console.log('🗺️ Rota encerrada - ocultando mapa automaticamente');
-      setShowMap(false);
-    }
-  }, [hasActiveRoute]);
+    // Mock authentication check - replace with your auth logic
+    const mockUser = { uid: 'guardian-123' };
+    
+    if (mockUser) {
+      // Mock data for driver, van, students, and activeTrip
+      const mockDriver: Driver = {
+        id: 'driver-123',
+        name: 'João Silva',
+        email: 'joao@example.com',
+        phone: '123-456-7890',
+        address: 'Rua dos Motoristas, 42',
+        photo: '/driver-photo.jpg'
+      };
 
-  // Notificações em tempo real
-  const {
-    notifications: realTimeNotifications,
-    unreadCount: realTimeUnreadCount,
-    markAsRead: markRealTimeAsRead,
-    markAllAsRead: markAllRealTimeAsRead,
-    deleteNotification: deleteRealTimeNotification
-  } = useRealTimeNotifications(guardian.id);
+      const mockVan: Van = {
+        id: 'van-789',
+        driverId: 'driver-123',
+        model: 'Sprinter Escolar',
+        plate: 'ABC-1234',
+        capacity: 15,
+        observations: 'Ar condicionado e cinto de segurança em todos os assentos',
+        photo: '/van-photo.jpg',
+        drivingAuthorization: '/driving-auth.pdf'
+      };
 
-  // Detectar notificações de início e fim de rota para controlar o mapa
-  useEffect(() => {
-    const latestNotification = realTimeNotifications[0];
-    if (latestNotification) {
-      if (latestNotification.type === 'route_started') {
-        console.log('🚌 Notificação de rota iniciada recebida - abrindo mapa');
-        setShowMap(true);
-      } else if (latestNotification.type === 'route_completed') {
-        console.log('🏁 Notificação de rota finalizada recebida - ocultando mapa');
-        setShowMap(false);
-      }
-    }
-  }, [realTimeNotifications]);
-
-  // Filtrar notificações legadas que podem ser duplicadas
-  const filteredLegacyNotifications = legacyNotifications.filter(legacy => {
-    // Verificar se há uma notificação em tempo real similar
-    const hasSimilarRealTime = realTimeNotifications.some(rt => 
-      rt.message.includes(legacy.studentName || '') && 
-      Math.abs(new Date(rt.timestamp).getTime() - new Date(legacy.timestamp).getTime()) < 60000 // 1 minuto
-    );
-    return !hasSimilarRealTime;
-  });
-
-  // Combinar notificações (priorizando tempo real)
-  const allNotifications = [...realTimeNotifications, ...filteredLegacyNotifications];
-  const totalUnreadCount = realTimeUnreadCount + filteredLegacyNotifications.filter(n => !n.isRead).length;
-
-  // Verificar se o responsável ainda está ativo
-  useEffect(() => {
-    const checkGuardianStatus = () => {
-      const savedGuardians = localStorage.getItem('guardians');
-      if (savedGuardians) {
-        try {
-          const guardians = JSON.parse(savedGuardians);
-          const currentGuardian = guardians.find((g: any) => g.id === guardian.id);
-          
-          if (currentGuardian && currentGuardian.isActive === false) {
-            console.log('🚫 Responsável foi desativado pelo motorista');
-            alert('Seu acesso foi desativado pelo motorista. Você será redirecionado para a tela de login.');
-            
-            // Limpar dados e redirecionar
-            localStorage.removeItem('guardianData');
-            localStorage.removeItem('guardianLoggedIn');
-            navigate('/auth');
-            return;
-          }
-        } catch (error) {
-          console.error('Erro ao verificar status do responsável:', error);
+      const mockStudents: Student[] = [
+        {
+          id: 'student-1',
+          name: 'Maria Eduarda',
+          address: 'Rua das Flores, 123',
+          guardianId: mockUser.uid,
+          guardianPhone: '987-654-3210',
+          guardianEmail: 'mae.duda@example.com',
+          pickupPoint: 'Em frente ao portão',
+          schoolId: 'school-1',
+          status: 'waiting',
+          dropoffLocation: 'home'
+        },
+        {
+          id: 'student-2',
+          name: 'José Carlos',
+          address: 'Avenida Principal, 456',
+          guardianId: mockUser.uid,
+          guardianPhone: '987-654-3210',
+          guardianEmail: 'pai.ze@example.com',
+          pickupPoint: 'Na esquina',
+          schoolId: 'school-2',
+          status: 'waiting',
+          dropoffLocation: 'school'
         }
+      ];
+
+      // Mock active trip data with required driverId property
+      const mockActiveTrip: ActiveTrip = {
+        id: '1',
+        routeId: 'route-1',
+        driverId: 'driver-123',
+        date: new Date().toISOString().split('T')[0],
+        status: 'in_progress',
+        students: [
+          {
+            studentId: 'student-1',
+            status: 'embarked',
+            direction: 'to_school'
+          }
+        ]
+      };
+
+      setDriver(mockDriver);
+      setVan(mockVan);
+      setStudents(mockStudents);
+      setActiveTrip(mockActiveTrip);
+      setGuardianId(mockUser.uid);
+
+      // Check if it's the user's first login
+      const firstLogin = localStorage.getItem('firstLogin');
+      if (!firstLogin) {
+        setIsWelcomeDialogOpen(true);
+        localStorage.setItem('firstLogin', 'false');
       }
-    };
-
-    // Verificar status imediatamente
-    checkGuardianStatus();
-    
-    // Verificar status a cada 30 segundos
-    const interval = setInterval(checkGuardianStatus, 30000);
-    
-    return () => clearInterval(interval);
-  }, [guardian.id, navigate]);
-
-  // Verificar se é o primeiro acesso do responsável
-  useEffect(() => {
-    const hasSeenWelcome = localStorage.getItem(`guardianWelcome_${guardian.id}`);
-    if (!hasSeenWelcome) {
-      setShowWelcome(true);
-    }
-  }, [guardian.id]);
-
-  // Inicializar serviço de áudio e limpeza de notificações
-  useEffect(() => {
-    const initAudio = async () => {
-      await audioService.init();
-    };
-    
-    initAudio();
-    
-    // Inicializar limpeza de notificações
-    initNotificationCleanup();
-    
-    // Tentar solicitar permissão de áudio após primeira interação
-    const handleFirstInteraction = async () => {
-      await audioService.requestAudioPermission();
-      document.removeEventListener('click', handleFirstInteraction);
-      document.removeEventListener('touchstart', handleFirstInteraction);
-    };
-
-    document.addEventListener('click', handleFirstInteraction);
-    document.addEventListener('touchstart', handleFirstInteraction);
-
-    return () => {
-      document.removeEventListener('click', handleFirstInteraction);
-      document.removeEventListener('touchstart', handleFirstInteraction);
-    };
-  }, []);
-
-  const handleLogout = () => {
-    const confirmLogout = window.confirm('Tem certeza que deseja sair?');
-    
-    if (confirmLogout) {
-      // Limpar dados do responsável do localStorage
-      localStorage.removeItem('guardianData');
-      localStorage.removeItem('guardianLoggedIn');
-      
-      console.log('🚪 Logout do responsável realizado');
-      
-      // Redirecionar para a tela de login
+    } else {
+      // Redirect to login if no user is authenticated
       navigate('/auth');
     }
+  }, [navigate]);
+
+  const handleWelcomeDialogClose = () => {
+    setIsWelcomeDialogOpen(false);
   };
 
-  const handleWelcomeClose = () => {
-    // Marcar que o responsável já viu as boas-vindas
-    localStorage.setItem(`guardianWelcome_${guardian.id}`, 'true');
-    setShowWelcome(false);
-    console.log(`👋 Boas-vindas mostradas para ${guardian.name}`);
-  };
+  if (!guardianId || !driver || !van || !students || !activeTrip) {
+    return <div className="flex items-center justify-center h-screen">Carregando...</div>;
+  }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      <GuardianHeader
-        guardian={guardian}
-        notifications={allNotifications}
-        unreadCount={totalUnreadCount}
-        onMenuClick={() => setShowMenuModal(true)}
-        onNotificationClick={() => setShowNotifications(true)}
-        onLogout={handleLogout}
-      />
-
-      {/* Main Map View - Mostrado apenas quando há rota ativa */}
-      {showMap ? (
-        <div className="h-[calc(100vh-64px)] relative">
-          <ErrorBoundary>
-            <GuardianMapView
-              driver={driver}
-              van={van}
-              students={students}
-              activeTrip={activeTrip}
-              guardianId={guardian.id}
-            />
-          </ErrorBoundary>
-        </div>
-      ) : (
-        <div className="h-[calc(100vh-64px)] flex items-center justify-center bg-gray-50">
-          <div className="text-center p-8">
-            <div className="w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg className="w-12 h-12 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m-6 3l6-3" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">Aguardando Rota</h3>
-            <p className="text-gray-600 mb-4">O mapa será exibido automaticamente quando o motorista iniciar a rota.</p>
-            <div className="text-sm text-gray-500">
-              <p>• Você receberá uma notificação quando a rota iniciar</p>
-              <p>• O mapa mostrará a localização em tempo real</p>
-              <p>• Será ocultado automaticamente quando a rota terminar</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Guardian Menu Modal */}
-      <GuardianMenuModal
-        isOpen={showMenuModal}
-        onClose={() => setShowMenuModal(false)}
+    <div className="w-full h-screen">
+      <GuardianMapView
         driver={driver}
         van={van}
-        guardian={guardian}
-        children={students}
-        schools={schools}
+        students={students}
+        activeTrip={activeTrip}
+        guardianId={guardianId}
       />
 
-      {/* Notification Panel */}
-      <NotificationPanel
-        isOpen={showNotifications}
-        onClose={() => setShowNotifications(false)}
-        notifications={filteredLegacyNotifications}
-        realTimeNotifications={realTimeNotifications}
-        onMarkAsRead={markNotificationAsRead}
-        onMarkRealTimeAsRead={markRealTimeAsRead}
-        onMarkAllRealTimeAsRead={markAllRealTimeAsRead}
-        onDeleteRealTimeNotification={deleteRealTimeNotification}
-        onDeleteNotification={deleteNotification}
-        onDeleteNotifications={deleteNotifications}
-      />
-
-      {/* Welcome Dialog */}
-      <GuardianWelcomeDialog
-        isOpen={showWelcome}
-        onClose={handleWelcomeClose}
-        guardianName={guardian.name}
+      <WelcomeDialog
+        isOpen={isWelcomeDialogOpen}
+        onClose={handleWelcomeDialogClose}
+        driverName={driver.name}
       />
     </div>
   );
 };
+
+export default GuardianApp;

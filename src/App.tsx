@@ -5,12 +5,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import DriverApp from "./pages/DriverApp";
-import { GuardianApp } from "./pages/GuardianApp";
+import GuardianApp from "./pages/GuardianApp"; // Changed from named import to default import
 import NotFound from "./pages/NotFound";
 import { AuthFlow } from "./components/AuthFlow";
 import { NotificationContainer } from "./components/NotificationToast";
 import { useNotificationToasts } from "./hooks/useNotificationToasts";
-
 
 const queryClient = new QueryClient();
 

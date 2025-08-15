@@ -78,3 +78,12 @@ export interface TripStudent {
   pickupTime?: string;
   dropoffTime?: string;
 }
+
+export interface ActiveTrip {
+  id: string;
+  routeId: string;
+  driverId: string;
+  date: string;
+  status: 'planned' | 'in_progress' | 'completed';
+  students: TripStudent[];
+}

@@ -1,4 +1,3 @@
-
 import { useState, useRef } from 'react';
 import { ArrowRight, ArrowLeft, MapPin, School, CheckCircle, Navigation, User, Bell, Home, Map, LogOut, StopCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -191,10 +190,6 @@ const SwipeableStudentItem = ({ student, tripData, school, driver, isGettingLoca
       }
     );
   };
-
-
-
-
 
   const handleMouseUp = () => {
     if (!isDragging) return;
@@ -655,7 +650,6 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
     }
   };
 
-
   const handleStudentToggle = (studentId: string) => {
     setSelectedStudentsForDisembark(prev => {
       const isSelected = prev.includes(studentId);
@@ -732,8 +726,6 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
     }
   };
 
-
-
   // Status que indicam que um estudante foi desembarcado (em casa ou na escola)
   const completedStatuses = ['disembarked', 'at_school', 'dropped_off'];
   
@@ -764,8 +756,6 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
   const routeCompletion = checkRouteCompletion();
   const isRouteComplete = routeCompletion.isComplete;
   
-
-  
   // Agrupar estudantes por endereço para desembarque em casa
   const groupStudentsByAddress = () => {
     const groups: { [address: string]: { address: string; students: { student: Student; tripData: TripStudent }[] } } = {};
@@ -790,8 +780,6 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
   // Recalcular grupos sempre que o estado da viagem mudar
   const schoolGroups = groupStudentsBySchool();
   const addressGroups = groupStudentsByAddress();
-
-
 
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #FF8C00 0%, #FFA500 100%)' }}>
@@ -827,11 +815,8 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
         </div>
       </div>
 
-
-
       {/* Content */}
       <div className="bg-gray-100 min-h-screen rounded-t-3xl p-4">
-
         
         {/* Escolas para desembarque */}
         {schoolGroups.map((group) => {
@@ -1015,10 +1000,6 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
           ))}
         </div>
 
-
-
-
-
         {/* Status da Rota Completa */}
         {isRouteComplete && (
           <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -1046,7 +1027,6 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
             </p>
           </div>
         )}
-
 
       </div>
 
@@ -1184,53 +1164,6 @@ export const ActiveTrip = ({ trip, students, schools, driver, onUpdateStudentSta
                 Cancelar
               </Button>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-
-
-      {/* Map Options Dialog - Comentado pois estamos usando versão simples
-      <Dialog open={showMapOptions} onOpenChange={setShowMapOptions}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Escolher aplicativo de mapa</DialogTitle>
-            <DialogDescription>
-              Rota: {driver.address} → {selectedStudentForMap?.name} ({selectedStudentForMap?.pickupPoint})
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-4">
-            <Button
-              onClick={() => openMap('google')}
-              className="w-full flex items-center gap-3 bg-blue-500 hover:bg-blue-600 text-white"
-            >
-              <Map className="w-5 h-5" />
-              Google Maps
-            </Button>
-            
-            <Button
-              onClick={() => openMap('waze')}
-              className="w-full flex items-center gap-3 bg-cyan-500 hover:bg-cyan-600 text-white"
-            >
-              <Navigation className="w-5 h-5" />
-              Waze
-            </Button>
-            
-            <Button
-              onClick={() => openMap('apple')}
-              className="w-full flex items-center gap-3 bg-gray-800 hover:bg-gray-900 text-white"
-            >
-              <MapPin className="w-5 h-5" />
-              Apple Maps
-            </Button>
-            
-            <Button
-              variant="outline"
-              onClick={() => setShowMapOptions(false)}
-              className="w-full"
-            >
-              Cancelar
-            </Button>
           </div>
         </DialogContent>
       </Dialog>

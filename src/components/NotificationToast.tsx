@@ -3,7 +3,7 @@ import { X, MapPin, Clock, Car } from 'lucide-react';
 
 interface NotificationData {
   id: string;
-  type: 'proximity' | 'arrival' | 'delay';
+  type: 'proximity' | 'arrival' | 'delay' | 'success' | 'error' | 'warning' | 'info';
   title: string;
   message: string;
   studentName?: string;

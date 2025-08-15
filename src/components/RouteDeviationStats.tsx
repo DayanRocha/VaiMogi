@@ -50,13 +50,13 @@ export const RouteDeviationStats: React.FC<RouteDeviationStatsProps> = ({
       
       // Calcular eficiência da rota (baseado na precisão e desvios)
       const efficiency = Math.max(0, Math.min(100, 
-        100 - (offRouteStatus.distance / 100) * 10
+        100 - (offRouteStatus.distanceFromRoute || 0 / 100) * 10
       ));
 
       setStats({
         totalDeviations: Math.floor(Math.random() * 5), // Simular para demonstração
-        averageDeviationDistance: offRouteStatus.distance > 0 ? offRouteStatus.distance : 0,
-        maxDeviationDistance: Math.max(offRouteStatus.distance, 0),
+        averageDeviationDistance: offRouteStatus.distanceFromRoute || 0,
+        maxDeviationDistance: Math.max(offRouteStatus.distanceFromRoute || 0, 0),
         totalRecalculations: Math.floor(Math.random() * 3),
         lastDeviationTime: offRouteStatus.lastRecalculation,
         currentStatus,

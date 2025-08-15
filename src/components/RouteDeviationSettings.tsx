@@ -79,7 +79,6 @@ export const RouteDeviationSettings: React.FC<RouteDeviationSettingsProps> = ({
       setHasChanges(false);
       
       addToast({
-        id: `settings-saved-${Date.now()}`,
         type: 'success',
         title: '✅ Configurações Salvas',
         message: 'As configurações de detecção de desvio foram atualizadas',
@@ -92,7 +91,6 @@ export const RouteDeviationSettings: React.FC<RouteDeviationSettingsProps> = ({
       console.error('❌ Erro ao salvar configurações:', error);
       
       addToast({
-        id: `settings-error-${Date.now()}`,
         type: 'error',
         title: '❌ Erro ao Salvar',
         message: 'Não foi possível salvar as configurações',

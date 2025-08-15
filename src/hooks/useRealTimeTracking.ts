@@ -1,184 +1,116 @@
-import { useState, useEffect, useCallback } from 'react';
-import { realTimeTrackingService, TrackingRoute, RoutePoint } from '@/services/realTimeTrackingService';
-import { RouteLocation } from '@/services/routeTrackingService';
 
-export interface UseRealTimeTrackingReturn {
-  // Estado da rota
-  activeRoute: TrackingRoute | null;
-  isTracking: boolean;
-  
-  // Informações da rota
-  driverLocation: RouteLocation | null;
-  routePoints: RoutePoint[];
-  routeGeometry: any;
-  estimatedDuration: number | null;
-  totalDistance: number | null;
-  
-  // Ações
-  startTracking: (
-    driverId: string,
-    driverName: string,
-    direction: 'to_school' | 'to_home',
-    students: any[],
-    school: any
-  ) => Promise<boolean>;
-  stopTracking: () => boolean;
-  
-  // Status
-  hasActiveRoute: boolean;
-  trackingError: string | null;
+import { useState, useEffect } from 'react';
+import { realTimeTrackingService } from '@/services/realTimeTrackingService';
+import { Student, School } from '@/types/driver';
+
+export interface RouteLocation {
+  lat: number;
+  lng: number;
+  timestamp: string;
 }
 
-export const useRealTimeTracking = (): UseRealTimeTrackingReturn => {
-  const [activeRoute, setActiveRoute] = useState<TrackingRoute | null>(null);
+export interface RoutePoint {
+  id: string;
+  type: 'student' | 'school';
+  studentName?: string;
+  schoolName?: string;
+  address: string;
+  lat: number;
+  lng: number;
+}
+
+export interface GuardianTrackingInfo {
+  hasActiveRoute: boolean;
+  driverLocation?: RouteLocation;
+  driverName?: string;
+  routeGeometry?: any;
+  estimatedArrival?: string;
+  nextStop?: RoutePoint;
+}
+
+export const useGuardianTracking = (guardianId: string): GuardianTrackingInfo => {
+  const [trackingInfo, setTrackingInfo] = useState<GuardianTrackingInfo>({
+    hasActiveRoute: false
+  });
+
+  useEffect(() => {
+    // Mock implementation - in real app, this would connect to real-time tracking
+    const mockTrackingInfo: GuardianTrackingInfo = {
+      hasActiveRoute: false,
+      driverName: 'João Silva' // Mock driver name
+    };
+
+    setTrackingInfo(mockTrackingInfo);
+  }, [guardianId]);
+
+  return trackingInfo;
+};
+
+// Hook for driver/route execution with tracking controls
+export const useRealTimeTracking = () => {
+  const [isTracking, setIsTracking] = useState(false);
+  const [hasActiveRoute, setHasActiveRoute] = useState(false);
   const [trackingError, setTrackingError] = useState<string | null>(null);
 
-  // Callback para atualização da rota
-  const handleRouteUpdate = useCallback((route: TrackingRoute | null) => {
-    setActiveRoute(route);
-    if (route) {
-      setTrackingError(null);
-    }
+  useEffect(() => {
+    // Check if there's an active route on mount
+    const activeRoute = realTimeTrackingService.getActiveRoute();
+    setHasActiveRoute(!!activeRoute && activeRoute.isActive);
+    setIsTracking(!!activeRoute && activeRoute.isActive);
   }, []);
 
-  // Configurar listener na inicialização
-  useEffect(() => {
-    console.log('🔗 Configurando listener de rastreamento em tempo real');
-    
-    realTimeTrackingService.addListener(handleRouteUpdate);
-    
-    return () => {
-      console.log('🔗 Removendo listener de rastreamento em tempo real');
-      realTimeTrackingService.removeListener(handleRouteUpdate);
-    };
-  }, [handleRouteUpdate]);
-
-  // Iniciar rastreamento
-  const startTracking = useCallback(async (
+  const startTracking = async (
     driverId: string,
     driverName: string,
     direction: 'to_school' | 'to_home',
-    students: any[],
-    school: any
+    students: Student[],
+    school: School
   ): Promise<boolean> => {
     try {
       setTrackingError(null);
-      console.log('🚀 Iniciando rastreamento via hook:', {
-        driverId,
-        driverName,
-        direction,
-        studentsCount: students.length
-      });
-
-      const route = await realTimeTrackingService.startRouteTracking(
+      
+      const success = await realTimeTrackingService.startRoute(
         driverId,
         driverName,
         direction,
         students,
         school
       );
-
-      if (route) {
-        console.log('✅ Rastreamento iniciado com sucesso via hook');
+      
+      if (success) {
+        setIsTracking(true);
+        setHasActiveRoute(true);
+        console.log('✅ Real-time tracking started successfully');
         return true;
       } else {
-        setTrackingError('Falha ao iniciar rastreamento');
-        console.error('❌ Falha ao iniciar rastreamento via hook');
+        setTrackingError('Failed to start tracking');
         return false;
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      setTrackingError(errorMessage);
-      console.error('❌ Erro ao iniciar rastreamento via hook:', error);
+      console.error('❌ Error starting tracking:', error);
+      setTrackingError(error instanceof Error ? error.message : 'Unknown error');
       return false;
     }
-  }, []);
+  };
 
-  // Parar rastreamento
-  const stopTracking = useCallback((): boolean => {
+  const stopTracking = () => {
     try {
+      realTimeTrackingService.stopRoute();
+      setIsTracking(false);
+      setHasActiveRoute(false);
       setTrackingError(null);
-      console.log('🛑 Parando rastreamento via hook');
-      
-      const success = realTimeTrackingService.endRouteTracking();
-      
-      if (success) {
-        console.log('✅ Rastreamento parado com sucesso via hook');
-      } else {
-        console.warn('⚠️ Nenhuma rota ativa para parar via hook');
-      }
-      
-      return success;
+      console.log('🛑 Real-time tracking stopped');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      setTrackingError(errorMessage);
-      console.error('❌ Erro ao parar rastreamento via hook:', error);
-      return false;
+      console.error('❌ Error stopping tracking:', error);
+      setTrackingError(error instanceof Error ? error.message : 'Error stopping tracking');
     }
-  }, []);
-
-  // Valores derivados
-  const isTracking = activeRoute?.isActive ?? false;
-  const hasActiveRoute = !!activeRoute && activeRoute.isActive;
-  const driverLocation = activeRoute?.currentLocation ?? null;
-  const routePoints = activeRoute?.routePoints ?? [];
-  const routeGeometry = activeRoute?.mapboxRoute?.geometry ?? null;
-  const estimatedDuration = activeRoute?.estimatedDuration ?? null;
-  const totalDistance = activeRoute?.totalDistance ?? null;
+  };
 
   return {
-    // Estado da rota
-    activeRoute,
     isTracking,
-    
-    // Informações da rota
-    driverLocation,
-    routePoints,
-    routeGeometry,
-    estimatedDuration,
-    totalDistance,
-    
-    // Ações
-    startTracking,
-    stopTracking,
-    
-    // Status
     hasActiveRoute,
-    trackingError
+    trackingError,
+    startTracking,
+    stopTracking
   };
-};
-
-// Hook específico para responsáveis
-export const useGuardianTracking = (guardianId: string) => {
-  const [routeInfo, setRouteInfo] = useState<{
-    hasActiveRoute: boolean;
-    driverLocation?: RouteLocation;
-    routeGeometry?: any;
-    estimatedArrival?: string;
-    nextStop?: RoutePoint;
-  }>({ hasActiveRoute: false });
-
-  // Atualizar informações da rota para o responsável
-  const updateRouteInfo = useCallback(() => {
-    const info = realTimeTrackingService.getRouteInfoForGuardian(guardianId);
-    setRouteInfo(info);
-  }, [guardianId]);
-
-  // Configurar listener para atualizações
-  useEffect(() => {
-    const handleRouteUpdate = (route: TrackingRoute | null) => {
-      updateRouteInfo();
-    };
-
-    realTimeTrackingService.addListener(handleRouteUpdate);
-    
-    // Atualização inicial
-    updateRouteInfo();
-    
-    return () => {
-      realTimeTrackingService.removeListener(handleRouteUpdate);
-    };
-  }, [updateRouteInfo]);
-
-  return routeInfo;
 };

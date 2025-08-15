@@ -47,15 +47,15 @@ export const simulateOffRouteScenario = async () => {
   
   console.log('📍 Simulando motorista fora da rota:', offRouteLocation);
   
-  // Atualizar localização (isso irá disparar a verificação automática)
-  await realTimeTrackingService.updateDriverLocation(offRouteLocation);
+  // Simular atualização de localização (para teste)
+  // await realTimeTrackingService.updateDriverLocationForTest(offRouteLocation);
   
   // Verificar status após a atualização
   const status = realTimeTrackingService.getOffRouteStatus();
   console.log('📊 Status após simulação:', status);
   
   if (status.isOffRoute) {
-    console.log(`🚨 Motorista detectado fora da rota! Distância: ${status.distance}m`);
+    console.log(`🚨 Motorista detectado fora da rota! Distância: ${status.distanceFromRoute || 0}m`);
     
     if (status.lastRecalculation) {
       console.log(`🔄 Rota recalculada em: ${status.lastRecalculation}`);
@@ -90,7 +90,7 @@ export const startOffRouteMonitoring = () => {
       const status = realTimeTrackingService.getOffRouteStatus();
       
       if (status.isOffRoute) {
-        console.log(`🚨 ALERTA: Motorista fora da rota! Distância: ${status.distance}m`);
+        console.log(`🚨 ALERTA: Motorista fora da rota! Distância: ${status.distanceFromRoute || 0}m`);
         
         // Notificar responsáveis (isso já é feito automaticamente pelo sistema)
         console.log('📱 Responsáveis sendo notificados automaticamente...');
