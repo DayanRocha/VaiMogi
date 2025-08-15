@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { ArrowLeft, User, School as SchoolIcon, Home, X, Plus, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
