@@ -60,11 +60,9 @@ class RealTimeTrackingService {
   private routesData: { [routeId: string]: Route } = {};
 
   constructor() {
-    // Inicializar dados mock de escolas
     this.schoolData['school-1'] = { id: 'school-1', name: 'Escola A', address: 'Rua X, 123' };
     this.schoolData['school-2'] = { id: 'school-2', name: 'Escola B', address: 'Rua Y, 456' };
 
-    // Inicializar dados mock de estudantes
     this.studentsData['student-1'] = {
       id: 'student-1',
       name: 'Alice',
@@ -90,7 +88,6 @@ class RealTimeTrackingService {
       dropoffLocation: 'school'
     };
 
-    // Inicializar dados mock de rotas
     this.routesData['route-1'] = {
       id: 'route-1',
       driverId: 'driver-123',
@@ -105,10 +102,93 @@ class RealTimeTrackingService {
     };
   }
 
+  getActiveRoute(): any {
+    const driverIds = Object.keys(this.activeRoutes);
+    if (driverIds.length > 0) {
+      const currentDriverId = driverIds[0];
+      const activeRoute = this.activeRoutes[currentDriverId];
+      const currentLocation = this.lastLocationUpdates[currentDriverId];
+      const locationHistory = this.getLocationHistory(currentDriverId);
+
+      if (activeRoute) {
+        return {
+          ...activeRoute,
+          currentLocation: currentLocation ? {
+            lat: currentLocation.latitude,
+            lng: currentLocation.longitude
+          } : null,
+          locationHistory: locationHistory,
+          currentSpeed: this.getCurrentSpeed(currentDriverId),
+          routePoints: this.getRoutePoints(activeRoute),
+          isActive: activeRoute.status === 'in_progress'
+        };
+      }
+    }
+    return null;
+  }
+
+  async startRoute(
+    driverId: string,
+    driverName: string,
+    direction: 'to_school' | 'to_home',
+    students: Student[],
+    school: School
+  ): Promise<boolean> {
+    try {
+      console.log('🚀 Starting route tracking:', { driverId, driverName, direction, studentsCount: students.length });
+
+      const activeRoute: ActiveTrip = {
+        id: 'trip-' + Date.now(),
+        routeId: 'route-' + driverId,
+        driverId: driverId,
+        date: new Date().toISOString().split('T')[0],
+        status: 'in_progress',
+        students: students.map(student => ({
+          studentId: student.id,
+          status: 'waiting',
+          direction: direction
+        }))
+      };
+
+      this.activeRoutes[driverId] = activeRoute;
+      
+      this.startRouteSimulation({
+        driverId: driverId,
+        routeId: activeRoute.routeId,
+        startTime: new Date().toISOString(),
+        speed: 30,
+        paused: false
+      });
+
+      console.log('✅ Route tracking started successfully');
+      return true;
+    } catch (error) {
+      console.error('❌ Error starting route:', error);
+      return false;
+    }
+  }
+
+  stopRoute(): void {
+    try {
+      const driverIds = Object.keys(this.activeRoutes);
+      driverIds.forEach(driverId => {
+        if (this.activeRoutes[driverId]) {
+          this.activeRoutes[driverId].status = 'completed';
+          this.stopRouteSimulation(driverId);
+        }
+      });
+      
+      this.activeRoutes = {};
+      
+      console.log('🛑 All routes stopped');
+    } catch (error) {
+      console.error('❌ Error stopping routes:', error);
+    }
+  }
+
   updateLocation(locationUpdate: LocationUpdate): void {
     const { driverId, latitude, longitude, timestamp, speed, accuracy } = locationUpdate;
 
-    // Atualizar histórico de localização
     if (!this.locationHistory[driverId]) {
       this.locationHistory[driverId] = [];
     }
@@ -121,12 +201,10 @@ class RealTimeTrackingService {
 
     this.locationHistory[driverId].push(newLocation);
 
-    // Limitar o histórico para os últimos 100 registros
     if (this.locationHistory[driverId].length > 100) {
       this.locationHistory[driverId].shift();
     }
 
-    // Atualizar a última localização conhecida
     this.lastLocationUpdates[driverId] = {
       latitude,
       longitude,
@@ -134,7 +212,6 @@ class RealTimeTrackingService {
       accuracy
     };
 
-    // Atualizar o status da localização
     this.updateLocationStatus(accuracy);
   }
 
@@ -153,21 +230,18 @@ class RealTimeTrackingService {
     }
 
     this.locationStatus.accuracy = accuracy;
-    this.locationStatus.timeSinceUpdate = 0; // Será atualizado em outro método
+    this.locationStatus.timeSinceUpdate = 0;
 
-    // Recalcular estatísticas de qualidade
     this.recalculateQualityStats();
   }
 
   private recalculateQualityStats(): void {
     const { totalUpdates, highQualityUpdates, mediumQualityUpdates, lowQualityUpdates } = this.locationQualityStats;
 
-    // Calcular porcentagens
     this.locationQualityStats.highQualityPercentage = (highQualityUpdates / totalUpdates) * 100;
     this.locationQualityStats.mediumQualityPercentage = (mediumQualityUpdates / totalUpdates) * 100;
     this.locationQualityStats.lowQualityPercentage = (lowQualityUpdates / totalUpdates) * 100;
 
-    // Calcular a média da precisão
     let totalAccuracy = 0;
     for (const driverId in this.lastLocationUpdates) {
       totalAccuracy += this.lastLocationUpdates[driverId].accuracy;
@@ -231,7 +305,7 @@ class RealTimeTrackingService {
       const latDiff = nextWaypoint.lat - currentWaypoint.lat;
       const lngDiff = nextWaypoint.lng - currentWaypoint.lng;
 
-      const steps = 100; // Número de passos entre os waypoints
+      const steps = 100;
       let currentStep = 0;
 
       const interval = setInterval(() => {
@@ -244,7 +318,7 @@ class RealTimeTrackingService {
         const simulatedLatitude = currentWaypoint.lat + (latDiff * currentStep / steps);
         const simulatedLongitude = currentWaypoint.lng + (lngDiff * currentStep / steps);
         const timestamp = new Date().toISOString();
-        const accuracy = Math.random() * 15 + 5; // Simula a precisão entre 5 e 20 metros
+        const accuracy = Math.random() * 15 + 5;
 
         this.updateLocation({
           driverId: config.driverId,
@@ -258,9 +332,9 @@ class RealTimeTrackingService {
         if (currentStep >= steps) {
           clearInterval(interval);
           currentIndex++;
-          tick(); // Avança para o próximo waypoint
+          tick();
         }
-      }, 100); // Intervalo de 100ms
+      }, 100);
     };
 
     tick();
@@ -269,7 +343,6 @@ class RealTimeTrackingService {
   private getRouteWaypoints(route: Route): RoutePoint[] {
     const waypoints: RoutePoint[] = [];
 
-    // Adicionar estudantes como waypoints
     route.students.forEach(student => {
       waypoints.push({
         id: student.id,
@@ -291,7 +364,6 @@ class RealTimeTrackingService {
       return;
     }
 
-    // Criar uma cópia da rota para não modificar a original
     const activeRoute: ActiveTrip = {
       id: 'trip-' + Date.now(),
       routeId: route.id,
@@ -301,7 +373,7 @@ class RealTimeTrackingService {
       students: route.students.map(student => ({
         studentId: student.id,
         status: 'waiting',
-        direction: 'to_school' // Assumindo 'to_school' como padrão
+        direction: 'to_school'
       }))
     };
 
@@ -314,7 +386,6 @@ class RealTimeTrackingService {
 
   getActiveTrackingRoute(driverId?: string): any {
     if (!driverId) {
-      // Se nenhum driverId for fornecido, retorna a primeira rota ativa encontrada
       const driverIds = Object.keys(this.activeRoutes);
       if (driverIds.length > 0) {
         const currentDriverId = driverIds[0];
@@ -379,11 +450,11 @@ class RealTimeTrackingService {
       lastLocation.lng
     );
 
-    return distance / (timeDiff / 3600000); // km/h
+    return distance / (timeDiff / 3600000);
   }
 
   private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371; // Raio da Terra em km
+    const R = 6371;
     const dLat = this.degreesToRadians(lat2 - lat1);
     const dLon = this.degreesToRadians(lon2 - lon1);
     const a =
@@ -391,7 +462,7 @@ class RealTimeTrackingService {
       Math.cos(this.degreesToRadians(lat1)) * Math.cos(this.degreesToRadians(lat2)) *
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c; // Distância em km
+    return R * c;
   }
 
   private degreesToRadians(degrees: number): number {
@@ -407,7 +478,6 @@ class RealTimeTrackingService {
     const routePoints: any[] = [];
     const studentsByAddress: { [address: string]: any[] } = {};
 
-    // Agrupar estudantes pelo mesmo endereço
     route.students.forEach(student => {
       if (!studentsByAddress[student.address]) {
         studentsByAddress[student.address] = [];
@@ -415,12 +485,10 @@ class RealTimeTrackingService {
       studentsByAddress[student.address].push(student);
     });
 
-    // Criar pontos da rota
     Object.keys(studentsByAddress).forEach(address => {
       const students = studentsByAddress[address];
 
       if (students.length === 1) {
-        // Se houver apenas um estudante no endereço, criar um ponto normal
         const student = students[0];
         routePoints.push({
           id: student.id,
@@ -433,7 +501,6 @@ class RealTimeTrackingService {
           lng: parseFloat(''+student.address.split(',')[1]),
         });
       } else {
-        // Se houver múltiplos estudantes no mesmo endereço, criar um ponto "misto"
         const mixedPoint = {
           id: `mixed-${address}`,
           type: 'mixed',
@@ -451,7 +518,6 @@ class RealTimeTrackingService {
       }
     });
 
-    // Adicionar escolas como pontos da rota
     const schools = Object.values(this.schoolData);
     schools.forEach(school => {
       routePoints.push({
@@ -484,7 +550,6 @@ class RealTimeTrackingService {
     };
   }
 
-  // Método para simular o atraso na rota
   async simulateRouteDelay(driverId: string, reason: string, delayInMinutes: number, guardianIds?: string[]) {
     const activeRoute = this.getActiveTrackingRoute(driverId);
     if (!activeRoute) {
@@ -498,14 +563,11 @@ class RealTimeTrackingService {
       return;
     }
 
-    // Adicionar o atraso ao tempo estimado atual
     const newEstimatedTime = new Date(new Date(currentEstimatedTime).getTime() + delayInMinutes * 60000).toISOString();
 
-    // Enviar notificação aos responsáveis
     await this.sendDelayNotification('Nome do Motorista', reason, newEstimatedTime, guardianIds);
   }
 
-  // Método para enviar notificação de atraso
   private async sendDelayNotification(driverName: string, reason: string, newEstimatedTime?: string, guardianIds?: string[]) {
     const notificationData = {
       driverName,
@@ -514,11 +576,9 @@ class RealTimeTrackingService {
       guardianIds
     };
 
-    // Simulação de envio de notificação (pode ser substituído por uma implementação real)
     console.log('Notificação de Atraso:', notificationData);
   }
 
-  // Add missing methods for off-route detection and navigation
   getOffRouteStatus() {
     return {
       isOffRoute: false,
@@ -533,11 +593,11 @@ class RealTimeTrackingService {
   }
 
   getOffRouteThreshold(): number {
-    return 150; // Default 150 meters
+    return 150;
   }
 
   getMinRecalculationInterval(): number {
-    return 30; // Default 30 seconds
+    return 30;
   }
 
   setOffRouteThreshold(threshold: number): void {
@@ -556,7 +616,6 @@ class RealTimeTrackingService {
     console.log('Adding route listener');
   }
 
-  // Navigation methods
   isAutoNavigationEnabled(): boolean {
     return false;
   }
@@ -565,7 +624,6 @@ class RealTimeTrackingService {
     console.log(`Auto navigation ${enabled ? 'enabled' : 'disabled'}`);
   }
 
-  // Mapbox token methods
   setMapboxToken(token: string): void {
     console.log('Setting Mapbox token');
   }
@@ -574,7 +632,6 @@ class RealTimeTrackingService {
     console.log('Reloading Mapbox token');
   }
 
-  // Notification methods
   areNotificationsEnabled(): boolean {
     return true;
   }
@@ -607,5 +664,4 @@ class RealTimeTrackingService {
 
 export const realTimeTrackingService = new RealTimeTrackingService();
 
-// Export RoutePoint interface
 export type { RoutePoint };
