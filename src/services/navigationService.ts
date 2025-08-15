@@ -1,4 +1,5 @@
 import { RoutePoint } from './realTimeTrackingService';
+import { sanitizeString, createSafeElement } from '../utils/sanitizer';
 
 interface NavigationOptions {
     destination: RoutePoint;
@@ -134,33 +135,45 @@ class NavigationService {
     // Mostrar opções de navegação para o usuário escolher
     private showNavigationOptions(routePoints: RoutePoint[], currentLocation?: { lat: number; lng: number }): void {
         const firstDestination = routePoints[0];
-        const destinationName = firstDestination.studentName || firstDestination.schoolName || firstDestination.address;
+        const destinationName = sanitizeString(firstDestination.studentName || firstDestination.schoolName || firstDestination.address || '');
 
-        // Criar modal de opções
+        // Criar modal de opções de forma segura
         const modal = document.createElement('div');
         modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-        modal.innerHTML = `
-            <div class="bg-white rounded-lg p-6 max-w-sm mx-4 shadow-xl">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">🧭 Iniciar Navegação</h3>
-                <p class="text-gray-600 mb-4">Escolha o app de navegação para ir até:</p>
-                <p class="font-medium text-gray-800 mb-6">${destinationName}</p>
-                
-                <div class="space-y-3">
-                    <button id="nav-google" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
-                        🗺️ Google Maps
-                    </button>
-                    <button id="nav-waze" class="w-full bg-purple-500 hover:bg-purple-600 text-white py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
-                        🚗 Waze
-                    </button>
-                    <button id="nav-apple" class="w-full bg-gray-500 hover:bg-gray-600 text-white py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
-                        🍎 Apple Maps
-                    </button>
-                    <button id="nav-cancel" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 px-4 rounded-lg transition-colors">
-                        Cancelar
-                    </button>
-                </div>
-            </div>
-        `;
+        
+        const modalContent = document.createElement('div');
+        modalContent.className = 'bg-white rounded-lg p-6 max-w-sm mx-4 shadow-xl';
+        
+        const title = createSafeElement('h3', '🧭 Iniciar Navegação', 'text-lg font-semibold text-gray-800 mb-4');
+        const description = createSafeElement('p', 'Escolha o app de navegação para ir até:', 'text-gray-600 mb-4');
+        const destination = createSafeElement('p', destinationName, 'font-medium text-gray-800 mb-6');
+        
+        modalContent.appendChild(title);
+        modalContent.appendChild(description);
+        modalContent.appendChild(destination);
+        
+        const buttonsContainer = document.createElement('div');
+        buttonsContainer.className = 'space-y-3';
+        
+        const googleBtn = createSafeElement('button', '🗺️ Google Maps', 'w-full bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors');
+        googleBtn.id = 'nav-google';
+        
+        const wazeBtn = createSafeElement('button', '🚗 Waze', 'w-full bg-purple-500 hover:bg-purple-600 text-white py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors');
+        wazeBtn.id = 'nav-waze';
+        
+        const appleBtn = createSafeElement('button', '🍎 Apple Maps', 'w-full bg-gray-500 hover:bg-gray-600 text-white py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors');
+        appleBtn.id = 'nav-apple';
+        
+        const cancelBtn = createSafeElement('button', 'Cancelar', 'w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 px-4 rounded-lg transition-colors');
+        cancelBtn.id = 'nav-cancel';
+        
+        buttonsContainer.appendChild(googleBtn);
+        buttonsContainer.appendChild(wazeBtn);
+        buttonsContainer.appendChild(appleBtn);
+        buttonsContainer.appendChild(cancelBtn);
+        
+        modalContent.appendChild(buttonsContainer);
+        modal.appendChild(modalContent);
 
         document.body.appendChild(modal);
 

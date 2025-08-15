@@ -18,7 +18,7 @@ export const AuthFlow = () => {
     setIsLoading(true);
     try {
       // Aqui você implementaria a lógica de autenticação
-      console.log('Login attempt:', { email, password });
+      console.log('Login attempt for user:', email);
       
       // Simular chamada de API
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -131,7 +131,7 @@ export const AuthFlow = () => {
     setIsLoading(true);
     try {
       // Aqui você implementaria a lógica de cadastro
-      console.log('Register attempt:', { name, email, phone, password });
+      console.log('Register attempt for user:', { name, email, phone });
       
       // Simular chamada de API
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -164,7 +164,7 @@ export const AuthFlow = () => {
     setIsLoading(true);
     try {
       // Aqui você implementaria a integração com Google OAuth
-      console.log('Google auth attempt');
+      console.log('Google auth attempt initiated');
       
       // Simular chamada de API
       await new Promise(resolve => setTimeout(resolve, 1500));
@@ -195,7 +195,7 @@ export const AuthFlow = () => {
     setIsLoading(true);
     try {
       // Aqui você implementaria a lógica de recuperação de senha
-      console.log('Forgot password for:', email);
+      console.log('Password recovery requested for:', email);
       
       // Simular chamada de API
       await new Promise(resolve => setTimeout(resolve, 1500));
