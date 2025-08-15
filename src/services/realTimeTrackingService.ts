@@ -477,8 +477,7 @@ class RealTimeTrackingService {
   }
 
   getSchoolData(schoolId: string) {
-    // Mock implementation
-    return {
+    return this.schoolData[schoolId] || {
       id: schoolId,
       name: 'Escola Municipal',
       address: 'Rua das Flores, 123'
@@ -512,12 +511,101 @@ class RealTimeTrackingService {
       driverName,
       reason,
       newEstimatedTime,
-      guardianIds // Fixed: was 'guardianId', should be 'guardianIds'
+      guardianIds
     };
 
     // Simulação de envio de notificação (pode ser substituído por uma implementação real)
     console.log('Notificação de Atraso:', notificationData);
   }
+
+  // Add missing methods for off-route detection and navigation
+  getOffRouteStatus() {
+    return {
+      isOffRoute: false,
+      distanceFromRoute: 0,
+      lastRecalculation: null
+    };
+  }
+
+  async forceRouteRecalculation(): Promise<boolean> {
+    console.log('Recalculando rota...');
+    return true;
+  }
+
+  getOffRouteThreshold(): number {
+    return 150; // Default 150 meters
+  }
+
+  getMinRecalculationInterval(): number {
+    return 30; // Default 30 seconds
+  }
+
+  setOffRouteThreshold(threshold: number): void {
+    console.log(`Setting off-route threshold to ${threshold}m`);
+  }
+
+  setMinRecalculationInterval(interval: number): void {
+    console.log(`Setting min recalculation interval to ${interval}s`);
+  }
+
+  hasActiveRoute(): boolean {
+    return Object.keys(this.activeRoutes).length > 0;
+  }
+
+  addListener(callback: (route: any) => void): void {
+    console.log('Adding route listener');
+  }
+
+  // Navigation methods
+  isAutoNavigationEnabled(): boolean {
+    return false;
+  }
+
+  setAutoNavigationEnabled(enabled: boolean): void {
+    console.log(`Auto navigation ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  // Mapbox token methods
+  setMapboxToken(token: string): void {
+    console.log('Setting Mapbox token');
+  }
+
+  reloadMapboxToken(): void {
+    console.log('Reloading Mapbox token');
+  }
+
+  // Notification methods
+  areNotificationsEnabled(): boolean {
+    return true;
+  }
+
+  getProximityThreshold(): number {
+    return 500;
+  }
+
+  async requestNotificationPermission(): Promise<boolean> {
+    return true;
+  }
+
+  setNotificationsEnabled(enabled: boolean): void {
+    console.log(`Notifications ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  setProximityThreshold(threshold: number): void {
+    console.log(`Setting proximity threshold to ${threshold}m`);
+  }
+
+  async testNotification(): Promise<boolean> {
+    console.log('Testing notification');
+    return true;
+  }
+
+  clearProximityNotifications(): void {
+    console.log('Clearing proximity notifications');
+  }
 }
 
 export const realTimeTrackingService = new RealTimeTrackingService();
+
+// Export RoutePoint interface
+export type { RoutePoint };

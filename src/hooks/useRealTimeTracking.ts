@@ -20,7 +20,7 @@ export interface RoutePoint {
 export interface GuardianTrackingInfo {
   hasActiveRoute: boolean;
   driverLocation?: RouteLocation;
-  driverName?: string; // Added missing property
+  driverName?: string;
   routeGeometry?: any;
   estimatedArrival?: string;
   nextStop?: RoutePoint;
@@ -43,3 +43,6 @@ export const useGuardianTracking = (guardianId: string): GuardianTrackingInfo =>
 
   return trackingInfo;
 };
+
+// Add the missing export
+export const useRealTimeTracking = useGuardianTracking;

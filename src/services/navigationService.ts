@@ -305,4 +305,4 @@ class NavigationService {
 }
 
 export const navigationService = NavigationService.getInstance();
-export type { NavigationOptions };
+export type { NavigationOptions, RoutePoint };
