@@ -125,29 +125,54 @@ export const GuardianRealTimeMap = ({
     }
   };
 
-  // Função para agrupar estudantes pelo mesmo endereço
-  const groupStudentsByAddress = (routePoints: any[]) => {
-    const addressGroups: { [address: string]: any[] } = {};
-    
-    routePoints.forEach(point => {
-      if (point.type === 'student') {
-        const address = point.address || 'Endereço não informado';
-        if (!addressGroups[address]) {
-          addressGroups[address] = [];
-        }
-        addressGroups[address].push({
-          id: point.studentId,
-          name: point.studentName,
-          schoolName: point.schoolName,
-          address: point.address,
-          lat: point.lat,
-          lng: point.lng
-        });
+// Função para agrupar estudantes pelo mesmo endereço
+const groupStudentsByAddress = (routePoints: any[]) => {
+  const addressGroups: { [address: string]: any[] } = {};
+  
+  routePoints.forEach(point => {
+    if (point.type === 'student') {
+      const address = point.address || 'Endereço não informado';
+      if (!addressGroups[address]) {
+        addressGroups[address] = [];
       }
-    });
+      addressGroups[address].push({
+        id: point.studentId,
+        name: point.studentName,
+        schoolName: point.schoolName,
+        address: point.address,
+        lat: point.lat,
+        lng: point.lng
+      });
+    }
+  });
+  
+  return addressGroups;
+};
+
+// Função para calcular distância do rastro
+const calculateTrailDistance = (locationHistory: any[]) => {
+  if (!locationHistory || locationHistory.length < 2) return '0km';
+  
+  let totalDistance = 0;
+  for (let i = 1; i < locationHistory.length; i++) {
+    const prev = locationHistory[i - 1];
+    const curr = locationHistory[i];
     
-    return addressGroups;
-  };
+    // Simple distance calculation using Haversine formula
+    const R = 6371; // Earth's radius in km
+    const dLat = (curr.lat - prev.lat) * Math.PI / 180;
+    const dLon = (curr.lng - prev.lng) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(prev.lat * Math.PI / 180) * Math.cos(curr.lat * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c;
+    
+    totalDistance += distance;
+  }
+  
+  return totalDistance < 1 ? `${Math.round(totalDistance * 1000)}m` : `${totalDistance.toFixed(1)}km`;
+};
 
   // Função para mostrar modal com estudantes do mesmo endereço
   const showStudentsAtAddress = (address: string, students: any[]) => {

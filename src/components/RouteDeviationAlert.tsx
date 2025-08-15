@@ -4,7 +4,8 @@ import { realTimeTrackingService } from '@/services/realTimeTrackingService';
 
 interface RouteDeviationData {
   isOffRoute: boolean;
-  distance: number;
+  distanceFromRoute: number;
+  distance?: number; // Legacy compatibility
   lastRecalculation?: string;
   driverName?: string;
   estimatedDelay?: number;
@@ -35,7 +36,8 @@ export const RouteDeviationAlert: React.FC<RouteDeviationAlertProps> = ({
     if (status.isOffRoute && activeRoute) {
       setDeviationData({
         isOffRoute: status.isOffRoute,
-        distance: status.distance,
+        distanceFromRoute: status.distanceFromRoute || 0,
+        distance: status.distanceFromRoute || 0, // Legacy compatibility
         lastRecalculation: status.lastRecalculation,
         driverName: activeRoute.driverName,
         estimatedDelay: activeRoute.estimatedDuration ? Math.round(activeRoute.estimatedDuration * 0.1) : undefined
@@ -55,7 +57,8 @@ export const RouteDeviationAlert: React.FC<RouteDeviationAlertProps> = ({
           if (status.isOffRoute) {
             setDeviationData(prev => prev ? {
               ...prev,
-              distance: status.distance,
+              distanceFromRoute: status.distanceFromRoute || 0,
+              distance: status.distanceFromRoute || 0,
               lastRecalculation: status.lastRecalculation
             } : null);
           } else {
@@ -118,7 +121,7 @@ export const RouteDeviationAlert: React.FC<RouteDeviationAlertProps> = ({
                 {deviationData.driverName || 'O motorista'} saiu da rota planejada
               </p>
               <p className="text-xs text-gray-600">
-                Distância da rota: <span className="font-semibold text-orange-600">{formatDistance(deviationData.distance)}</span>
+                Distância da rota: <span className="font-semibold text-orange-600">{formatDistance(deviationData.distanceFromRoute)}</span>
               </p>
               {deviationData.estimatedDelay && (
                 <p className="text-xs text-gray-600 mt-1">

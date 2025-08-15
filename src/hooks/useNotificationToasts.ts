@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 
 interface NotificationData {
   id: string;
-  type: 'proximity' | 'arrival' | 'delay';
+  type: 'proximity' | 'arrival' | 'delay' | 'success' | 'error' | 'warning' | 'info';
   title: string;
   message: string;
   studentName?: string;
@@ -15,6 +15,7 @@ interface NotificationData {
 interface UseNotificationToastsReturn {
   notifications: NotificationData[];
   addNotification: (notification: Omit<NotificationData, 'id' | 'timestamp'>) => void;
+  addToast: (notification: Omit<NotificationData, 'id' | 'timestamp'>) => void;
   dismissNotification: (id: string) => void;
   clearAllNotifications: () => void;
   handleNotificationAction: (id: string, action: string) => void;
@@ -95,7 +96,7 @@ export const useNotificationToasts = (): UseNotificationToastsReturn => {
         const { payload } = data;
         
         // Converter dados da notificação para formato do toast
-        let toastType: 'proximity' | 'arrival' | 'delay' = 'proximity';
+        let toastType: 'proximity' | 'arrival' | 'delay' | 'success' | 'error' | 'warning' | 'info' = 'proximity';
         if (payload.type === 'arrival') toastType = 'arrival';
         if (payload.type === 'delay') toastType = 'delay';
         
@@ -175,6 +176,7 @@ export const useNotificationToasts = (): UseNotificationToastsReturn => {
   return {
     notifications,
     addNotification,
+    addToast: addNotification, // Alias for compatibility
     dismissNotification,
     clearAllNotifications,
     handleNotificationAction

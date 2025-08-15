@@ -5,6 +5,7 @@ import { useNotificationToasts } from '@/hooks/useNotificationToasts';
 interface RouteDeviationState {
   isOffRoute: boolean;
   distance: number;
+  distanceFromRoute?: number; // Compatibility property
   lastRecalculation?: string;
   consecutiveDeviations: number;
   alertShown: boolean;
@@ -85,7 +86,8 @@ export const useRouteDeviationAlert = (options: UseRouteDeviationAlertOptions = 
       const newState = {
         ...prevState,
         isOffRoute: status.isOffRoute,
-        distance: status.distance,
+        distance: status.distanceFromRoute || 0,
+        distanceFromRoute: status.distanceFromRoute || 0, // Compatibility
         lastRecalculation: status.lastRecalculation
       };
 
@@ -107,7 +109,6 @@ export const useRouteDeviationAlert = (options: UseRouteDeviationAlertOptions = 
           
           if (enableToastNotifications) {
             addToast({
-              id: `back-on-route-${Date.now()}`,
               type: 'success',
               title: '✅ De volta à rota',
               message: 'O motorista retornou à rota planejada',
@@ -142,10 +143,9 @@ export const useRouteDeviationAlert = (options: UseRouteDeviationAlertOptions = 
       // Notificação toast
       if (enableToastNotifications) {
         addToast({
-          id: `route-deviation-${Date.now()}`,
           type: 'warning',
           title: '⚠️ Desvio de Rota',
-          message: `Motorista está ${Math.round(deviationState.distance)}m fora da rota`,
+          message: `Motorista está ${Math.round(deviationState.distance || 0)}m fora da rota`,
           duration: 8000
         });
       }
@@ -198,7 +198,6 @@ export const useRouteDeviationAlert = (options: UseRouteDeviationAlertOptions = 
       if (success) {
         if (enableToastNotifications) {
           addToast({
-            id: `route-recalculated-${Date.now()}`,
             type: 'info',
             title: '🔄 Rota Recalculada',
             message: 'Nova rota calculada com sucesso',
@@ -211,7 +210,6 @@ export const useRouteDeviationAlert = (options: UseRouteDeviationAlertOptions = 
       } else {
         if (enableToastNotifications) {
           addToast({
-            id: `route-recalc-error-${Date.now()}`,
             type: 'error',
             title: '❌ Erro no Recálculo',
             message: 'Não foi possível recalcular a rota',
@@ -228,7 +226,6 @@ export const useRouteDeviationAlert = (options: UseRouteDeviationAlertOptions = 
       
       if (enableToastNotifications) {
         addToast({
-          id: `route-recalc-error-${Date.now()}`,
           type: 'error',
           title: '❌ Erro no Recálculo',
           message: 'Falha na comunicação com o servidor',

@@ -1,3 +1,9 @@
+interface NotificationAction {
+  action: string;
+  title: string;
+  icon?: string;
+}
+
 interface NotificationPayload {
   title: string;
   body: string;
@@ -117,11 +123,8 @@ class PushNotificationService {
           badge: payload.badge || '/badge-72x72.png',
           tag: payload.tag,
           data: payload.data,
-          actions: payload.actions,
           requireInteraction: true, // Manter visível até interação
-          silent: false,
-          vibrate: [200, 100, 200], // Padrão de vibração
-          timestamp: Date.now()
+          silent: false
         });
       } else {
         // Fallback para notificação simples
