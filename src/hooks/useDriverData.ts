@@ -472,32 +472,60 @@ export const useDriverData = () => {
       );
       console.log('✅ Rastreamento da rota iniciado com sucesso');
       
-      // Enviar notificação em tempo real para todos os responsáveis da rota
-      const allGuardianIds = route.students
-        .map(student => guardians.find(g => g.id === student.guardianId && (g.isActive !== false)))
-        .filter(Boolean)
-        .map(guardian => guardian!.id);
+      // Enviar notificação em tempo real para responsáveis da rota (deduplicada por endereço)
+      const uniqueGuardiansByAddress = new Map<string, { guardian: Guardian; students: Student[] }>();
+      
+      // Agrupar estudantes por responsável e endereço para evitar notificações duplicadas
+      route.students.forEach(student => {
+        const guardian = guardians.find(g => g.id === student.guardianId && (g.isActive !== false));
+        if (guardian) {
+          const key = `${guardian.id}-${student.address}`;
+          if (!uniqueGuardiansByAddress.has(key)) {
+            uniqueGuardiansByAddress.set(key, { guardian, students: [] });
+          }
+          uniqueGuardiansByAddress.get(key)!.students.push(student);
+        }
+      });
 
-      if (allGuardianIds.length > 0) {
-        console.log('📨 Enviando notificações de início de rota para:', allGuardianIds.length, 'responsáveis');
+      if (uniqueGuardiansByAddress.size > 0) {
+        console.log('📨 Enviando notificações de início de rota para:', uniqueGuardiansByAddress.size, 'responsáveis únicos (deduplicadas por endereço)');
         
-        allGuardianIds.forEach((guardianId, index) => {
-          console.log(`📨 Enviando para responsável ${index + 1}/${allGuardianIds.length}:`, guardianId);
+        let index = 0;
+        uniqueGuardiansByAddress.forEach(({ guardian, students }, key) => {
+          const studentNames = students.map(s => s.name).join(', ');
+          const studentsCount = students.length;
+          
+          let message;
+          if (direction === 'to_home') {
+            // Para desembarque em casa, os alunos serão buscados na escola
+            message = studentsCount > 1 
+              ? `${driver.name} iniciou a rota "${route.name}" para buscar ${studentNames} (${studentsCount} estudantes) na escola`
+              : `${driver.name} iniciou a rota "${route.name}" para buscar ${studentNames} na escola`;
+          } else {
+            // Para ida à escola, mantém a mensagem original
+            message = studentsCount > 1 
+              ? `${driver.name} iniciou a rota "${route.name}" para buscar ${studentNames} (${studentsCount} estudantes no mesmo endereço)`
+              : `${driver.name} iniciou a rota "${route.name}" para buscar ${studentNames}`;
+          }
+          
+          console.log(`📨 Enviando para responsável ${index + 1}/${uniqueGuardiansByAddress.size}: ${guardian.name} (${studentsCount} estudante(s))`);
           
           realTimeNotificationService.sendNotification({
-            guardianId,
+            guardianId: guardian.id,
             type: 'route_started',
             title: 'Rota Iniciada',
-            message: `${driver.name} iniciou a rota "${route.name}" com ${route.students.length} estudante(s)`
+            message
           });
           
           // Pequeno delay para garantir processamento
           setTimeout(() => {
-            console.log('✅ Notificação processada para:', guardianId);
+            console.log('✅ Notificação processada para:', guardian.name);
           }, 100 * index);
+          
+          index++;
         });
         
-        console.log('✅ Todas as notificações de início de rota foram enviadas');
+        console.log('✅ Todas as notificações de início de rota foram enviadas (sem duplicatas)');
       } else {
         console.log('⚠️ Nenhum responsável ativo encontrado para notificar');
       }
@@ -721,22 +749,53 @@ export const useDriverData = () => {
       const direction = activeTrip.students[0]?.direction || 'to_school';
       const route = routes.find(r => r.id === activeTrip.routeId);
       
-      // Enviar notificação em tempo real para todos os responsáveis da rota
+      // Enviar notificação em tempo real para responsáveis da rota (deduplicada por endereço)
       if (route) {
-        const allGuardianIds = route.students
-          .map(student => guardians.find(g => g.id === student.guardianId && (g.isActive !== false)))
-          .filter(Boolean)
-          .map(guardian => guardian!.id);
+        const uniqueGuardiansByAddress = new Map<string, { guardian: Guardian; students: Student[] }>();
+        
+        // Agrupar estudantes por responsável e endereço para evitar notificações duplicadas
+        route.students.forEach(student => {
+          const guardian = guardians.find(g => g.id === student.guardianId && (g.isActive !== false));
+          if (guardian) {
+            const key = `${guardian.id}-${student.address}`;
+            if (!uniqueGuardiansByAddress.has(key)) {
+              uniqueGuardiansByAddress.set(key, { guardian, students: [] });
+            }
+            uniqueGuardiansByAddress.get(key)!.students.push(student);
+          }
+        });
 
-        if (allGuardianIds.length > 0) {
-          allGuardianIds.forEach(guardianId => {
+        if (uniqueGuardiansByAddress.size > 0) {
+          console.log('📨 Enviando notificações de fim de rota para:', uniqueGuardiansByAddress.size, 'responsáveis únicos (deduplicadas por endereço)');
+          
+          uniqueGuardiansByAddress.forEach(({ guardian, students }) => {
+            const studentNames = students.map(s => s.name).join(', ');
+            const studentsCount = students.length;
+            
+            let message;
+            if (direction === 'to_home') {
+              // Para desembarque em casa, os alunos chegaram em casa
+              message = studentsCount > 1 
+                ? `${driver.name} finalizou a rota "${route.name}" com sucesso. ${studentNames} (${studentsCount} estudantes) chegaram em casa`
+                : `${driver.name} finalizou a rota "${route.name}" com sucesso. ${studentNames} chegou em casa`;
+            } else {
+              // Para ida à escola, mantém a mensagem original
+              message = studentsCount > 1 
+                ? `${driver.name} finalizou a rota "${route.name}" com sucesso. ${studentNames} (${studentsCount} estudantes) chegaram à escola`
+                : `${driver.name} finalizou a rota "${route.name}" com sucesso. ${studentNames} chegou à escola`;
+            }
+            
+            console.log(`📨 Enviando notificação de fim de rota para: ${guardian.name} (${studentsCount} estudante(s))`);
+            
             realTimeNotificationService.sendNotification({
-              guardianId,
+              guardianId: guardian.id,
               type: 'route_completed',
               title: 'Rota Concluída',
-              message: `${driver.name} finalizou a rota "${route.name}" com sucesso`
+              message
             });
           });
+          
+          console.log('✅ Todas as notificações de fim de rota foram enviadas (sem duplicatas)');
         }
       }
       

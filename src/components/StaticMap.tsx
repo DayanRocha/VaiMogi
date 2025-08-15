@@ -81,8 +81,15 @@ export const StaticMap: React.FC<StaticMapProps> = ({
           {/* Localização do Motorista */}
           {driverLocation && (
             <div className="mb-8 text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-500 text-white rounded-full text-2xl mb-4 shadow-lg">
-                🚐
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full text-2xl mb-4 shadow-xl border-4 border-white" style={{
+                background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                boxShadow: '0 8px 25px rgba(59, 130, 246, 0.4), 0 4px 8px rgba(0, 0, 0, 0.1)'
+              }}>
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M5 11L6.5 6.5H17.5L19 11M5 11V16H19V11M5 11H19M7 16V18H9V16M15 16V18H17V16" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="white" fillOpacity="0.9"/>
+                  <circle cx="8" cy="17" r="1.2" fill="white"/>
+                  <circle cx="16" cy="17" r="1.2" fill="white"/>
+                </svg>
               </div>
               <div className="bg-white/90 rounded-lg p-4 shadow-md">
                 <h4 className="font-semibold text-gray-800 mb-2">Localização Atual</h4>

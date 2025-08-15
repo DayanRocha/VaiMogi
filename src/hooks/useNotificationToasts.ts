@@ -128,15 +128,16 @@ export const useNotificationToasts = (): UseNotificationToastsReturn => {
       
       switch (type) {
         case 'proximity':
-          addNotification({
-            type: 'proximity',
-            title: `🚐 ${data.driverName} está chegando!`,
-            message: `O motorista está a ${data.distance}m de ${data.studentName}`,
-            studentName: data.studentName,
-            driverName: data.driverName,
-            distance: data.distance,
-            duration: 10000 // 10 segundos para proximidade
-          });
+          // Notificações de proximidade desabilitadas
+          // addNotification({
+          //   type: 'proximity',
+          //   title: `🚐 ${data.driverName} está chegando!`,
+          //   message: `O motorista está a ${data.distance}m de ${data.studentName}`,
+          //   studentName: data.studentName,
+          //   driverName: data.driverName,
+          //   distance: data.distance,
+          //   duration: 10000 // 10 segundos para proximidade
+          // });
           break;
           
         case 'arrival':

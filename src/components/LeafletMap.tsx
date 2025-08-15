@@ -45,7 +45,26 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
         coordinates: [driverLocation.lng, driverLocation.lat] as [number, number],
         popup: `
           <div class="p-3">
-            <h3 class="font-bold text-sm mb-1">🚐 ${activeRoute.driverName}</h3>
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <div style="
+                width: 32px;
+                height: 32px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+                border: 2px solid white;
+                border-radius: 50%;
+                box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+              ">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M5 11L6.5 6.5H17.5L19 11M5 11V16H19V11M5 11H19M7 16V18H9V16M15 16V18H17V16" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="white" fill-opacity="0.9"/>
+                  <circle cx="8" cy="17" r="1" fill="white"/>
+                  <circle cx="16" cy="17" r="1" fill="white"/>
+                </svg>
+              </div>
+              <h3 class="font-bold text-sm" style="color: #1f2937; margin: 0;">${activeRoute.driverName}</h3>
+            </div>
             <p class="text-xs text-gray-600">Motorista da Van</p>
             <p class="text-xs mt-1">Última atualização: ${new Date(driverLocation.timestamp).toLocaleTimeString()}</p>
           </div>

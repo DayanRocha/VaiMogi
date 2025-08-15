@@ -667,51 +667,51 @@ export const GuardianRealTimeMap = ({
     if (routeInfo.hasActiveRoute && routeInfo.driverLocation) {
       const { lat, lng } = routeInfo.driverLocation;
 
-      // Calcular rotação baseada na direção do movimento
-      let rotation = 0;
-      if (lastPosition) {
-        const deltaLat = lat - lastPosition.lat;
-        const deltaLng = lng - lastPosition.lng;
-        rotation = Math.atan2(deltaLng, deltaLat) * (180 / Math.PI);
-      }
+      // Remover cálculo de rotação - não mais necessário
 
       // Atualizar ou criar marcador do motorista
       if (driverMarker.current) {
         driverMarker.current.setLngLat([lng, lat]);
-        
-        // Atualizar rotação do marcador existente
-        const markerElement = driverMarker.current.getElement();
-        const arrowContainer = markerElement.querySelector('.arrow-container') as HTMLElement;
-        if (arrowContainer) {
-          arrowContainer.style.transform = `rotate(${rotation}deg)`;
-        }
       } else {
-        // Criar marcador com seta direcional
+        // Criar marcador com ícone de carro para o motorista (ícone maior e mais bonito)
         const markerElement = document.createElement('div');
-        markerElement.className = 'mapboxgl-marker-arrow';
+        markerElement.className = 'mapboxgl-marker-driver';
         markerElement.innerHTML = `
-          <div class="arrow-container" style="
-            width: 36px;
-            height: 36px;
-            background: #FF8C00;
-            border: 3px solid white;
-            border-radius: 50%;
+          <div style="
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 12px rgba(255, 140, 0, 0.5);
-            animation: navigationPulse 2s infinite;
-            transform: rotate(${rotation}deg);
-            transition: transform 0.3s ease;
-          ">
-            <svg width="18" height="18" fill="white" viewBox="0 0 24 24">
-              <path d="M12 2l-1.5 6L4 10l6.5 2L12 22l1.5-10L20 10l-6.5-2L12 2z"/>
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4), 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+          " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M5 11L6.5 6.5H17.5L19 11M5 11V16H19V11M5 11H19M7 16V18H9V16M15 16V18H17V16" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="white" fill-opacity="0.9"/>
+              <circle cx="8" cy="17" r="1" fill="white"/>
+              <circle cx="16" cy="17" r="1" fill="white"/>
             </svg>
           </div>
         `;
 
+        // Criar popup com nome do motorista
+        const popup = new mapboxgl.Popup({
+          offset: 25,
+          closeButton: false,
+          closeOnClick: false
+        }).setHTML(`
+          <div style="padding: 8px; text-align: center;">
+            <strong><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: inline-block; vertical-align: middle; margin-right: 4px;"><path d="M5 11L6.5 6.5H17.5L19 11M5 11V16H19V11M5 11H19M7 16V18H9V16M15 16V18H17V16" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="#3b82f6" fill-opacity="0.8"/></svg> ${routeInfo.driverName || 'Motorista'}</strong>
+          </div>
+        `);
+
         driverMarker.current = new mapboxgl.Marker(markerElement)
           .setLngLat([lng, lat])
+          .setPopup(popup)
           .addTo(map.current);
       }
 

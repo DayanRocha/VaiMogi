@@ -164,12 +164,22 @@ export const CleanDynamicMap: React.FC<CleanDynamicMapProps> = ({
         }}
       >
         <div className="relative">
-          {/* Ícone principal */}
-          <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-lg border-4 border-white">
-            <span className="text-white text-xl">🚐</span>
+          {/* Círculo principal com ícone maior e mais bonito */}
+          <div className="w-16 h-16 rounded-full flex items-center justify-center shadow-xl border-4 border-white" style={{
+            background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+            boxShadow: '0 8px 24px rgba(59, 130, 246, 0.4), 0 4px 8px rgba(0, 0, 0, 0.1)'
+          }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M5 11L6.5 6.5H17.5L19 11M5 11V16H19V11M5 11H19M7 16V18H9V16M15 16V18H17V16" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="white" fillOpacity="0.9"/>
+              <circle cx="8" cy="17" r="1.2" fill="white"/>
+              <circle cx="16" cy="17" r="1.2" fill="white"/>
+            </svg>
           </div>
-          {/* Pulso animado */}
-          <div className="absolute inset-0 w-12 h-12 bg-blue-400 rounded-full animate-ping opacity-30"></div>
+          {/* Animação de pulso melhorada */}
+          <div className="absolute inset-0 rounded-full animate-ping" style={{
+            background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+            opacity: 0.6
+          }}></div>
         </div>
       </div>
 
