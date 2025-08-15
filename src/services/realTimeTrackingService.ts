@@ -5,11 +5,23 @@ export interface RoutePoint {
   lat: number;
   lng: number;
   address: string;
-  type: 'student' | 'school';
+  type: 'student' | 'school' | 'mixed';
+  // Para pontos únicos (compatibilidade)
   studentId?: string;
   studentName?: string;
   schoolId?: string;
   schoolName?: string;
+  // Para pontos agrupados
+  students?: Array<{
+    id: string;
+    name: string;
+    schoolId?: string;
+    schoolName?: string;
+  }>;
+  schools?: Array<{
+    id: string;
+    name: string;
+  }>;
 }
 
 export interface TrackingRoute {
@@ -199,110 +211,181 @@ class RealTimeTrackingService {
     direction: 'to_school' | 'to_home'
   ): Promise<RoutePoint[]> {
     const points: RoutePoint[] = [];
+    const addressGroups: { [address: string]: any[] } = {};
+    const allSchoolsSet = new Set<string>();
+
+    // Buscar dados das escolas do localStorage
+    const getSchoolData = (schoolId: string) => {
+      try {
+        const savedSchools = localStorage.getItem('schools');
+        if (savedSchools) {
+          const schools = JSON.parse(savedSchools);
+          return schools.find((s: any) => s.id === schoolId);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar dados da escola:', error);
+      }
+      return null;
+    };
+
+    // Processar estudantes na ordem exata fornecida (sem agrupar por endereço)
+    // Isso garante que a ordem da lista seja respeitada na rota
+    console.log('📋 Processando estudantes na ordem:', students.map(s => s.name));
+    
+    for (const student of students) {
+      // Coletar todas as escolas dos estudantes usando schoolId
+      if (student.schoolId) {
+        const schoolData = getSchoolData(student.schoolId);
+        if (schoolData) {
+          allSchoolsSet.add(JSON.stringify({ 
+            id: schoolData.id, 
+            name: schoolData.name,
+            address: schoolData.address,
+            lat: schoolData.lat,
+            lng: schoolData.lng
+          }));
+        }
+      }
+    }
+
+    // Adicionar a escola principal se fornecida
+    if (school && school.id && school.name) {
+      allSchoolsSet.add(JSON.stringify({ 
+        id: school.id, 
+        name: school.name,
+        address: school.address,
+        lat: school.lat,
+        lng: school.lng
+      }));
+    }
+
+    const allUniqueSchools = Array.from(allSchoolsSet).map(s => JSON.parse(s));
+    
+    console.log('🏫 Escolas únicas encontradas:', allUniqueSchools.length, allUniqueSchools.map(s => s.name));
 
     if (direction === 'to_school') {
-      // Rota para escola: estudantes primeiro, depois escola
-      for (const student of students) {
+      // Rota para escola: processar estudantes na ordem exata fornecida
+      for (let i = 0; i < students.length; i++) {
+        const student = students[i];
+        const address = student.address || 'Endereço não informado';
+        let coords = null;
+
+        console.log(`🎯 Processando estudante ${i + 1}/${students.length}: ${student.name}`);
+
         if (student.lat && student.lng) {
+          coords = { lat: student.lat, lng: student.lng };
+        } else if (student.address) {
+          coords = await this.geocodeAddress(student.address);
+        }
+
+        if (coords) {
+          // Obter informações da escola do estudante
+          let schoolName = null;
+          if (student.schoolId) {
+            const schoolData = getSchoolData(student.schoolId);
+            if (schoolData) {
+              schoolName = schoolData.name;
+            }
+          }
+
+          // Adicionar ponto do estudante na ordem correta
           points.push({
-            lat: student.lat,
-            lng: student.lng,
-            address: student.address || 'Endereço não informado',
+            lat: coords.lat,
+            lng: coords.lng,
+            address,
             type: 'student',
             studentId: student.id,
-            studentName: student.name
+            studentName: student.name,
+            schoolId: student.schoolId,
+            schoolName: schoolName
           });
-        } else if (student.address) {
-          // Geocodificar endereço se não tiver coordenadas
-          const coords = await this.geocodeAddress(student.address);
-          if (coords) {
-            points.push({
-              lat: coords.lat,
-              lng: coords.lng,
-              address: student.address,
-              type: 'student',
-              studentId: student.id,
-              studentName: student.name
-            });
-          }
+
+          console.log(`✅ Adicionado ponto ${i + 1}: ${student.name} em ${address}`);
+        } else {
+          console.warn(`⚠️ Não foi possível obter coordenadas para ${student.name}`);
         }
       }
 
-      // Adicionar escola como destino final
-      if (school) {
-        if (school.lat && school.lng) {
+      // Adicionar todas as escolas únicas como pontos separados
+      for (const schoolData of allUniqueSchools) {
+        let coords = null;
+        
+        if (schoolData.lat && schoolData.lng) {
+          coords = { lat: schoolData.lat, lng: schoolData.lng };
+        } else if (schoolData.address) {
+          coords = await this.geocodeAddress(schoolData.address);
+        }
+        
+        if (coords) {
           points.push({
-            lat: school.lat,
-            lng: school.lng,
-            address: school.address || 'Escola',
+            lat: coords.lat,
+            lng: coords.lng,
+            address: schoolData.address || 'Escola',
             type: 'school',
-            schoolId: school.id,
-            schoolName: school.name
+            schoolId: schoolData.id,
+            schoolName: schoolData.name
           });
-        } else if (school.address) {
-          const coords = await this.geocodeAddress(school.address);
-          if (coords) {
-            points.push({
-              lat: coords.lat,
-              lng: coords.lng,
-              address: school.address,
-              type: 'school',
-              schoolId: school.id,
-              schoolName: school.name
-            });
-          }
         }
       }
     } else {
-      // Rota para casa: escola primeiro, depois estudantes
-      if (school) {
-        if (school.lat && school.lng) {
+      // Rota para casa: todas as escolas primeiro, depois estudantes na ordem fornecida
+      
+      // Adicionar todas as escolas únicas como pontos separados
+      for (const schoolData of allUniqueSchools) {
+        let coords = null;
+        
+        if (schoolData.lat && schoolData.lng) {
+          coords = { lat: schoolData.lat, lng: schoolData.lng };
+        } else if (schoolData.address) {
+          coords = await this.geocodeAddress(schoolData.address);
+        }
+        
+        if (coords) {
           points.push({
-            lat: school.lat,
-            lng: school.lng,
-            address: school.address || 'Escola',
+            lat: coords.lat,
+            lng: coords.lng,
+            address: schoolData.address || 'Escola',
             type: 'school',
-            schoolId: school.id,
-            schoolName: school.name
+            schoolId: schoolData.id,
+            schoolName: schoolData.name
           });
-        } else if (school.address) {
-          const coords = await this.geocodeAddress(school.address);
-          if (coords) {
-            points.push({
-              lat: coords.lat,
-              lng: coords.lng,
-              address: school.address,
-              type: 'school',
-              schoolId: school.id,
-              schoolName: school.name
-            });
-          }
         }
       }
 
-      // Adicionar estudantes
-      for (const student of students) {
+      // Adicionar estudantes individualmente na ordem fornecida
+      console.log('🏠 Processando estudantes para rota para casa na ordem:', students.map(s => s.name));
+      
+      for (let i = 0; i < students.length; i++) {
+        const student = students[i];
+        console.log(`🏠 Processando estudante ${i + 1}/${students.length}: ${student.name}`);
+        
+        let coords = null;
+
         if (student.lat && student.lng) {
+          coords = { lat: student.lat, lng: student.lng };
+        } else if (student.address) {
+          coords = await this.geocodeAddress(student.address);
+        }
+
+        if (coords) {
+          // Obter dados da escola do localStorage
+          const schoolData = this.getSchoolData(student.schoolId);
+          const schoolName = schoolData?.name || student.schoolName || 'Escola não encontrada';
+          
           points.push({
-            lat: student.lat,
-            lng: student.lng,
+            lat: coords.lat,
+            lng: coords.lng,
             address: student.address || 'Endereço não informado',
             type: 'student',
             studentId: student.id,
-            studentName: student.name
+            studentName: student.name,
+            schoolId: student.schoolId,
+            schoolName: schoolName
           });
-        } else if (student.address) {
-          const coords = await this.geocodeAddress(student.address);
-          if (coords) {
-            points.push({
-              lat: coords.lat,
-              lng: coords.lng,
-              address: student.address,
-              type: 'student',
-              studentId: student.id,
-              studentName: student.name
-            });
-          }
+          
+          console.log(`✅ Estudante ${student.name} adicionado à rota (escola: ${schoolName})`);
+        } else {
+          console.warn(`⚠️ Não foi possível obter coordenadas para o estudante ${student.name}`);
         }
       }
     }
@@ -310,7 +393,9 @@ class RealTimeTrackingService {
     console.log('📍 Pontos da rota construídos:', {
       totalPoints: points.length,
       studentPoints: points.filter(p => p.type === 'student').length,
-      schoolPoints: points.filter(p => p.type === 'school').length
+      schoolPoints: points.filter(p => p.type === 'school').length,
+      mixedPoints: points.filter(p => p.type === 'mixed').length,
+      uniqueSchools: allUniqueSchools.length
     });
 
     return points;

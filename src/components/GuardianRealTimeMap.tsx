@@ -129,6 +129,7 @@ export const GuardianRealTimeMap = ({
   const createRoutePointMarker = (point: any, index: number) => {
     const isStudent = point.type === 'student';
     const isSchool = point.type === 'school';
+    const isMixed = point.type === 'mixed';
     
     const markerElement = document.createElement('div');
     markerElement.className = 'route-point-marker';
@@ -171,14 +172,53 @@ export const GuardianRealTimeMap = ({
           </svg>
         </div>
       `;
+    } else if (isMixed) {
+      // Marcador especial para múltiplos estudantes no mesmo endereço
+      const studentCount = point.students?.length || 0;
+      markerElement.innerHTML = `
+        <div style="
+          width: 36px;
+          height: 36px;
+          background: #8B5CF6;
+          border: 2px solid white;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
+          cursor: pointer;
+          position: relative;
+        ">
+          <svg width="16" height="16" fill="white" viewBox="0 0 24 24">
+            <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zM4 18v-4h3v-3c0-1.1.9-2 2-2h2c1.1 0 2 .9 2 2v3h3v4H4zM12.5 11.5c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5S11 9.17 11 10s.67 1.5 1.5 1.5zM7.5 11.5C8.33 11.5 9 10.83 9 10s-.67-1.5-1.5-1.5S6 9.17 6 10s.67 1.5 1.5 1.5z"/>
+          </svg>
+          <div style="
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #EF4444;
+            color: white;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+          ">${studentCount}</div>
+        </div>
+      `;
     }
 
     const marker = new mapboxgl.Marker(markerElement)
       .setLngLat([point.lng, point.lat]);
 
     // Adicionar popup com informações
-    const popupContent = isStudent 
-      ? `
+    let popupContent = '';
+    
+    if (isStudent) {
+      popupContent = `
         <div style="padding: 8px;">
           <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
             <div style="width: 8px; height: 8px; background: #3B82F6; border-radius: 50%;"></div>
@@ -188,8 +228,9 @@ export const GuardianRealTimeMap = ({
             📍 ${point.address}
           </div>
         </div>
-      `
-      : `
+      `;
+    } else if (isSchool) {
+      popupContent = `
         <div style="padding: 8px;">
           <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
             <div style="width: 8px; height: 8px; background: #10B981; border-radius: 50%;"></div>
@@ -200,11 +241,49 @@ export const GuardianRealTimeMap = ({
           </div>
         </div>
       `;
-
-    marker.setPopup(
-      new mapboxgl.Popup({ offset: 15 })
-        .setHTML(popupContent)
-    );
+    } else if (isMixed && point.students) {
+      // Popup para múltiplos estudantes
+      const studentsHtml = point.students.map((student: any) => `
+        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
+          <div style="width: 6px; height: 6px; background: #8B5CF6; border-radius: 50%;"></div>
+          <span style="font-size: 12px; color: #333;">${student.name}</span>
+          ${student.schoolName ? `<span style="font-size: 10px; color: #666; margin-left: 4px;">(${student.schoolName})</span>` : ''}
+        </div>
+      `).join('');
+      
+      const schoolsHtml = point.schools && point.schools.length > 0 ? `
+        <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #eee;">
+          <div style="font-size: 11px; color: #666; margin-bottom: 4px;">Escolas:</div>
+          ${point.schools.map((school: any) => `
+            <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
+              <div style="width: 6px; height: 6px; background: #10B981; border-radius: 50%;"></div>
+              <span style="font-size: 11px; color: #10B981;">🏫 ${school.name}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : '';
+      
+      popupContent = `
+        <div style="padding: 8px; max-width: 250px;">
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+            <div style="width: 8px; height: 8px; background: #8B5CF6; border-radius: 50%;"></div>
+            <strong style="color: #8B5CF6;">👥 ${point.students.length} Estudantes</strong>
+          </div>
+          ${studentsHtml}
+          ${schoolsHtml}
+          <div style="font-size: 12px; color: #666; margin-top: 6px; padding-top: 4px; border-top: 1px solid #eee;">
+            📍 ${point.address}
+          </div>
+        </div>
+      `;
+    }
+    
+    if (popupContent) {
+      marker.setPopup(
+        new mapboxgl.Popup({ offset: 25 })
+          .setHTML(popupContent)
+      );
+    }
 
     return marker;
   };
@@ -354,24 +433,24 @@ export const GuardianRealTimeMap = ({
 
       // Encontrar o estudante do responsável
       const studentPoint = route.routePoints.find(point => 
-        point.type === 'student'
+        point.type === 'student' || point.type === 'mixed'
       );
       
-      // Encontrar a escola
-      const schoolPoint = route.routePoints.find(point => 
+      // Encontrar todas as escolas
+      const schoolPoints = route.routePoints.filter(point => 
         point.type === 'school'
       );
 
-      if (!studentPoint || !schoolPoint) {
+      if (!studentPoint || schoolPoints.length === 0) {
         console.warn('⚠️ Não foi possível encontrar pontos da rota para o responsável:', guardianId);
         return null;
       }
 
-      // Construir waypoints: motorista -> estudante -> escola
+      // Construir waypoints: motorista -> estudante -> todas as escolas
       const waypoints = [
         [route.currentLocation.lng, route.currentLocation.lat],
         [studentPoint.lng, studentPoint.lat],
-        [schoolPoint.lng, schoolPoint.lat]
+        ...schoolPoints.map(school => [school.lng, school.lat])
       ];
 
       // Fazer requisição para a API do Mapbox Directions
