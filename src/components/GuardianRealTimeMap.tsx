@@ -621,12 +621,25 @@ export const GuardianRealTimeMap = ({
         return null;
       }
 
-      // Construir waypoints: motorista -> estudante -> todas as escolas
-      const waypoints = [
-        [route.currentLocation.lng, route.currentLocation.lat],
-        [studentPoint.lng, studentPoint.lat],
-        ...schoolPoints.map(school => [school.lng, school.lat])
-      ];
+      // Construir waypoints baseado na direção da rota
+      let waypoints;
+      if (route.direction === 'to_home') {
+        // Desembarque em casa: motorista -> escolas -> estudantes (ordem inversa)
+        waypoints = [
+          [route.currentLocation.lng, route.currentLocation.lat],
+          ...schoolPoints.map(school => [school.lng, school.lat]),
+          [studentPoint.lng, studentPoint.lat]
+        ];
+        console.log('🏠 Rota para casa: motorista -> escolas -> estudantes');
+      } else {
+        // Embarque para escola: motorista -> estudantes -> escolas
+        waypoints = [
+          [route.currentLocation.lng, route.currentLocation.lat],
+          [studentPoint.lng, studentPoint.lat],
+          ...schoolPoints.map(school => [school.lng, school.lat])
+        ];
+        console.log('🚌 Rota para escola: motorista -> estudantes -> escolas');
+      }
 
       // Fazer requisição para a API do Mapbox Directions
       const waypointsStr = waypoints.map(wp => `${wp[0]},${wp[1]}`).join(';');
